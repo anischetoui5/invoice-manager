@@ -135,7 +135,7 @@ const handleLogin = (e: React.FormEvent) => {
 
           <div className="mt-6 text-center text-sm text-slate-600">
             Don't have an account?{' '}
-            <Link to="/" className="font-medium text-blue-600 hover:text-blue-700">
+            <Link to="/registrer" className="font-medium text-blue-600 hover:text-blue-700">
               Sign up
             </Link>
           </div>
