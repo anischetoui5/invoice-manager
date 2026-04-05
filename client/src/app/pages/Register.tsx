@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router';
+import { useNavigate, Link } from 'react-router-dom';
 import { FileText, User, Building2, CreditCard, Users, Check, ArrowLeft, Copy, Phone, Mail, MapPin, Crown } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { toast } from 'sonner';
 import { RegistrationStepper } from '../components/RegistrationStepper';
 import { Textarea } from '../components/ui/textarea';
+import api from '../../lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 type RegistrationType = 'personal' | 'company' | 'join';
@@ -188,36 +189,51 @@ export function Register() {
     return `${prefix}${randomNum}`;
   };
 
-  const handleAccountSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAccountSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
+  if (formData.password !== formData.confirmPassword) {
+    toast.error('Passwords do not match');
+    return;
+  }
+
+  if (formData.password.length < 8) {
+    toast.error('Password must be at least 8 characters');
+    return;
+  }
+
+  if (registrationType === 'join') {
+    if (!formData.companyCode.trim()) {
+      toast.error('Please enter a company code');
       return;
     }
+    toast.info('Join company feature coming soon!');
+    return;
+  }
 
-    if (formData.password.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
+  try {
+    const response = await api.post('/auth/register', {
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+    });
 
-    if (registrationType === 'personal') {
-      navigate('/personal-subscription?from=registration');
-    } else if (registrationType === 'company') {
+    // Store token
+    localStorage.setItem('token', response.data.token || '');
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+
+    toast.success('Account created successfully!');
+
+    if (registrationType === 'company') {
       setStep('company-setup');
-    } else if (registrationType === 'join') {
-      if (!formData.companyCode.trim()) {
-        toast.error('Please enter a company code');
-        return;
-      }
-      if (formData.companyCode === 'ACME2024' || formData.companyCode === 'TECH2024') {
-        toast.success('Request sent! Waiting for director approval.');
-        setTimeout(() => navigate('/login'), 1500);
-      } else {
-        toast.error('Invalid company code. Please check and try again.');
-      }
+    } else {
+      setTimeout(() => navigate('/login'), 1000);
     }
-  };
+
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || 'Registration failed');
+  }
+};
 
   const handleCompanySetupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
