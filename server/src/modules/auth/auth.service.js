@@ -22,14 +22,53 @@ async function register({ name, email, password }) {
 
   const password_hash = await bcrypt.hash(password, 10);
 
-  const result = await pool.query(
-    `INSERT INTO users (name, email, password_hash)
-     VALUES ($1, $2, $3)
-     RETURNING id, name, email, created_at`,
-    [name, email, password_hash]
-  );
+  // Start transaction
+  const client = await pool.connect();
 
-  return result.rows[0];
+  try {
+    await client.query('BEGIN');
+
+    // Create user
+    const userResult = await client.query(
+      `INSERT INTO users (name, email, password_hash)
+       VALUES ($1, $2, $3)
+       RETURNING id, name, email, created_at`,
+      [name, email, password_hash]
+    );
+    const user = userResult.rows[0];
+
+    // Create personal workspace
+    const workspaceResult = await client.query(
+      `INSERT INTO workspaces (name, type, owner_id)
+       VALUES ($1, 'personal', $2)
+       RETURNING id`,
+      [`${name}'s Workspace`, user.id]
+    );
+    const workspace = workspaceResult.rows[0];
+
+    // Get Director role
+    const roleResult = await client.query(
+      `SELECT id FROM roles WHERE name = 'Director'`
+    );
+    const role = roleResult.rows[0];
+
+    // Create membership
+    await client.query(
+      `INSERT INTO memberships (user_id, workspace_id, role_id)
+       VALUES ($1, $2, $3)`,
+      [user.id, workspace.id, role.id]
+    );
+
+    await client.query('COMMIT');
+
+    return user;
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function login({ email, password }) {
