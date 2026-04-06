@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const authRoutes = require('./modules/auth/auth.routes');
+const workspaceRoutes = require('./modules/workspace/workspace.routes');
+const { authenticate } = require('./middlewares/auth.middleware');
 
 const app = express();
 
@@ -12,6 +14,11 @@ app.use(morgan('dev'));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/workspaces', workspaceRoutes);
+
+app.get('/api/me', authenticate, (req, res) => {
+  res.json({ message: 'You are authenticated', user: req.user });
+});
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
