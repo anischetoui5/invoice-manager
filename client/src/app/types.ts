@@ -35,3 +35,18 @@ export interface Enterprise {
   subscriptionId: string;
   companyCode: string; // Unique code for joining the enterprise
 }
+
+export interface Subscription {
+  id: string;
+  enterpriseId: string;
+  plan: PlanType;
+  status: 'active' | 'cancelled' | 'expired';
+  startDate: string;
+  endDate?: string;
+  invoiceLimit: number;
+  invoiceUsed: number;
+  userLimit: number;
+  userCount: number;
+  price: number;
+  features: string[];
+}

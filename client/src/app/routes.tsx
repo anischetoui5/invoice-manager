@@ -4,7 +4,10 @@ import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
 import { Layout } from './components/Layout';
+import { Subscription } from './pages/Subscription';
+import { PersonalSubscription } from './pages/PersonalSubscription.';
 import type { User , Enterprise } from './types';
+
 
 
 const mockEnterprises: Enterprise[] = [
@@ -34,7 +37,7 @@ const mockUser: User = {
   id: '1',
   name: 'John Doe',
   email: 'john@example.com',
-  role: 'director',
+  role: 'normal',
   enterpriseId: 'ent-1',
   enterpriseIds: ['ent-1', 'ent-2'],
 };
@@ -50,6 +53,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/personal-subscription',
+    element: <PersonalSubscription />,
   },
   {
     path: '/register',
@@ -70,6 +77,10 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         element: <Settings />,
+      },
+      {
+        path: 'subscription',
+        element: <Subscription />,
       }
     ],
   },
