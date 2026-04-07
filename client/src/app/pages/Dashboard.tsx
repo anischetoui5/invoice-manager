@@ -686,11 +686,6 @@ const renderAccountantDashboard = () => {
       {userRole === 'admin' && renderAdminDashboard()}
       {userRole === 'normal' && renderNormalUserDashboard()}
 
-      {(userRole === 'accountant' || userRole === 'normal') && (
-        <div className="mt-6">
-          <JoinCompany userRole={userRole} />
-        </div>
-      )}
     </div>
   );
 }

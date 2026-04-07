@@ -49,8 +49,11 @@ export function Layout({ currentUser, enterprises, initialNotifications = [] }: 
         />
 
         <main className="flex-1 overflow-y-auto p-8">
-          {/* 👇 3. Pass that company ID down to the dashboard child via context! */}
-          <Outlet context={{ activeEnterpriseId }} />
+          <Outlet context={{ 
+            activeEnterpriseId, 
+            currentUser, 
+            enterprises 
+          }} />
         </main>
       </div>
 

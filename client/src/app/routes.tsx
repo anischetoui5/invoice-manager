@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
+import { Settings } from './pages/Settings';
 import { Layout } from './components/Layout';
 import type { User , Enterprise } from './types';
 
@@ -33,7 +34,7 @@ const mockUser: User = {
   id: '1',
   name: 'John Doe',
   email: 'john@example.com',
-  role: 'accountant',
+  role: 'director',
   enterpriseId: 'ent-1',
   enterpriseIds: ['ent-1', 'ent-2'],
 };
@@ -66,6 +67,10 @@ export const router = createBrowserRouter([
         index: true,
         element: <DashboardWrapper />,
       },
+      {
+        path: 'settings',
+        element: <Settings />,
+      }
     ],
   },
 ]);
