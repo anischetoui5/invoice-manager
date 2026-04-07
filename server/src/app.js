@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const authRoutes = require('./modules/auth/auth.routes');
 const workspaceRoutes = require('./modules/workspace/workspace.routes');
 const { authenticate } = require('./middlewares/auth.middleware');
+const usersRoutes = require('./modules/users/users.routes');
 
 const app = express();
 
@@ -23,5 +24,5 @@ app.get('/api/me', authenticate, (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-
+app.use('/api/users', usersRoutes);
 module.exports = app;
