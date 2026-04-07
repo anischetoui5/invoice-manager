@@ -192,6 +192,11 @@ export function Register() {
   const handleAccountSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
+  if (registrationType === 'personal') {
+  // We add '?from=onboarding' to the URL
+  navigate('/personal-subscription?from=onboarding');
+}
+
   if (formData.password !== formData.confirmPassword) {
     toast.error('Passwords do not match');
     return;
