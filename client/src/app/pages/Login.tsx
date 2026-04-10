@@ -4,37 +4,43 @@ import { FileText, LogIn } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import api from '../../lib/api';
+import { toast } from 'sonner';
 
 export function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-const handleLogin = (e: React.FormEvent) => {
-  e.preventDefault();
-  navigate('/');
-};
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      toast.success('Login successful!');
+      navigate('/dashboard');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Invalid credentials');
+    }
+  };
 
   return (
     <div className="flex min-h-screen">
       {/* Left side - Branding */}
       <div className="hidden w-1/2 bg-gradient-to-br from-blue-600 to-blue-800 lg:flex lg:flex-col lg:justify-center lg:px-16">
-
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
             <FileText className="h-7 w-7 text-white" />
           </div>
           <span className="text-3xl font-bold text-white">EasyFact</span>
         </div>
-
         <h1 className="mt-8 text-4xl font-bold leading-tight text-white">
           Streamline Your Invoice Management
         </h1>
-
         <p className="mt-4 text-lg text-blue-100">
           Automated OCR extraction, validation workflows, and powerful analytics for your business.
         </p>
-        
         <div className="mt-12 space-y-4">
           <div className="flex items-start gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
@@ -42,9 +48,7 @@ const handleLogin = (e: React.FormEvent) => {
             </div>
             <div>
               <h3 className="font-semibold text-white">Upload Invoices</h3>
-              <p className="text-sm text-blue-100">
-                Drag and drop PDF or image files
-              </p>
+              <p className="text-sm text-blue-100">Drag and drop PDF or image files</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -53,9 +57,7 @@ const handleLogin = (e: React.FormEvent) => {
             </div>
             <div>
               <h3 className="font-semibold text-white">Automatic OCR Extraction</h3>
-              <p className="text-sm text-blue-100">
-                AI-powered data extraction from invoices
-              </p>
+              <p className="text-sm text-blue-100">AI-powered data extraction from invoices</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -64,9 +66,7 @@ const handleLogin = (e: React.FormEvent) => {
             </div>
             <div>
               <h3 className="font-semibold text-white">Review & Approve</h3>
-              <p className="text-sm text-blue-100">
-                Validate and approve with easy workflows
-              </p>
+              <p className="text-sm text-blue-100">Validate and approve with easy workflows</p>
             </div>
           </div>
         </div>
@@ -85,9 +85,7 @@ const handleLogin = (e: React.FormEvent) => {
           </div>
 
           <h2 className="text-3xl font-bold text-slate-800">Welcome back</h2>
-          <p className="mt-2 text-slate-600">
-            Sign in to your account to continue
-          </p>
+          <p className="mt-2 text-slate-600">Sign in to your account to continue</p>
 
           <form onSubmit={handleLogin} className="mt-8 space-y-6">
             <div className="space-y-2">

@@ -189,50 +189,52 @@ export function Register() {
     return `${prefix}${randomNum}`;
   };
 
-  const handleAccountSubmit = async (e: React.FormEvent) => {
+const handleAccountSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
-  if (registrationType === 'personal') {
-  // We add '?from=onboarding' to the URL
-  navigate('/personal-subscription?from=onboarding');
-}
-
+  // 1. Validation
   if (formData.password !== formData.confirmPassword) {
     toast.error('Passwords do not match');
     return;
   }
 
-  if (formData.password.length < 8) {
-    toast.error('Password must be at least 8 characters');
-    return;
-  }
-
-  if (registrationType === 'join') {
-    if (!formData.companyCode.trim()) {
-      toast.error('Please enter a company code');
-      return;
-    }
-    toast.info('Join company feature coming soon!');
+  // 2. Personal Flow Redirection (per your current code)
+  if (registrationType === 'personal') {
+    navigate('/personal-subscription?from=onboarding');
     return;
   }
 
   try {
+    // 3. API Call
     const response = await api.post('/auth/register', {
       name: formData.name,
       email: formData.email,
       password: formData.password,
+      registrationType: registrationType // Let backend know if this is a 'company' or 'join'
     });
 
-    // Store token
-    localStorage.setItem('token', response.data.token || '');
+    // 4. Critical: Store Auth State
+    // The backend should return the token and the auto-created personal workspace ID
+    localStorage.setItem('token', response.data.token);
     localStorage.setItem('user', JSON.stringify(response.data.user));
+    
+    // This allows your 'api.ts' interceptor to start tagging requests immediately
+    if (response.data.personalWorkspaceId) {
+      localStorage.setItem('activeWorkspaceId', response.data.personalWorkspaceId);
+    }
 
     toast.success('Account created successfully!');
 
+    // 5. Flow Logic
     if (registrationType === 'company') {
+      // Move to the next step in the Stepper (Company Setup)
       setStep('company-setup');
+    } else if (registrationType === 'join') {
+      // For 'join' flow, we wait for backend approval logic
+      toast.info('Request to join sent to the company director.');
+      navigate('/login');
     } else {
-      setTimeout(() => navigate('/login'), 1000);
+      setTimeout(() => navigate('/dashboard'), 1000);
     }
 
   } catch (err: any) {

@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../../config/db');
 
-async function register({ name, email, password }) {
+async function register({ name, email, password, registrationType }) {
   if (!name || !email || !password) {
     throw new Error('Name, email and password are required');
   }
@@ -22,22 +22,21 @@ async function register({ name, email, password }) {
 
   const password_hash = await bcrypt.hash(password, 10);
 
-  // Start transaction
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    // Create user
+    // 1. Create user
     const userResult = await client.query(
       `INSERT INTO users (name, email, password_hash)
        VALUES ($1, $2, $3)
-       RETURNING id, name, email, created_at`,
+       RETURNING id, name, email`,
       [name, email, password_hash]
     );
     const user = userResult.rows[0];
 
-    // Create personal workspace
+    // 2. Create personal workspace
     const workspaceResult = await client.query(
       `INSERT INTO workspaces (name, type, owner_id)
        VALUES ($1, 'personal', $2)
@@ -46,13 +45,16 @@ async function register({ name, email, password }) {
     );
     const workspace = workspaceResult.rows[0];
 
-    // Get Director role
+    // 3. Dynamic Role Assignment
+    // Assign 'Director' if they chose 'company', otherwise 'Personal user'
+    const roleName = registrationType === 'company' ? 'Director' : 'Personal user';
     const roleResult = await client.query(
-      `SELECT id FROM roles WHERE name = 'Director'`
+      'SELECT id FROM roles WHERE name = $1',
+      [roleName]
     );
     const role = roleResult.rows[0];
 
-    // Create membership
+    // 4. Create membership link
     await client.query(
       `INSERT INTO memberships (user_id, workspace_id, role_id)
        VALUES ($1, $2, $3)`,
@@ -61,7 +63,18 @@ async function register({ name, email, password }) {
 
     await client.query('COMMIT');
 
-    return user;
+    // 5. Generate token so they are logged in immediately
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    return {
+      user,
+      token,
+      personalWorkspaceId: workspace.id // Frontend needs this for localStorage
+    };
 
   } catch (err) {
     await client.query('ROLLBACK');
@@ -83,29 +96,30 @@ async function login({ email, password }) {
 
   const user = result.rows[0];
 
-  if (!user) {
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     throw new Error('Invalid email or password');
   }
 
-  const isValid = await bcrypt.compare(password, user.password_hash);
-
-  if (!isValid) {
-    throw new Error('Invalid email or password');
-  }
+  // Fetch the user's personal workspace ID so the frontend knows what to load
+  const workspaceResult = await pool.query(
+    `SELECT w.id 
+     FROM workspaces w
+     JOIN memberships m ON m.workspace_id = w.id
+     WHERE m.user_id = $1 AND w.type = 'personal'
+     LIMIT 1`,
+    [user.id]
+  );
 
   const token = jwt.sign(
     { userId: user.id, email: user.email },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
+    { expiresIn: '24h' }
   );
 
   return {
     token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-    }
+    user: { id: user.id, name: user.name, email: user.email },
+    activeWorkspaceId: workspaceResult.rows[0]?.id
   };
 }
 
