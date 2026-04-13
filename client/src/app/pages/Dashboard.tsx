@@ -44,8 +44,8 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Personal Invoices</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">{personalInvoices.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Personal Invoices</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{personalInvoices.length}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <FileText className="h-6 w-6 text-blue-600" />
@@ -56,8 +56,8 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Pending OCR</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">{personalPending.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Pending OCR</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{personalPending.length}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
                 <Clock className="h-6 w-6 text-yellow-600" />
@@ -68,9 +68,9 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Current Plan</p>
-                <p className="mt-2 text-2xl font-bold text-slate-800">Basic</p>
-                <p className="text-xs text-slate-500">Free</p>
+                <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
+                <p className="mt-2 text-2xl font-bold text-foreground">Basic</p>
+                <p className="text-xs text-muted-foreground">Free</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
                 <CreditCard className="h-6 w-6 text-purple-600" />
@@ -82,7 +82,7 @@ export function Dashboard({ userRole }: DashboardProps) {
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-800">Personal Invoices</h3>
+              <h3 className="font-semibold text-foreground">Personal Invoices</h3>
               <Link to="/dashboard/invoices" className="text-sm font-medium text-blue-600 hover:text-blue-700">
                 View all
               </Link>
@@ -93,7 +93,7 @@ export function Dashboard({ userRole }: DashboardProps) {
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 mb-4">
                     <Upload className="h-8 w-8 text-blue-600" />
                   </div>
-                  <p className="text-slate-600 mb-4">No invoices yet. Upload your first invoice.</p>
+                  <p className="text-muted-foreground mb-4">No invoices yet. Upload your first invoice.</p>
                   <Link to="/dashboard/upload">
                     <Button>
                       <Upload className="mr-2 h-4 w-4" />
@@ -112,11 +112,11 @@ export function Dashboard({ userRole }: DashboardProps) {
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-slate-800">{invoice.vendor}</p>
+                          <p className="font-medium text-foreground">{invoice.vendor}</p>
                           <Badge className={`${badge.color} text-xs`}>{badge.label}</Badge>
                         </div>
-                        <p className="text-sm text-slate-600">{invoice.number}</p>
-                        <p className="text-sm font-medium text-slate-800 mt-1">
+                        <p className="text-sm text-muted-foreground">{invoice.number}</p>
+                        <p className="text-sm font-medium text-foreground mt-1">
                           ${invoice.amount.toLocaleString()}
                         </p>
                       </div>
@@ -132,7 +132,7 @@ export function Dashboard({ userRole }: DashboardProps) {
 
             <Card className="p-6">
               <div className="mb-4">
-                <h3 className="font-semibold text-slate-800">Quick Actions</h3>
+                <h3 className="font-semibold text-foreground">Quick Actions</h3>
               </div>
               <div className="space-y-3">
                 <Link to="/dashboard/upload">
@@ -162,8 +162,8 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Total Users</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">0</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Users</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">0</p>
                 <p className="mt-1 flex items-center text-xs text-green-600">
                   <TrendingUp className="mr-1 h-3 w-3" />
                   +3 this week
@@ -178,8 +178,8 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Total Companies</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">0</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Companies</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">0</p>
                 <p className="mt-1 flex items-center text-xs text-green-600">
                   <TrendingUp className="mr-1 h-3 w-3" />
                   +1 this month
@@ -194,8 +194,8 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Total Invoices</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">0</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">0</p>
                 <p className="mt-1 flex items-center text-xs text-green-600">
                   <TrendingUp className="mr-1 h-3 w-3" />
                   +12% growth
@@ -210,9 +210,9 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Platform Health</p>
+                <p className="text-sm font-medium text-muted-foreground">Platform Health</p>
                 <p className="mt-2 text-3xl font-bold text-green-600">99.9%</p>
-                <p className="mt-1 text-xs text-slate-500">Uptime</p>
+                <p className="mt-1 text-xs text-muted-foreground">Uptime</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <Shield className="h-6 w-6 text-green-600" />
@@ -225,28 +225,28 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-slate-800">All Companies</h3>
-                <p className="text-sm text-slate-600 mt-1">Platform-wide company overview</p>
+                <h3 className="font-semibold text-foreground">All Companies</h3>
+                <p className="text-sm text-muted-foreground mt-1">Platform-wide company overview</p>
               </div>
               <Link to="/dashboard/users" className="text-sm font-medium text-blue-600 hover:text-blue-700">
                 Manage
               </Link>
             </div>
-            <p className="text-sm text-slate-500">No companies yet.</p>
+            <p className="text-sm text-muted-foreground">No companies yet.</p>
           </Card>
 
           <Card className="p-6">
             <div className="mb-6">
-              <h3 className="font-semibold text-slate-800">Recent Activity</h3>
-              <p className="text-sm text-slate-600 mt-1">Platform-wide activity log</p>
+              <h3 className="font-semibold text-foreground">Recent Activity</h3>
+              <p className="text-sm text-muted-foreground mt-1">Platform-wide activity log</p>
             </div>
-            <p className="text-sm text-slate-500">No activity yet.</p>
+            <p className="text-sm text-muted-foreground">No activity yet.</p>
           </Card>
 
           <Card className="lg:col-span-2 p-6">
             <div className="mb-4">
-              <h3 className="font-semibold text-slate-800">User Distribution</h3>
-              <p className="text-sm text-slate-600 mt-1">By role across the platform</p>
+              <h3 className="font-semibold text-foreground">User Distribution</h3>
+              <p className="text-sm text-muted-foreground mt-1">By role across the platform</p>
             </div>
             <div className="grid gap-4 md:grid-cols-4">
               <div className="rounded-lg bg-blue-50 p-4">
@@ -284,8 +284,8 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Total Uploaded</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">{myInvoices.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Uploaded</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{myInvoices.length}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <FileText className="h-6 w-6 text-blue-600" />
@@ -296,8 +296,8 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Pending Review</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">{myPending.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Pending Review</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{myPending.length}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
                 <Clock className="h-6 w-6 text-yellow-600" />
@@ -308,8 +308,8 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Approved</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">{myApproved.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Approved</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{myApproved.length}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
@@ -320,8 +320,8 @@ export function Dashboard({ userRole }: DashboardProps) {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Rejected</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">{myRejected.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Rejected</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{myRejected.length}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                 <XCircle className="h-6 w-6 text-red-600" />
@@ -333,8 +333,8 @@ export function Dashboard({ userRole }: DashboardProps) {
         <Card className="p-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-slate-800">My Invoices</h3>
-              <p className="text-sm text-slate-600 mt-1">Track the status of all your submitted invoices</p>
+              <h3 className="font-semibold text-foreground">My Invoices</h3>
+              <p className="text-sm text-muted-foreground mt-1">Track the status of all your submitted invoices</p>
             </div>
             <Link to="/dashboard/invoices" className="text-sm font-medium text-blue-600 hover:text-blue-700">
               View all
@@ -344,7 +344,7 @@ export function Dashboard({ userRole }: DashboardProps) {
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 mb-4">
               <Upload className="h-8 w-8 text-blue-600" />
             </div>
-            <p className="text-slate-600 mb-4">No invoices yet. Upload your first invoice to get started.</p>
+            <p className="text-muted-foreground mb-4">No invoices yet. Upload your first invoice to get started.</p>
             <Link to="/dashboard/upload">
               <Button>
                 <Upload className="mr-2 h-4 w-4" />
@@ -357,7 +357,7 @@ export function Dashboard({ userRole }: DashboardProps) {
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="p-6">
             <div className="mb-4">
-              <h3 className="font-semibold text-slate-800">Quick Actions</h3>
+              <h3 className="font-semibold text-foreground">Quick Actions</h3>
             </div>
             <div className="space-y-3">
               <Link to="/dashboard/upload">
@@ -377,35 +377,35 @@ export function Dashboard({ userRole }: DashboardProps) {
 
           <Card className="p-6">
             <div className="mb-4">
-              <h3 className="font-semibold text-slate-800">Invoice Summary</h3>
-              <p className="text-sm text-slate-600 mt-1">This month</p>
+              <h3 className="font-semibold text-foreground">Invoice Summary</h3>
+              <p className="text-sm text-muted-foreground mt-1">This month</p>
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                  <span className="text-sm text-slate-600">Approved</span>
+                  <span className="text-sm text-muted-foreground">Approved</span>
                 </div>
-                <span className="font-medium text-slate-800">{myApproved.length}</span>
+                <span className="font-medium text-foreground">{myApproved.length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
-                  <span className="text-sm text-slate-600">Pending</span>
+                  <span className="text-sm text-muted-foreground">Pending</span>
                 </div>
-                <span className="font-medium text-slate-800">{myPending.length}</span>
+                <span className="font-medium text-foreground">{myPending.length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-red-500"></div>
-                  <span className="text-sm text-slate-600">Rejected</span>
+                  <span className="text-sm text-muted-foreground">Rejected</span>
                 </div>
-                <span className="font-medium text-slate-800">{myRejected.length}</span>
+                <span className="font-medium text-foreground">{myRejected.length}</span>
               </div>
               <div className="h-px bg-slate-200 my-3"></div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-600">Total Amount</span>
-                <span className="text-xl font-bold text-slate-800">$0</span>
+                <span className="text-sm font-medium text-muted-foreground">Total Amount</span>
+                <span className="text-xl font-bold text-foreground">$0</span>
               </div>
             </div>
           </Card>
@@ -423,8 +423,8 @@ const renderAccountantDashboard = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Pending Validation</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">{invoicesToValidate.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Pending Validation</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{invoicesToValidate.length}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
                 <Clock className="h-6 w-6 text-orange-600" />
@@ -435,8 +435,8 @@ const renderAccountantDashboard = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Validated Today</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">{validatedInvoices.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Validated Today</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{validatedInvoices.length}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
                 <CheckCircle2 className="h-6 w-6 text-purple-600" />
@@ -447,8 +447,8 @@ const renderAccountantDashboard = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Total Approved</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">{approvedInvoices.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Approved</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{approvedInvoices.length}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
@@ -459,8 +459,8 @@ const renderAccountantDashboard = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Rejected</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">{rejectedInvoices.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Rejected</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{rejectedInvoices.length}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                 <XCircle className="h-6 w-6 text-red-600" />
@@ -472,8 +472,8 @@ const renderAccountantDashboard = () => {
         <Card className="p-6 my-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-slate-800">Invoices to Validate</h3>
-              <p className="text-sm text-slate-600 mt-1">0 invoices pending your review</p>
+              <h3 className="font-semibold text-foreground">Invoices to Validate</h3>
+              <p className="text-sm text-muted-foreground mt-1">0 invoices pending your review</p>
             </div>
             <Link to="/dashboard/invoices?status=pending" className="text-sm font-medium text-blue-600 hover:text-blue-700">
               View all
@@ -483,37 +483,37 @@ const renderAccountantDashboard = () => {
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
-            <p className="text-slate-600">All caught up! No invoices pending validation.</p>
+            <p className="text-muted-foreground">All caught up! No invoices pending validation.</p>
           </div>
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="p-6">
             <div className="mb-4">
-              <h3 className="font-semibold text-slate-800">Recent Activity</h3>
+              <h3 className="font-semibold text-foreground">Recent Activity</h3>
             </div>
-            <p className="text-sm text-slate-500">No activity yet.</p>
+            <p className="text-sm text-muted-foreground">No activity yet.</p>
           </Card>
 
           <Card className="p-6">
             <div className="mb-4">
-              <h3 className="font-semibold text-slate-800">Validation Stats</h3>
-              <p className="text-sm text-slate-600 mt-1">This month</p>
+              <h3 className="font-semibold text-foreground">Validation Stats</h3>
+              <p className="text-sm text-muted-foreground mt-1">This month</p>
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Total Validated</span>
-                <span className="text-2xl font-bold text-slate-800">0</span>
+                <span className="text-sm text-muted-foreground">Total Validated</span>
+                <span className="text-2xl font-bold text-foreground">0</span>
               </div>
               <div className="h-px bg-slate-200"></div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Approval Rate</span>
+                <span className="text-sm text-muted-foreground">Approval Rate</span>
                 <span className="text-2xl font-bold text-green-600">0%</span>
               </div>
               <div className="h-px bg-slate-200"></div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Avg. Review Time</span>
-                <span className="text-2xl font-bold text-slate-800">—</span>
+                <span className="text-sm text-muted-foreground">Avg. Review Time</span>
+                <span className="text-2xl font-bold text-foreground">—</span>
               </div>
             </div>
           </Card>
@@ -533,8 +533,8 @@ const renderAccountantDashboard = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Total Invoices</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">0</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">0</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <FileText className="h-6 w-6 text-blue-600" />
@@ -545,8 +545,8 @@ const renderAccountantDashboard = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Total Approved Amount</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">${totalAmount.toLocaleString()}</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Approved Amount</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">${totalAmount.toLocaleString()}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <DollarSign className="h-6 w-6 text-green-600" />
@@ -557,8 +557,8 @@ const renderAccountantDashboard = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Approval Rate</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">0%</p>
+                <p className="text-sm font-medium text-muted-foreground">Approval Rate</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">0%</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
                 <CheckCircle2 className="h-6 w-6 text-purple-600" />
@@ -569,8 +569,8 @@ const renderAccountantDashboard = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Active Users</p>
-                <p className="mt-2 text-3xl font-bold text-slate-800">0</p>
+                <p className="text-sm font-medium text-muted-foreground">Active Users</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">0</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
                 <Users className="h-6 w-6 text-orange-600" />
@@ -582,8 +582,8 @@ const renderAccountantDashboard = () => {
         <Card className="p-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-slate-800">Enterprise Overview</h3>
-              <p className="text-sm text-slate-600 mt-1">All invoices across your organization</p>
+              <h3 className="font-semibold text-foreground">Enterprise Overview</h3>
+              <p className="text-sm text-muted-foreground mt-1">All invoices across your organization</p>
             </div>
             <div className="flex gap-2">
               <Link to="/dashboard/team">
@@ -630,26 +630,26 @@ const renderAccountantDashboard = () => {
           </div>
 
           <div className="border-t pt-4">
-            <h4 className="font-medium text-slate-800 mb-4">Employee Submissions</h4>
-            <p className="text-sm text-slate-500">No employees yet.</p>
+            <h4 className="font-medium text-foreground mb-4">Employee Submissions</h4>
+            <p className="text-sm text-muted-foreground">No employees yet.</p>
           </div>
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="p-6 lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-800">Invoice Status Breakdown</h3>
+              <h3 className="font-semibold text-foreground">Invoice Status Breakdown</h3>
               <Link to="/dashboard/reports" className="text-sm font-medium text-blue-600 hover:text-blue-700">
                 View Reports
               </Link>
             </div>
-            <p className="text-sm text-slate-500">No data yet.</p>
+            <p className="text-sm text-muted-foreground">No data yet.</p>
           </Card>
 
           <Card className="p-6">
             <div className="mb-4">
-              <h3 className="font-semibold text-slate-800">Company Code</h3>
-              <p className="text-sm text-slate-600 mt-1">Share with new team members</p>
+              <h3 className="font-semibold text-foreground">Company Code</h3>
+              <p className="text-sm text-muted-foreground mt-1">Share with new team members</p>
             </div>
             <div className="rounded-lg bg-blue-50 p-4 text-center">
               <p className="text-sm font-medium text-blue-900">Your Company Code</p>
@@ -658,7 +658,7 @@ const renderAccountantDashboard = () => {
                 Copy Code
               </Button>
             </div>
-            <p className="mt-4 text-xs text-slate-500">
+            <p className="mt-4 text-xs text-muted-foreground">
               Share this code with employees and accountants to join your company
             </p>
           </Card>
@@ -670,8 +670,8 @@ const renderAccountantDashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+        <p className="mt-1 text-muted-foreground">
           {userRole === 'employee' && 'Upload and track your invoices'}
           {userRole === 'accountant' && 'Review and validate pending invoices'}
           {userRole === 'director' && 'Overview of invoice management and analytics'}

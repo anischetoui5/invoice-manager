@@ -19,10 +19,10 @@ export function RegistrationStepper({ currentStep, steps }: Props) {
                 ? 'bg-green-500 text-white'
                 : currentStep === step.number
                 ? 'bg-blue-600 text-white'
-                : 'bg-slate-200 text-slate-500'}`}>
+                : 'bg-slate-200 text-muted-foreground'}`}>
               {currentStep > step.number ? '✓' : step.number}
             </div>
-            <span className="mt-1 text-xs text-slate-500">{step.label}</span>
+            <span className="mt-1 text-xs text-muted-foreground">{step.label}</span>
           </div>
           {index < steps.length - 1 && (
             <div className={`h-0.5 w-12 mx-1 mb-4 ${currentStep > step.number ? 'bg-green-600' : 'bg-slate-200'}`} />

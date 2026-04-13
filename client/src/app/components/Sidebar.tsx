@@ -41,13 +41,13 @@ const navItems = [
   );
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
+    <div className="flex h-screen w-64 flex-col border-r bg-background">
       <div className="flex h-16 items-center border-b px-6">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
             <FileText className="h-5 w-5 text-white" />
           </div>
-          <span className="text-lg font-semibold text-slate-800">InvoiceFlow</span>
+          <span className="text-lg font-semibold text-foreground">InvoiceFlow</span>
         </div>
       </div>
 
@@ -63,7 +63,7 @@ const navItems = [
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
                 active
                   ? 'bg-blue-100 text-blue-700'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  : 'text-muted-foreground hover:bg-muted hover:text-slate-900'
               }`}
             >
               <Icon className="h-5 w-5" />

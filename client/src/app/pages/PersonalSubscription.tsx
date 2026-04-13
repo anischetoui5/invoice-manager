@@ -150,7 +150,7 @@ const handleSelectPlan = async (planType: string) => {
 };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         
         {/* Header Section */}
@@ -167,10 +167,10 @@ const handleSelectPlan = async (planType: string) => {
                 <Sparkles className="h-8 w-8 text-white" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-slate-800">
+            <h1 className="text-3xl font-bold text-foreground">
               {isRegistration ? 'Final Step: Choose Your Plan' : 'Personal Subscription Plans'}
             </h1>
-            <p className="mt-2 text-lg text-slate-600">
+            <p className="mt-2 text-lg text-muted-foreground">
               {isRegistration ? 'Complete your registration by selecting a plan below.' : 'Upgrade your account to unlock more features.'}
             </p>
           </div>
@@ -182,7 +182,7 @@ const handleSelectPlan = async (planType: string) => {
             <div className="mb-6 flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-3">
-                  <h3 className="text-xl font-semibold text-slate-800">
+                  <h3 className="text-xl font-semibold text-foreground">
                     Current Plan: {personalPlans.find(p => p.type === currentPlan)?.name}
                   </h3>
                   <Badge className="bg-green-100 text-green-700">Active</Badge>
@@ -226,11 +226,11 @@ const handleSelectPlan = async (planType: string) => {
                   <h3 className="text-xl font-bold">{plan.name}</h3>
                   <div className="mt-4 flex items-baseline gap-1">
                     <span className="text-4xl font-bold">${plan.price}</span>
-                    <span className="text-sm text-slate-500">/mo</span>
+                    <span className="text-sm text-muted-foreground">/mo</span>
                   </div>
                 </div>
 
-                <div className="mb-6 flex-1 space-y-2 text-sm text-slate-600">
+                <div className="mb-6 flex-1 space-y-2 text-sm text-muted-foreground">
                   {plan.features.map((f, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-green-500" /> {f}

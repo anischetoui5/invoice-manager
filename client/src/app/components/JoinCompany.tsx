@@ -50,11 +50,11 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
   return (
     <Card className="p-6">
       <div className="mb-6">
-        <h3 className="flex items-center gap-2 font-semibold text-slate-800">
+        <h3 className="flex items-center gap-2 font-semibold text-foreground">
           <Building2 className="h-5 w-5 text-blue-600" />
           Join a Company
         </h3>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-muted-foreground">
           Enter a company code to request access to their invoice management system
         </p>
       </div>
@@ -66,27 +66,27 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
           <div className="space-y-2">
             <Label htmlFor="role">Join as</Label>
             <RadioGroup value={role} onValueChange={(value) => setRole(value as JoinRole)}>
-              <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-slate-50">
+              <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-background">
                 <RadioGroupItem value="employee" id="employee" />
                 <Label htmlFor="employee" className="flex-1 cursor-pointer">
-                  <div className="font-medium text-slate-800">Employee</div>
-                  <div className="text-xs text-slate-500">Upload and manage invoices</div>
+                  <div className="font-medium text-foreground">Employee</div>
+                  <div className="text-xs text-muted-foreground">Upload and manage invoices</div>
                 </Label>
               </div>
-              <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-slate-50">
+              <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-background">
                 <RadioGroupItem value="accountant" id="accountant" />
                 <Label htmlFor="accountant" className="flex-1 cursor-pointer">
-                  <div className="font-medium text-slate-800">Accountant</div>
-                  <div className="text-xs text-slate-500">Validate and approve invoices</div>
+                  <div className="font-medium text-foreground">Accountant</div>
+                  <div className="text-xs text-muted-foreground">Validate and approve invoices</div>
                 </Label>
               </div>
             </RadioGroup>
           </div>
         ) : (
           // Show a helpful locked badge for accountant/employee instead of options
-          <div className="rounded-lg border bg-slate-50 p-4">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">Role</p>
-            <p className="font-medium text-slate-800 capitalize mt-0.5">{userRole}</p>
+          <div className="rounded-lg border bg-background p-4">
+            <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Role</p>
+            <p className="font-medium text-foreground capitalize mt-0.5">{userRole}</p>
           </div>
         )}
 
@@ -100,7 +100,7 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
             onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
             className="uppercase"
           />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             Ask your company director for the company code
           </p>
         </div>

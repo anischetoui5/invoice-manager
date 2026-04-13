@@ -125,8 +125,8 @@ export function Settings() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Settings</h1>
-        <p className="mt-1 text-slate-600">Manage your account settings and preferences</p>
+        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+        <p className="mt-1 text-muted-foreground">Manage your account settings and preferences</p>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
@@ -145,8 +145,8 @@ export function Settings() {
                 {name.split(' ').map(n => n[0]).join('')}
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-slate-800">{name}</h2>
-                <p className="text-sm capitalize text-slate-600">{currentUser.role}</p>
+                <h2 className="text-lg font-semibold text-foreground">{name}</h2>
+                <p className="text-sm capitalize text-muted-foreground">{currentUser.role}</p>
               </div>
             </div>
 
@@ -183,7 +183,7 @@ export function Settings() {
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
                 <Input id="role" value={currentUser.role} disabled className="capitalize" />
-                <p className="text-xs text-slate-500">Contact your administrator to change your role</p>
+                <p className="text-xs text-muted-foreground">Contact your administrator to change your role</p>
               </div>
 
               <Button type="submit" className="w-full" disabled={savingProfile}>
@@ -205,8 +205,8 @@ export function Settings() {
                   <Building2 className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-800">Company Information</h3>
-                  <p className="text-sm text-slate-600">View your company details</p>
+                  <h3 className="font-semibold text-foreground">Company Information</h3>
+                  <p className="text-sm text-muted-foreground">View your company details</p>
                 </div>
               </div>
 
@@ -214,15 +214,15 @@ export function Settings() {
                 <div className="space-y-4">
                   <div>
                     <Label>Company Name</Label>
-                    <p className="mt-1 text-sm text-slate-800">{currentEnterprise.name}</p>
+                    <p className="mt-1 text-sm text-foreground">{currentEnterprise.name}</p>
                   </div>
                   <div>
                     <Label>Your Role</Label>
-                    <p className="mt-1 text-sm capitalize text-slate-800">{currentUser.role}</p>
+                    <p className="mt-1 text-sm capitalize text-foreground">{currentUser.role}</p>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-muted-foreground">
                   You are not currently part of any company. Use the "Join a Company" section above to join one.
                 </p>
               )}
@@ -238,8 +238,8 @@ export function Settings() {
                 <Shield className="h-5 w-5 text-orange-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-800">Password & Security</h3>
-                <p className="text-sm text-slate-600">Update your password</p>
+                <h3 className="font-semibold text-foreground">Password & Security</h3>
+                <p className="text-sm text-muted-foreground">Update your password</p>
               </div>
             </div>
 
@@ -308,8 +308,8 @@ export function Settings() {
                 <Bell className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-800">Notification Preferences</h3>
-                <p className="text-sm text-slate-600">Choose what you want to be notified about</p>
+                <h3 className="font-semibold text-foreground">Notification Preferences</h3>
+                <p className="text-sm text-muted-foreground">Choose what you want to be notified about</p>
               </div>
             </div>
 
@@ -323,8 +323,8 @@ export function Settings() {
               ].map(({ key, label, desc }) => (
                 <div key={key} className="flex items-center justify-between rounded-lg border p-4">
                   <div>
-                    <p className="text-sm font-medium text-slate-800">{label}</p>
-                    <p className="text-xs text-slate-500">{desc}</p>
+                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <p className="text-xs text-muted-foreground">{desc}</p>
                   </div>
                   <Switch
                     checked={notifications[key as keyof typeof notifications]}

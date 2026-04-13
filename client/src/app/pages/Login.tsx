@@ -30,7 +30,7 @@ export function Login() {
       {/* Left side - Branding */}
       <div className="hidden w-1/2 bg-gradient-to-br from-blue-600 to-blue-800 lg:flex lg:flex-col lg:justify-center lg:px-16">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-background/10 backdrop-blur">
             <FileText className="h-7 w-7 text-white" />
           </div>
           <span className="text-3xl font-bold text-white">EasyFact</span>
@@ -43,7 +43,7 @@ export function Login() {
         </p>
         <div className="mt-12 space-y-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-background/10">
               <span className="text-sm font-semibold text-white">1</span>
             </div>
             <div>
@@ -52,7 +52,7 @@ export function Login() {
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-background/10">
               <span className="text-sm font-semibold text-white">2</span>
             </div>
             <div>
@@ -61,7 +61,7 @@ export function Login() {
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-background/10">
               <span className="text-sm font-semibold text-white">3</span>
             </div>
             <div>
@@ -80,12 +80,12 @@ export function Login() {
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
                 <FileText className="h-6 w-6 text-white" />
               </div>
-              <span className="text-2xl font-bold text-slate-800">InvoiceFlow</span>
+              <span className="text-2xl font-bold text-foreground">InvoiceFlow</span>
             </div>
           </div>
 
-          <h2 className="text-3xl font-bold text-slate-800">Welcome back</h2>
-          <p className="mt-2 text-slate-600">Sign in to your account to continue</p>
+          <h2 className="text-3xl font-bold text-foreground">Welcome back</h2>
+          <p className="mt-2 text-muted-foreground">Sign in to your account to continue</p>
 
           <form onSubmit={handleLogin} className="mt-8 space-y-6">
             <div className="space-y-2">
@@ -118,7 +118,7 @@ export function Login() {
                   type="checkbox"
                   className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm text-slate-600">Remember me</span>
+                <span className="text-sm text-muted-foreground">Remember me</span>
               </label>
               <a href="#" className="text-sm font-medium text-blue-600 hover:text-blue-700">
                 Forgot password?
@@ -131,7 +131,7 @@ export function Login() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-slate-600">
+          <div className="mt-6 text-center text-sm text-muted-foreground">
             Don't have an account?{' '}
             <Link to="/register" className="font-medium text-blue-600 hover:text-blue-700">
               Sign up

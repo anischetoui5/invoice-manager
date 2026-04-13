@@ -269,7 +269,7 @@ export function Register() {
       {/* Left side - Branding */}
       <div className="hidden w-1/2 bg-gradient-to-br from-blue-600 to-blue-800 lg:flex lg:flex-col lg:justify-center lg:px-16">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-background/10 backdrop-blur">
             <FileText className="h-7 w-7 text-white" />
           </div>
           <span className="text-3xl font-bold text-white">InvoiceFlow</span>
@@ -297,7 +297,7 @@ export function Register() {
         <div className="mt-12 space-y-4">
           {['Automated OCR', 'Team Collaboration', 'Free Trial'].map((title, i) => (
             <div key={i} className="flex items-start gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-background/10">
                 <span className="text-sm font-semibold text-white">✓</span>
               </div>
               <div>
@@ -316,7 +316,7 @@ export function Register() {
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
                 <FileText className="h-6 w-6 text-white" />
               </div>
-              <span className="text-2xl font-bold text-slate-800">InvoiceFlow</span>
+              <span className="text-2xl font-bold text-foreground">InvoiceFlow</span>
             </div>
           </div>
 
@@ -334,8 +334,8 @@ export function Register() {
           {/* ── Type selection ── */}
           {step === 'type' && (
             <>
-              <h2 className="text-3xl font-bold text-slate-800">Get Started</h2>
-              <p className="mt-2 text-slate-600">Choose how you want to use InvoiceFlow</p>
+              <h2 className="text-3xl font-bold text-foreground">Get Started</h2>
+              <p className="mt-2 text-muted-foreground">Choose how you want to use InvoiceFlow</p>
               <div className="mt-8 space-y-4">
                 <Card className="cursor-pointer p-6 transition-all hover:border-blue-400 hover:shadow-md" onClick={() => handleTypeSelection('personal')}>
                   <div className="flex items-start gap-4">
@@ -343,8 +343,8 @@ export function Register() {
                       <User className="h-6 w-6 text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-slate-800">Personal Account</h3>
-                      <p className="mt-1 text-sm text-slate-600">For individual use. Manage your personal invoices with basic features.</p>
+                      <h3 className="font-semibold text-foreground">Personal Account</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">For individual use. Manage your personal invoices with basic features.</p>
                       <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
                         <Check className="h-4 w-4" /><span>Free to start</span>
                       </div>
@@ -358,8 +358,8 @@ export function Register() {
                       <Building2 className="h-6 w-6 text-purple-600" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-slate-800">Create a Company</h3>
-                      <p className="mt-1 text-sm text-slate-600">Become a director. Create your company and invite your team.</p>
+                      <h3 className="font-semibold text-foreground">Create a Company</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">Become a director. Create your company and invite your team.</p>
                       <div className="mt-2 flex items-center gap-2 text-xs text-purple-600">
                         <Check className="h-4 w-4" /><span>14-day free trial</span>
                       </div>
@@ -373,8 +373,8 @@ export function Register() {
                       <Users className="h-6 w-6 text-green-600" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-slate-800">Join a Company</h3>
-                      <p className="mt-1 text-sm text-slate-600">Join an existing company as an employee or accountant using a company code.</p>
+                      <h3 className="font-semibold text-foreground">Join a Company</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">Join an existing company as an employee or accountant using a company code.</p>
                       <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
                         <Check className="h-4 w-4" /><span>Request approval</span>
                       </div>
@@ -388,8 +388,8 @@ export function Register() {
           {/* ── Account form ── */}
           {step === 'account' && (
             <>
-              <h2 className="text-3xl font-bold text-slate-800">Create your account</h2>
-              <p className="mt-2 text-slate-600">
+              <h2 className="text-3xl font-bold text-foreground">Create your account</h2>
+              <p className="mt-2 text-muted-foreground">
                 {registrationType === 'personal' && 'Set up your personal account'}
                 {registrationType === 'company' && 'Set up your director account'}
                 {registrationType === 'join' && 'Set up your account and join'}
@@ -401,18 +401,18 @@ export function Register() {
                     <Card className="p-4">
                       <Label className="mb-3 block text-sm font-medium text-slate-700">I want to join as:</Label>
                       <RadioGroup value={joinRole} onValueChange={(value) => setJoinRole(value as JoinRole)}>
-                        <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-slate-50">
+                        <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-background">
                           <RadioGroupItem value="employee" id="employee-role" />
                           <Label htmlFor="employee-role" className="flex-1 cursor-pointer">
-                            <div className="font-medium text-slate-800">Employee</div>
-                            <div className="text-xs text-slate-500">Upload and manage invoices</div>
+                            <div className="font-medium text-foreground">Employee</div>
+                            <div className="text-xs text-muted-foreground">Upload and manage invoices</div>
                           </Label>
                         </div>
-                        <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-slate-50">
+                        <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-background">
                           <RadioGroupItem value="accountant" id="accountant-role" />
                           <Label htmlFor="accountant-role" className="flex-1 cursor-pointer">
-                            <div className="font-medium text-slate-800">Accountant</div>
-                            <div className="text-xs text-slate-500">Validate and approve invoices</div>
+                            <div className="font-medium text-foreground">Accountant</div>
+                            <div className="text-xs text-muted-foreground">Validate and approve invoices</div>
                           </Label>
                         </div>
                       </RadioGroup>
@@ -425,7 +425,7 @@ export function Register() {
                         onChange={(e) => handleInputChange('companyCode', e.target.value)}
                         required
                       />
-                      <p className="text-xs text-slate-500">Enter the code provided by your company director</p>
+                      <p className="text-xs text-muted-foreground">Enter the code provided by your company director</p>
                     </div>
                   </>
                 )}
@@ -461,8 +461,8 @@ export function Register() {
           {/* ── Company setup ── */}
           {step === 'company-setup' && (
             <>
-              <h2 className="text-3xl font-bold text-slate-800">Company Setup</h2>
-              <p className="mt-2 text-slate-600">Tell us about your company</p>
+              <h2 className="text-3xl font-bold text-foreground">Company Setup</h2>
+              <p className="mt-2 text-muted-foreground">Tell us about your company</p>
               <form onSubmit={handleCompanySetupSubmit} className="mt-8 space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="companyName">Company Name <span className="text-red-500">*</span></Label>
@@ -509,8 +509,8 @@ export function Register() {
           {/* ── Subscription ── */}
           {step === 'subscription' && (
             <>
-              <h2 className="text-3xl font-bold text-slate-800">Choose Your Plan</h2>
-              <p className="mt-2 text-slate-600">Select the subscription that fits your needs</p>
+              <h2 className="text-3xl font-bold text-foreground">Choose Your Plan</h2>
+              <p className="mt-2 text-muted-foreground">Select the subscription that fits your needs</p>
               <div className="mt-8 space-y-4">
                 {companyPlans.map((plan) => (
                   <Card key={plan.type}
@@ -519,15 +519,15 @@ export function Register() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-slate-800">{plan.name}</h3>
+                          <h3 className="font-semibold text-foreground">{plan.name}</h3>
                           {plan.popular && <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">Recommended</span>}
                         </div>
-                        <p className="mt-1 text-sm text-slate-600">{plan.description}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
                         <div className="mt-3 flex items-baseline gap-1">
-                          <span className="text-3xl font-bold text-slate-800">${plan.price}</span>
-                          <span className="text-sm text-slate-600">/month</span>
+                          <span className="text-3xl font-bold text-foreground">${plan.price}</span>
+                          <span className="text-sm text-muted-foreground">/month</span>
                         </div>
-                        <div className="mt-3 flex gap-4 text-xs text-slate-600">
+                        <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
                           <span>📄 {plan.invoiceLimit === -1 ? 'Unlimited' : plan.invoiceLimit.toLocaleString()} invoices</span>
                           <span>👥 {plan.userLimit === -1 ? 'Unlimited' : plan.userLimit} users</span>
                           <span>🎯 {plan.ocrAccuracy}% OCR</span>
@@ -543,30 +543,30 @@ export function Register() {
               <Button onClick={handleSubscriptionSubmit} className="mt-6 w-full" size="lg">
                 <CreditCard className="mr-2 h-5 w-5" />Continue to Payment
               </Button>
-              <p className="mt-4 text-center text-xs text-slate-500">14-day free trial • Cancel anytime</p>
+              <p className="mt-4 text-center text-xs text-muted-foreground">14-day free trial • Cancel anytime</p>
             </>
           )}
 
           {/* ── Payment ── */}
           {step === 'payment' && (
             <>
-              <h2 className="text-3xl font-bold text-slate-800">Payment Information</h2>
-              <p className="mt-2 text-slate-600">Complete your subscription setup</p>
+              <h2 className="text-3xl font-bold text-foreground">Payment Information</h2>
+              <p className="mt-2 text-muted-foreground">Complete your subscription setup</p>
               <Card className="mt-6 bg-gradient-to-br from-blue-50 to-purple-50 p-5">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
                       <Crown className="h-5 w-5 text-blue-600" />
-                      <h3 className="font-semibold text-slate-800">{companyPlans.find(p => p.type === selectedPlan)?.name} Plan</h3>
+                      <h3 className="font-semibold text-foreground">{companyPlans.find(p => p.type === selectedPlan)?.name} Plan</h3>
                     </div>
-                    <p className="mt-1 text-sm text-slate-600">{formData.companyName}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{formData.companyName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-slate-800">${companyPlans.find(p => p.type === selectedPlan)?.price}</p>
-                    <p className="text-xs text-slate-600">per month</p>
+                    <p className="text-2xl font-bold text-foreground">${companyPlans.find(p => p.type === selectedPlan)?.price}</p>
+                    <p className="text-xs text-muted-foreground">per month</p>
                   </div>
                 </div>
-                <div className="mt-3 rounded-lg bg-white/60 p-3">
+                <div className="mt-3 rounded-lg bg-background/60 p-3">
                   <p className="text-xs font-medium text-green-700">✓ 14-day free trial included - you won't be charged today</p>
                 </div>
               </Card>
@@ -605,38 +605,38 @@ export function Register() {
                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
                   <Check className="h-10 w-10 text-green-600" />
                 </div>
-                <h2 className="text-3xl font-bold text-slate-800">Company Created Successfully!</h2>
-                <p className="mt-2 text-slate-600">Welcome to InvoiceFlow, {formData.name}</p>
+                <h2 className="text-3xl font-bold text-foreground">Company Created Successfully!</h2>
+                <p className="mt-2 text-muted-foreground">Welcome to InvoiceFlow, {formData.name}</p>
               </div>
               <Card className="mt-8 border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-6">
                 <div className="text-center">
                   <Building2 className="mx-auto mb-3 h-8 w-8 text-blue-600" />
-                  <h3 className="font-semibold text-slate-800">{formData.companyName}</h3>
-                  <p className="mt-1 text-sm text-slate-600">Company Code</p>
+                  <h3 className="font-semibold text-foreground">{formData.companyName}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">Company Code</p>
                   <div className="mt-3 flex items-center justify-center gap-2">
-                    <code className="rounded-lg bg-white px-4 py-2 text-2xl font-bold tracking-wider text-blue-600">
+                    <code className="rounded-lg bg-background px-4 py-2 text-2xl font-bold tracking-wider text-blue-600">
                       {generatedCompanyCode || formData.companyCode}
                     </code>
                     <Button variant="outline" size="sm" onClick={copyCompanyCode} className="gap-2">
                       <Copy className="h-4 w-4" />Copy
                     </Button>
                   </div>
-                  <p className="mt-3 text-xs text-slate-600">Share this code with your team members to invite them</p>
+                  <p className="mt-3 text-xs text-muted-foreground">Share this code with your team members to invite them</p>
                 </div>
               </Card>
               <div className="mt-8 space-y-3">
-                <h3 className="font-semibold text-slate-800">Suggested Next Steps</h3>
+                <h3 className="font-semibold text-foreground">Suggested Next Steps</h3>
                 {[
                   { icon: <Users className="h-5 w-5 text-blue-600" />, bg: 'bg-blue-100', title: 'Invite Employees', desc: 'Add team members to upload invoices' },
                   { icon: <User className="h-5 w-5 text-purple-600" />, bg: 'bg-purple-100', title: 'Invite Accountant', desc: 'Add accountants to validate invoices' },
                   { icon: <FileText className="h-5 w-5 text-green-600" />, bg: 'bg-green-100', title: 'Upload First Invoice', desc: 'Start processing invoices with OCR' },
                 ].map((item, i) => (
-                  <Card key={i} className="cursor-pointer p-4 transition-colors hover:bg-slate-50">
+                  <Card key={i} className="cursor-pointer p-4 transition-colors hover:bg-background">
                     <div className="flex items-center gap-3">
                       <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${item.bg}`}>{item.icon}</div>
                       <div className="flex-1">
-                        <p className="font-medium text-slate-800">{item.title}</p>
-                        <p className="text-xs text-slate-600">{item.desc}</p>
+                        <p className="font-medium text-foreground">{item.title}</p>
+                        <p className="text-xs text-muted-foreground">{item.desc}</p>
                       </div>
                     </div>
                   </Card>
@@ -648,7 +648,7 @@ export function Register() {
             </>
           )}
 
-          <div className="mt-6 text-center text-sm text-slate-600">
+          <div className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
             <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">Sign in</Link>
           </div>

@@ -54,17 +54,17 @@ export function NotificationsPanel({
         className="fixed inset-0 z-40 bg-black/20"
         onClick={onClose}
       />
-      <div className="fixed right-0 top-0 z-50 flex h-screen w-96 flex-col bg-white shadow-xl">
+      <div className="fixed right-0 top-0 z-50 flex h-screen w-96 flex-col bg-background shadow-xl">
         <div className="flex items-center justify-between border-b p-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-800">Notifications</h2>
+            <h2 className="text-lg font-semibold text-foreground">Notifications</h2>
             {unreadCount > 0 && (
-              <p className="text-sm text-slate-500">{unreadCount} unread</p>
+              <p className="text-sm text-muted-foreground">{unreadCount} unread</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-muted hover:text-muted-foreground"
           >
             <X className="h-5 w-5" />
           </button>
@@ -85,14 +85,14 @@ export function NotificationsPanel({
           {notifications.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center p-4 text-center">
               <Info className="h-12 w-12 text-slate-300" />
-              <p className="mt-2 text-sm text-slate-500">No notifications yet</p>
+              <p className="mt-2 text-sm text-muted-foreground">No notifications yet</p>
             </div>
           ) : (
             <div className="divide-y">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 transition-colors hover:bg-slate-50 ${
+                  className={`p-4 transition-colors hover:bg-background ${
                     !notification.read ? 'bg-blue-50/30' : ''
                   }`}
                   onClick={() => !notification.read && onMarkAsRead(notification.id)}
@@ -103,14 +103,14 @@ export function NotificationsPanel({
                     </div>
                     <div className="flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-medium text-slate-800">
+                        <h3 className="text-sm font-medium text-foreground">
                           {notification.title}
                         </h3>
                         {!notification.read && (
                           <div className="h-2 w-2 flex-shrink-0 rounded-full bg-blue-600" />
                         )}
                       </div>
-                      <p className="mt-1 text-sm text-slate-600">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {notification.message}
                       </p>
                       <div className="mt-2 flex items-center justify-between">

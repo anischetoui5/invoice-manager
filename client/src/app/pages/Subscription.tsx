@@ -39,7 +39,7 @@ export function Subscription() {
   // 2. Safety check: Commented out for layout testing
   /*
   if (!currentSubscription) {
-    return <div className="p-8 text-center text-slate-600">Loading subscription details...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Loading subscription details...</div>;
   }
   */
 
@@ -104,8 +104,8 @@ export function Subscription() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Subscription & Billing</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-2xl font-bold text-foreground">Subscription & Billing</h1>
+        <p className="mt-1 text-muted-foreground">
           Manage your subscription plan and view usage
         </p>
       </div>
@@ -115,16 +115,16 @@ export function Subscription() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <div className="flex items-center gap-3">
-              <h3 className="text-xl font-semibold text-slate-800">Current Plan: {plans.find(p => p.type === currentSubscription.plan)?.name}</h3>
+              <h3 className="text-xl font-semibold text-foreground">Current Plan: {plans.find(p => p.type === currentSubscription.plan)?.name}</h3>
               <Badge className="bg-green-100 text-green-700">Active</Badge>
             </div>
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Started on {new Date(currentSubscription.startDate).toLocaleDateString()}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-3xl font-bold text-slate-800">${currentSubscription.price}</p>
-            <p className="text-sm text-slate-600">per month</p>
+            <p className="text-3xl font-bold text-foreground">${currentSubscription.price}</p>
+            <p className="text-sm text-muted-foreground">per month</p>
           </div>
         </div>
 
@@ -134,14 +134,14 @@ export function Subscription() {
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-blue-600" />
-                <span className="font-medium text-slate-800">Invoice Usage</span>
+                <span className="font-medium text-foreground">Invoice Usage</span>
               </div>
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-muted-foreground">
                 {currentSubscription.invoiceUsed} / {currentSubscription.invoiceLimit}
               </span>
             </div>
             <Progress value={invoiceUsagePercent} className="h-2" />
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-muted-foreground">
               {currentSubscription.invoiceLimit - currentSubscription.invoiceUsed} invoices remaining this month
             </p>
           </div>
@@ -150,14 +150,14 @@ export function Subscription() {
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-purple-600" />
-                <span className="font-medium text-slate-800">User Seats</span>
+                <span className="font-medium text-foreground">User Seats</span>
               </div>
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-muted-foreground">
                 {currentSubscription.userCount} / {currentSubscription.userLimit}
               </span>
             </div>
             <Progress value={userUsagePercent} className="h-2" />
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-muted-foreground">
               {currentSubscription.userLimit - currentSubscription.userCount} user seats available
             </p>
           </div>
@@ -165,7 +165,7 @@ export function Subscription() {
 
         {/* Features */}
         <div className="mt-6 border-t pt-6">
-          <h4 className="mb-4 font-medium text-slate-800">Your Plan Features</h4>
+          <h4 className="mb-4 font-medium text-foreground">Your Plan Features</h4>
           <div className="grid gap-3 md:grid-cols-2">
             {currentSubscription.features.map((feature, index) => (
               <div key={index} className="flex items-center gap-2">
@@ -181,7 +181,7 @@ export function Subscription() {
 
       {/* Available Plans */}
       <div>
-        <h2 className="mb-4 text-xl font-semibold text-slate-800">Available Plans</h2>
+        <h2 className="mb-4 text-xl font-semibold text-foreground">Available Plans</h2>
         <div className="grid gap-6 lg:grid-cols-3">
           {plans.map((plan) => {
             const isCurrentPlan = plan.type === currentSubscription.plan;
@@ -198,11 +198,11 @@ export function Subscription() {
                 )}
 
                 <div className="mb-6">
-                  <h3 className="text-xl font-semibold text-slate-800">{plan.name}</h3>
-                  <p className="mt-1 text-sm text-slate-600">{plan.description}</p>
+                  <h3 className="text-xl font-semibold text-foreground">{plan.name}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
                   <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-slate-800">${plan.price}</span>
-                    <span className="text-slate-600">/month</span>
+                    <span className="text-4xl font-bold text-foreground">${plan.price}</span>
+                    <span className="text-muted-foreground">/month</span>
                   </div>
                 </div>
 
@@ -233,7 +233,7 @@ export function Subscription() {
       {/* Billing History */}
       <Card className="p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold text-slate-800">Billing History</h3>
+          <h3 className="font-semibold text-foreground">Billing History</h3>
           <Button variant="outline" size="sm">
             <CreditCard className="mr-2 h-4 w-4" />
             Update Payment Method
@@ -247,17 +247,17 @@ export function Subscription() {
           ].map((bill) => (
             <div key={bill.invoice} className="flex items-center justify-between rounded-lg border p-4">
               <div className="flex items-center gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
-                  <CreditCard className="h-5 w-5 text-slate-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                  <CreditCard className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="font-medium text-slate-800">{bill.invoice}</p>
-                  <p className="text-sm text-slate-600">{new Date(bill.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p className="font-medium text-foreground">{bill.invoice}</p>
+                  <p className="text-sm text-muted-foreground">{new Date(bill.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <Badge className="bg-green-100 text-green-700">{bill.status}</Badge>
-                <span className="font-medium text-slate-800">${bill.amount}</span>
+                <span className="font-medium text-foreground">${bill.amount}</span>
                 <Button variant="outline" size="sm">
                   Download
                 </Button>
@@ -274,10 +274,10 @@ export function Subscription() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
               <TrendingUp className="h-5 w-5 text-blue-600" />
             </div>
-            <h3 className="font-semibold text-slate-800">Monthly Trend</h3>
+            <h3 className="font-semibold text-foreground">Monthly Trend</h3>
           </div>
-          <p className="text-2xl font-bold text-slate-800">+23%</p>
-          <p className="text-sm text-slate-600 mt-1">Invoice submissions vs last month</p>
+          <p className="text-2xl font-bold text-foreground">+23%</p>
+          <p className="text-sm text-muted-foreground mt-1">Invoice submissions vs last month</p>
         </Card>
 
         <Card className="p-6">
@@ -285,10 +285,10 @@ export function Subscription() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
               <Users className="h-5 w-5 text-purple-600" />
             </div>
-            <h3 className="font-semibold text-slate-800">Active Users</h3>
+            <h3 className="font-semibold text-foreground">Active Users</h3>
           </div>
-          <p className="text-2xl font-bold text-slate-800">{currentSubscription.userCount}</p>
-          <p className="text-sm text-slate-600 mt-1">out of {currentSubscription.userLimit} seats</p>
+          <p className="text-2xl font-bold text-foreground">{currentSubscription.userCount}</p>
+          <p className="text-sm text-muted-foreground mt-1">out of {currentSubscription.userLimit} seats</p>
         </Card>
 
         <Card className="p-6">
@@ -296,10 +296,10 @@ export function Subscription() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
               <Zap className="h-5 w-5 text-green-600" />
             </div>
-            <h3 className="font-semibold text-slate-800">Efficiency</h3>
+            <h3 className="font-semibold text-foreground">Efficiency</h3>
           </div>
-          <p className="text-2xl font-bold text-slate-800">2.4h</p>
-          <p className="text-sm text-slate-600 mt-1">Average processing time</p>
+          <p className="text-2xl font-bold text-foreground">2.4h</p>
+          <p className="text-sm text-muted-foreground mt-1">Average processing time</p>
         </Card>
       </div>
     </div>
