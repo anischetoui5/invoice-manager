@@ -6,7 +6,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
 import { Layout } from './components/Layout';
 import { Subscription } from './pages/Subscription';
-// import { PersonalSubscription } from './pages/PersonalSubscription'; // uncomment when file is created
+import { PersonalSubscription } from './pages/PersonalSubscription';
 import type { User, Enterprise } from './types';
 import api from '../lib/api';
 
@@ -104,7 +104,7 @@ export const router = createBrowserRouter([
     path: '/register',
     element: <Register />,
   },
-  // { path: '/personal-subscription', element: <PersonalSubscription /> }, // uncomment when page is created
+  { path: '/personal-subscription', element: <PersonalSubscription /> },
   {
     path: '/dashboard',
     // ProtectedLayout handles auth check + data fetching,
