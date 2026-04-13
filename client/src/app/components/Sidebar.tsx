@@ -23,17 +23,17 @@ export function Sidebar({ userRole }: SidebarProps) {
     return location.pathname === path;
   };
 
-  const navItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'employee', 'accountant', 'director'] },
-    { path: '/dashboard/upload', icon: Upload, label: 'Upload Invoice', roles: ['employee', 'admin'] },
-    { path: '/dashboard/invoices', icon: FileText, label: 'Invoices', roles: ['admin', 'employee', 'accountant', 'director'] },
-    { path: '/dashboard/reports', icon: BarChart3, label: 'Reports', roles: ['admin', 'accountant', 'director'] },
-    { path: '/dashboard/team', icon: UserPlus, label: 'Team Management', roles: ['director', 'admin'] },
-    { path: '/dashboard/subscription', icon: CreditCard, label: 'Subscription', roles: ['director', 'admin'] },
-    { path: '/dashboard/users', icon: Users, label: 'Users', roles: ['admin'] },
-    { path: '/dashboard/history', icon: History, label: 'History', roles: ['admin', 'accountant'] },
-    { path: '/dashboard/settings', icon: Settings, label: 'Settings', roles: ['admin', 'employee', 'accountant', 'director'] },
-  ];
+const navItems = [
+  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
+  { path: '/dashboard/upload', icon: Upload, label: 'Upload Invoice', roles: ['employee', 'admin', 'normal'] },
+  { path: '/dashboard/invoices', icon: FileText, label: 'Invoices', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
+  { path: '/dashboard/reports', icon: BarChart3, label: 'Reports', roles: ['admin', 'accountant', 'director'] },
+  { path: '/dashboard/team', icon: UserPlus, label: 'Team Management', roles: ['director', 'admin'] },
+  { path: '/dashboard/subscription', icon: CreditCard, label: 'Subscription', roles: ['director', 'admin', 'normal'] },
+  { path: '/dashboard/users', icon: Users, label: 'Users', roles: ['admin'] },
+  { path: '/dashboard/history', icon: History, label: 'History', roles: ['admin', 'accountant', 'normal'] },
+  { path: '/dashboard/settings', icon: Settings, label: 'Settings', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
+];
 
   const filteredNavItems = navItems.filter((item) =>
     item.roles.includes(userRole)
