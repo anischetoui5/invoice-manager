@@ -21,7 +21,6 @@ async function register({ name, email, password, registrationType }) {
   }
 
   const password_hash = await bcrypt.hash(password, 10);
-
   const client = await pool.connect();
 
   try {
@@ -46,8 +45,7 @@ async function register({ name, email, password, registrationType }) {
     const workspace = workspaceResult.rows[0];
 
     // 3. Dynamic Role Assignment
-    // Assign 'Director' if they chose 'company', otherwise 'Personal user'
-    const roleName = registrationType === 'company' ? 'Director' : 'Personal user';
+    const roleName = registrationType === 'company' ? 'Director' : 'personal';
     const roleResult = await client.query(
       'SELECT id FROM roles WHERE name = $1',
       [roleName]
@@ -63,17 +61,20 @@ async function register({ name, email, password, registrationType }) {
 
     await client.query('COMMIT');
 
-    // 5. Generate token so they are logged in immediately
+    // 5. Generate token
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
+    // Map backend role name to frontend UserRole type
+    const frontendRole = roleName === 'Director' ? 'director' : 'normal';
+
     return {
-      user,
+      user: { ...user, role: frontendRole },
       token,
-      personalWorkspaceId: workspace.id // Frontend needs this for localStorage
+      personalWorkspaceId: workspace.id
     };
 
   } catch (err) {
@@ -100,11 +101,12 @@ async function login({ email, password }) {
     throw new Error('Invalid email or password');
   }
 
-  // Fetch the user's personal workspace ID so the frontend knows what to load
+  // Fetch workspace ID and role in one query
   const workspaceResult = await pool.query(
-    `SELECT w.id 
+    `SELECT w.id as workspace_id, r.name as role_name
      FROM workspaces w
      JOIN memberships m ON m.workspace_id = w.id
+     JOIN roles r ON r.id = m.role_id
      WHERE m.user_id = $1 AND w.type = 'personal'
      LIMIT 1`,
     [user.id]
@@ -116,10 +118,27 @@ async function login({ email, password }) {
     { expiresIn: '24h' }
   );
 
+  // Map backend role name to frontend UserRole type
+  const roleMap = {
+    'Director': 'director',
+    'Personal': 'normal',
+    'Employee': 'employee',
+    'Accountant': 'accountant',
+    'Admin': 'admin',
+  };
+
+  const rawRole = workspaceResult.rows[0]?.role_name || 'Personal user';
+  const frontendRole = roleMap[rawRole] || 'normal';
+
   return {
     token,
-    user: { id: user.id, name: user.name, email: user.email },
-    activeWorkspaceId: workspaceResult.rows[0]?.id
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: frontendRole,
+    },
+    activeWorkspaceId: workspaceResult.rows[0]?.workspace_id,
   };
 }
 

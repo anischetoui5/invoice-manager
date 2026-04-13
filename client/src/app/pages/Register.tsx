@@ -143,15 +143,8 @@ export function Register() {
   ];
 
   const industries = [
-    'Technology',
-    'Healthcare',
-    'Finance',
-    'Retail',
-    'Manufacturing',
-    'Education',
-    'Real Estate',
-    'Consulting',
-    'Other',
+    'Technology', 'Healthcare', 'Finance', 'Retail',
+    'Manufacturing', 'Education', 'Real Estate', 'Consulting', 'Other',
   ];
 
   const getStepNumber = (): number => {
@@ -189,71 +182,55 @@ export function Register() {
     return `${prefix}${randomNum}`;
   };
 
-const handleAccountSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleAccountSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  // 1. Validation
-  if (formData.password !== formData.confirmPassword) {
-    toast.error('Passwords do not match');
-    return;
-  }
-
-  // 2. Personal Flow Redirection (per your current code)
-  if (registrationType === 'personal') {
-    navigate('/personal-subscription?from=onboarding');
-    return;
-  }
-
-  try {
-    // 3. API Call
-    const response = await api.post('/auth/register', {
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      registrationType: registrationType // Let backend know if this is a 'company' or 'join'
-    });
-
-    // 4. Critical: Store Auth State
-    // The backend should return the token and the auto-created personal workspace ID
-    localStorage.setItem('token', response.data.token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
-    
-    // This allows your 'api.ts' interceptor to start tagging requests immediately
-    if (response.data.personalWorkspaceId) {
-      localStorage.setItem('activeWorkspaceId', response.data.personalWorkspaceId);
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
     }
 
-    toast.success('Account created successfully!');
+    try {
+      // ALL types call the API directly — no more redirect for personal
+      const response = await api.post('/auth/register', {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        registrationType,
+      });
 
-    // 5. Flow Logic
-    if (registrationType === 'company') {
-      // Move to the next step in the Stepper (Company Setup)
-      setStep('company-setup');
-    } else if (registrationType === 'join') {
-      // For 'join' flow, we wait for backend approval logic
-      toast.info('Request to join sent to the company director.');
-      navigate('/login');
-    } else {
-      setTimeout(() => navigate('/dashboard'), 1000);
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      if (response.data.personalWorkspaceId) {
+        localStorage.setItem('activeWorkspaceId', response.data.personalWorkspaceId);
+      }
+
+      toast.success('Account created successfully!');
+
+      if (registrationType === 'company') {
+        setStep('company-setup');
+      } else if (registrationType === 'join') {
+        toast.info('Account created! You can now join a company from your dashboard.');
+        navigate('/dashboard');
+      } else {
+        // personal — go straight to dashboard
+        navigate('/dashboard');
+      }
+
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Registration failed');
     }
-
-  } catch (err: any) {
-    toast.error(err.response?.data?.error || 'Registration failed');
-  }
-};
+  };
 
   const handleCompanySetupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.companyName.trim()) {
       toast.error('Please enter your company name');
       return;
     }
-
     const code = generateCompanyCode(formData.companyName);
     setGeneratedCompanyCode(code);
     handleInputChange('companyCode', code);
-
     setStep('subscription');
   };
 
@@ -263,16 +240,12 @@ const handleAccountSubmit = async (e: React.FormEvent) => {
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.cardNumber || !formData.cardExpiry || !formData.cardCVC || !formData.cardName) {
       toast.error('Please fill in all payment details');
       return;
     }
-
     toast.success('Payment processed successfully!');
-    setTimeout(() => {
-      setStep('confirmation');
-    }, 800);
+    setTimeout(() => setStep('confirmation'), 800);
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -280,16 +253,10 @@ const handleAccountSubmit = async (e: React.FormEvent) => {
   };
 
   const handleBack = () => {
-    if (step === 'account') {
-      setStep('type');
-      setRegistrationType(null);
-    } else if (step === 'company-setup') {
-      setStep('account');
-    } else if (step === 'subscription') {
-      setStep('company-setup');
-    } else if (step === 'payment') {
-      setStep('subscription');
-    }
+    if (step === 'account') { setStep('type'); setRegistrationType(null); }
+    else if (step === 'company-setup') setStep('account');
+    else if (step === 'subscription') setStep('company-setup');
+    else if (step === 'payment') setStep('subscription');
   };
 
   const copyCompanyCode = () => {
@@ -314,59 +281,34 @@ const handleAccountSubmit = async (e: React.FormEvent) => {
           {registrationType === 'company' && step === 'subscription' && 'Choose Your Plan'}
           {registrationType === 'company' && step === 'payment' && 'Secure Payment'}
           {registrationType === 'company' && step === 'confirmation' && 'Welcome Aboard!'}
-          {registrationType === 'company' && step === 'type' && 'Start Managing Your Business'}
           {registrationType === 'join' && 'Join Your Team'}
           {!registrationType && 'Start Managing Invoices Today'}
         </h1>
         <p className="mt-4 text-lg text-blue-100">
           {registrationType === 'personal' && 'Get started with basic invoice management for personal use.'}
           {registrationType === 'company' && step === 'account' && 'Set up your director account to get started.'}
-          {registrationType === 'company' && step === 'company-setup' && 'Tell us about your company and we\'ll generate your unique code.'}
+          {registrationType === 'company' && step === 'company-setup' && "Tell us about your company and we'll generate your unique code."}
           {registrationType === 'company' && step === 'subscription' && 'Select the perfect subscription plan for your business needs.'}
           {registrationType === 'company' && step === 'payment' && 'Complete your subscription with secure payment processing.'}
           {registrationType === 'company' && step === 'confirmation' && 'Your company is ready! Start inviting your team.'}
-          {registrationType === 'company' && step === 'type' && 'Create your company and invite your team for collaborative invoice management.'}
           {registrationType === 'join' && 'Join an existing company using your company code.'}
           {!registrationType && 'Choose the option that fits your needs.'}
         </p>
         <div className="mt-12 space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
-              <span className="text-sm font-semibold text-white">✓</span>
+          {['Automated OCR', 'Team Collaboration', 'Free Trial'].map((title, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
+                <span className="text-sm font-semibold text-white">✓</span>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">{title}</h3>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-white">Automated OCR</h3>
-              <p className="text-sm text-blue-100">
-                Extract data from invoices automatically
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
-              <span className="text-sm font-semibold text-white">✓</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-white">Team Collaboration</h3>
-              <p className="text-sm text-blue-100">
-                Work together with employees and accountants
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
-              <span className="text-sm font-semibold text-white">✓</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-white">Free Trial</h3>
-              <p className="text-sm text-blue-100">
-                14-day free trial, no credit card required
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Right side - Registration form */}
+      {/* Right side */}
       <div className="flex w-full flex-col justify-center px-8 py-12 lg:w-1/2 lg:px-16">
         <div className="mx-auto w-full max-w-md">
           <div className="mb-8 lg:hidden">
@@ -378,88 +320,63 @@ const handleAccountSubmit = async (e: React.FormEvent) => {
             </div>
           </div>
 
-          {/* Stepper - only show for company creation flow */}
           {registrationType === 'company' && step !== 'type' && step !== 'confirmation' && (
             <RegistrationStepper currentStep={getStepNumber()} steps={registrationSteps} />
           )}
 
           {step !== 'type' && step !== 'confirmation' && (
-            <Button
-              variant="ghost"
-              onClick={handleBack}
-              className="mb-4 gap-2"
-            >
+            <Button variant="ghost" onClick={handleBack} className="mb-4 gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
           )}
 
+          {/* ── Type selection ── */}
           {step === 'type' && (
             <>
               <h2 className="text-3xl font-bold text-slate-800">Get Started</h2>
-              <p className="mt-2 text-slate-600">
-                Choose how you want to use InvoiceFlow
-              </p>
-
+              <p className="mt-2 text-slate-600">Choose how you want to use InvoiceFlow</p>
               <div className="mt-8 space-y-4">
-                <Card
-                  className="cursor-pointer p-6 transition-all hover:border-blue-400 hover:shadow-md"
-                  onClick={() => handleTypeSelection('personal')}
-                >
+                <Card className="cursor-pointer p-6 transition-all hover:border-blue-400 hover:shadow-md" onClick={() => handleTypeSelection('personal')}>
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100">
                       <User className="h-6 w-6 text-blue-600" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-slate-800">Personal Account</h3>
-                      <p className="mt-1 text-sm text-slate-600">
-                        For individual use. Manage your personal invoices with basic features.
-                      </p>
+                      <p className="mt-1 text-sm text-slate-600">For individual use. Manage your personal invoices with basic features.</p>
                       <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
-                        <Check className="h-4 w-4" />
-                        <span>Free to start</span>
+                        <Check className="h-4 w-4" /><span>Free to start</span>
                       </div>
                     </div>
                   </div>
                 </Card>
 
-                <Card
-                  className="cursor-pointer p-6 transition-all hover:border-blue-400 hover:shadow-md"
-                  onClick={() => handleTypeSelection('company')}
-                >
+                <Card className="cursor-pointer p-6 transition-all hover:border-blue-400 hover:shadow-md" onClick={() => handleTypeSelection('company')}>
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-purple-100">
                       <Building2 className="h-6 w-6 text-purple-600" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-slate-800">Create a Company</h3>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Become a director. Create your company and invite your team.
-                      </p>
+                      <p className="mt-1 text-sm text-slate-600">Become a director. Create your company and invite your team.</p>
                       <div className="mt-2 flex items-center gap-2 text-xs text-purple-600">
-                        <Check className="h-4 w-4" />
-                        <span>14-day free trial</span>
+                        <Check className="h-4 w-4" /><span>14-day free trial</span>
                       </div>
                     </div>
                   </div>
                 </Card>
 
-                <Card
-                  className="cursor-pointer p-6 transition-all hover:border-blue-400 hover:shadow-md"
-                  onClick={() => handleTypeSelection('join')}
-                >
+                <Card className="cursor-pointer p-6 transition-all hover:border-blue-400 hover:shadow-md" onClick={() => handleTypeSelection('join')}>
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-green-100">
                       <Users className="h-6 w-6 text-green-600" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-slate-800">Join a Company</h3>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Join an existing company as an employee or accountant using a company code.
-                      </p>
+                      <p className="mt-1 text-sm text-slate-600">Join an existing company as an employee or accountant using a company code.</p>
                       <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
-                        <Check className="h-4 w-4" />
-                        <span>Request approval</span>
+                        <Check className="h-4 w-4" /><span>Request approval</span>
                       </div>
                     </div>
                   </div>
@@ -468,6 +385,7 @@ const handleAccountSubmit = async (e: React.FormEvent) => {
             </>
           )}
 
+          {/* ── Account form ── */}
           {step === 'account' && (
             <>
               <h2 className="text-3xl font-bold text-slate-800">Create your account</h2>
@@ -481,9 +399,7 @@ const handleAccountSubmit = async (e: React.FormEvent) => {
                 {registrationType === 'join' && (
                   <>
                     <Card className="p-4">
-                      <Label className="mb-3 block text-sm font-medium text-slate-700">
-                        I want to join as:
-                      </Label>
+                      <Label className="mb-3 block text-sm font-medium text-slate-700">I want to join as:</Label>
                       <RadioGroup value={joinRole} onValueChange={(value) => setJoinRole(value as JoinRole)}>
                         <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-slate-50">
                           <RadioGroupItem value="employee" id="employee-role" />
@@ -501,385 +417,197 @@ const handleAccountSubmit = async (e: React.FormEvent) => {
                         </div>
                       </RadioGroup>
                     </Card>
-
                     <div className="space-y-2">
                       <Label htmlFor="companyCode">Company Code</Label>
                       <Input
-                        id="companyCode"
-                        type="text"
-                        placeholder="e.g., ACME2024"
+                        id="companyCode" type="text" placeholder="e.g., ACME2024"
                         value={formData.companyCode}
                         onChange={(e) => handleInputChange('companyCode', e.target.value)}
                         required
                       />
-                      <p className="text-xs text-slate-500">
-                        Enter the code provided by your company director
-                      </p>
+                      <p className="text-xs text-slate-500">Enter the code provided by your company director</p>
                     </div>
                   </>
                 )}
 
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    required
-                  />
+                  <Input id="name" type="text" placeholder="John Doe" value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)} required />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@company.com"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    required
-                  />
+                  <Input id="email" type="email" placeholder="you@company.com" value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)} required />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="At least 8 characters"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    required
-                  />
+                  <Input id="password" type="password" placeholder="At least 8 characters" value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)} required />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Re-enter your password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                    required
-                  />
+                  <Input id="confirmPassword" type="password" placeholder="Re-enter your password" value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)} required />
                 </div>
 
                 <Button type="submit" className="w-full" size="lg">
-                  {registrationType === 'company' ? 'Continue to Plan Selection' : 'Create Account'}
+                  {registrationType === 'company' ? 'Continue to Company Setup' : 'Create Account'}
                 </Button>
               </form>
             </>
           )}
 
+          {/* ── Company setup ── */}
           {step === 'company-setup' && (
             <>
               <h2 className="text-3xl font-bold text-slate-800">Company Setup</h2>
-              <p className="mt-2 text-slate-600">
-                Tell us about your company
-              </p>
-
+              <p className="mt-2 text-slate-600">Tell us about your company</p>
               <form onSubmit={handleCompanySetupSubmit} className="mt-8 space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="companyName">
-                    Company Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="companyName"
-                    type="text"
-                    placeholder="Acme Corporation"
-                    value={formData.companyName}
-                    onChange={(e) => handleInputChange('companyName', e.target.value)}
-                    required
-                  />
-                  <p className="text-xs text-slate-500">
-                    This is the name your team will see
-                  </p>
+                  <Label htmlFor="companyName">Company Name <span className="text-red-500">*</span></Label>
+                  <Input id="companyName" type="text" placeholder="Acme Corporation" value={formData.companyName}
+                    onChange={(e) => handleInputChange('companyName', e.target.value)} required />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="industry">Industry (Optional)</Label>
-                  <Select
-                    value={formData.industry}
-                    onValueChange={(value) => handleInputChange('industry', value)}
-                  >
+                  <Select value={formData.industry} onValueChange={(value) => handleInputChange('industry', value)}>
                     <SelectTrigger className="w-full h-10 rounded-md border border-input bg-[#f3f3f5] px-3 py-2 text-sm">
                       <SelectValue placeholder="Select your industry" />
                     </SelectTrigger>
                     <SelectContent>
                       {industries.map((industry) => (
-                        <SelectItem key={industry} value={industry}>
-                          {industry}
-                        </SelectItem>
+                        <SelectItem key={industry} value={industry}>{industry}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="companyEmail">
-                      <Mail className="mb-1 mr-1 inline h-4 w-4" />
-                      Company Email (Optional)
-                    </Label>
-                    <Input
-                      id="companyEmail"
-                      type="email"
-                      placeholder="contact@company.com"
-                      value={formData.companyEmail}
-                      onChange={(e) => handleInputChange('companyEmail', e.target.value)}
-                    />
+                    <Label htmlFor="companyEmail"><Mail className="mb-1 mr-1 inline h-4 w-4" />Company Email (Optional)</Label>
+                    <Input id="companyEmail" type="email" placeholder="contact@company.com" value={formData.companyEmail}
+                      onChange={(e) => handleInputChange('companyEmail', e.target.value)} />
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="companyPhone">
-                      <Phone className="mb-1 mr-1 inline h-4 w-4" />
-                      Phone (Optional)
-                    </Label>
-                    <Input
-                      id="companyPhone"
-                      type="tel"
-                      placeholder="+1 (555) 000-0000"
-                      value={formData.companyPhone}
-                      onChange={(e) => handleInputChange('companyPhone', e.target.value)}
-                    />
+                    <Label htmlFor="companyPhone"><Phone className="mb-1 mr-1 inline h-4 w-4" />Phone (Optional)</Label>
+                    <Input id="companyPhone" type="tel" placeholder="+1 (555) 000-0000" value={formData.companyPhone}
+                      onChange={(e) => handleInputChange('companyPhone', e.target.value)} />
                   </div>
                 </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="companyAddress">
-                    <MapPin className="mb-1 mr-1 inline h-4 w-4" />
-                    Address (Optional)
-                  </Label>
+                  <Label htmlFor="companyAddress"><MapPin className="mb-1 mr-1 inline h-4 w-4" />Address (Optional)</Label>
                   <Textarea className="w-full h-10 rounded-md border border-input bg-[#f3f3f5] px-3 py-2 text-sm"
-                    id="companyAddress"
-                    placeholder="123 Main Street, City, State, ZIP"
+                    id="companyAddress" placeholder="123 Main Street, City, State, ZIP"
                     value={formData.companyAddress}
-                    onChange={(e) => handleInputChange('companyAddress', e.target.value)}
-                    rows={3}
-                  />
+                    onChange={(e) => handleInputChange('companyAddress', e.target.value)} rows={3} />
                 </div>
-
-                <Card className="bg-blue-50 p-4">
-                  <div className="flex gap-3">
-                    <Building2 className="h-5 w-5 flex-shrink-0 text-blue-600" />
-                    <div className="text-sm">
-                      <p className="font-medium text-blue-900">Next Steps</p>
-                      <ul className="mt-2 space-y-1 text-blue-700">
-                        <li>• Choose your subscription plan</li>
-                        <li>• Complete payment setup</li>
-                        <li>• Get your unique company code</li>
-                        <li>• Start inviting your team</li>
-                      </ul>
-                    </div>
-                  </div>
-                </Card>
-
-                <Button type="submit" className="w-full" size="lg">
-                  Continue to Plan Selection
-                </Button>
+                <Button type="submit" className="w-full" size="lg">Continue to Plan Selection</Button>
               </form>
             </>
           )}
 
+          {/* ── Subscription ── */}
           {step === 'subscription' && (
             <>
               <h2 className="text-3xl font-bold text-slate-800">Choose Your Plan</h2>
-              <p className="mt-2 text-slate-600">
-                Select the subscription that fits your needs
-              </p>
-
+              <p className="mt-2 text-slate-600">Select the subscription that fits your needs</p>
               <div className="mt-8 space-y-4">
                 {companyPlans.map((plan) => (
-                  <Card
-                    key={plan.type}
-                    className={`cursor-pointer p-5 transition-all ${
-                      selectedPlan === plan.type
-                        ? 'border-2 border-blue-500 bg-blue-50 shadow-md'
-                        : 'hover:border-blue-300 hover:shadow-sm'
-                    }`}
-                    onClick={() => setSelectedPlan(plan.type)}
-                  >
+                  <Card key={plan.type}
+                    className={`cursor-pointer p-5 transition-all ${selectedPlan === plan.type ? 'border-2 border-blue-500 bg-blue-50 shadow-md' : 'hover:border-blue-300 hover:shadow-sm'}`}
+                    onClick={() => setSelectedPlan(plan.type)}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-slate-800">{plan.name}</h3>
-                          {plan.popular && (
-                            <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">
-                              Recommended
-                            </span>
-                          )}
+                          {plan.popular && <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">Recommended</span>}
                         </div>
                         <p className="mt-1 text-sm text-slate-600">{plan.description}</p>
                         <div className="mt-3 flex items-baseline gap-1">
                           <span className="text-3xl font-bold text-slate-800">${plan.price}</span>
                           <span className="text-sm text-slate-600">/month</span>
                         </div>
-
-                        {/* Key stats */}
                         <div className="mt-3 flex gap-4 text-xs text-slate-600">
-                          <span>
-                            📄 {plan.invoiceLimit === -1 ? 'Unlimited' : `${plan.invoiceLimit.toLocaleString()}`} invoices
-                          </span>
-                          <span>
-                            👥 {plan.userLimit === -1 ? 'Unlimited' : plan.userLimit} users
-                          </span>
-                          <span>
-                            🎯 {plan.ocrAccuracy}% OCR
-                          </span>
+                          <span>📄 {plan.invoiceLimit === -1 ? 'Unlimited' : plan.invoiceLimit.toLocaleString()} invoices</span>
+                          <span>👥 {plan.userLimit === -1 ? 'Unlimited' : plan.userLimit} users</span>
+                          <span>🎯 {plan.ocrAccuracy}% OCR</span>
                         </div>
                       </div>
-                      <div
-                        className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 ${
-                          selectedPlan === plan.type
-                            ? 'border-blue-600 bg-blue-600'
-                            : 'border-slate-300'
-                        }`}
-                      >
+                      <div className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 ${selectedPlan === plan.type ? 'border-blue-600 bg-blue-600' : 'border-slate-300'}`}>
                         {selectedPlan === plan.type && <Check className="h-4 w-4 text-white" />}
                       </div>
                     </div>
                   </Card>
                 ))}
               </div>
-
               <Button onClick={handleSubscriptionSubmit} className="mt-6 w-full" size="lg">
-                <CreditCard className="mr-2 h-5 w-5" />
-                Continue to Payment
+                <CreditCard className="mr-2 h-5 w-5" />Continue to Payment
               </Button>
-
-              <p className="mt-4 text-center text-xs text-slate-500">
-                14-day free trial • Cancel anytime
-              </p>
+              <p className="mt-4 text-center text-xs text-slate-500">14-day free trial • Cancel anytime</p>
             </>
           )}
 
+          {/* ── Payment ── */}
           {step === 'payment' && (
             <>
               <h2 className="text-3xl font-bold text-slate-800">Payment Information</h2>
-              <p className="mt-2 text-slate-600">
-                Complete your subscription setup
-              </p>
-
-              {/* Plan Summary */}
+              <p className="mt-2 text-slate-600">Complete your subscription setup</p>
               <Card className="mt-6 bg-gradient-to-br from-blue-50 to-purple-50 p-5">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
                       <Crown className="h-5 w-5 text-blue-600" />
-                      <h3 className="font-semibold text-slate-800">
-                        {companyPlans.find(p => p.type === selectedPlan)?.name} Plan
-                      </h3>
+                      <h3 className="font-semibold text-slate-800">{companyPlans.find(p => p.type === selectedPlan)?.name} Plan</h3>
                     </div>
-                    <p className="mt-1 text-sm text-slate-600">
-                      {formData.companyName}
-                    </p>
+                    <p className="mt-1 text-sm text-slate-600">{formData.companyName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-slate-800">
-                      ${companyPlans.find(p => p.type === selectedPlan)?.price}
-                    </p>
+                    <p className="text-2xl font-bold text-slate-800">${companyPlans.find(p => p.type === selectedPlan)?.price}</p>
                     <p className="text-xs text-slate-600">per month</p>
                   </div>
                 </div>
                 <div className="mt-3 rounded-lg bg-white/60 p-3">
-                  <p className="text-xs font-medium text-green-700">
-                    ✓ 14-day free trial included - you won't be charged today
-                  </p>
+                  <p className="text-xs font-medium text-green-700">✓ 14-day free trial included - you won't be charged today</p>
                 </div>
               </Card>
-
               <form onSubmit={handlePaymentSubmit} className="mt-8 space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="cardName">Cardholder Name</Label>
-                  <Input
-                    id="cardName"
-                    type="text"
-                    placeholder="John Doe"
-                    value={formData.cardName}
-                    onChange={(e) => handleInputChange('cardName', e.target.value)}
-                    required
-                  />
+                  <Input id="cardName" type="text" placeholder="John Doe" value={formData.cardName}
+                    onChange={(e) => handleInputChange('cardName', e.target.value)} required />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="cardNumber">Card Number</Label>
-                  <Input
-                    id="cardNumber"
-                    type="text"
-                    placeholder="1234 5678 9012 3456"
-                    value={formData.cardNumber}
-                    onChange={(e) => handleInputChange('cardNumber', e.target.value)}
-                    maxLength={19}
-                    required
-                  />
+                  <Input id="cardNumber" type="text" placeholder="1234 5678 9012 3456" value={formData.cardNumber}
+                    onChange={(e) => handleInputChange('cardNumber', e.target.value)} maxLength={19} required />
                 </div>
-
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="cardExpiry">Expiry Date</Label>
-                    <Input
-                      id="cardExpiry"
-                      type="text"
-                      placeholder="MM/YY"
-                      value={formData.cardExpiry}
-                      onChange={(e) => handleInputChange('cardExpiry', e.target.value)}
-                      maxLength={5}
-                      required
-                    />
+                    <Input id="cardExpiry" type="text" placeholder="MM/YY" value={formData.cardExpiry}
+                      onChange={(e) => handleInputChange('cardExpiry', e.target.value)} maxLength={5} required />
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="cardCVC">CVC</Label>
-                    <Input
-                      id="cardCVC"
-                      type="text"
-                      placeholder="123"
-                      value={formData.cardCVC}
-                      onChange={(e) => handleInputChange('cardCVC', e.target.value)}
-                      maxLength={4}
-                      required
-                    />
+                    <Input id="cardCVC" type="text" placeholder="123" value={formData.cardCVC}
+                      onChange={(e) => handleInputChange('cardCVC', e.target.value)} maxLength={4} required />
                   </div>
                 </div>
-
-                <Card className="bg-slate-50 p-4">
-                  <div className="flex gap-3">
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-200">
-                      <span className="text-sm">🔒</span>
-                    </div>
-                    <div className="text-sm">
-                      <p className="font-medium text-slate-800">Secure Payment</p>
-                      <p className="mt-1 text-xs text-slate-600">
-                        Your payment information is encrypted and secure. You won't be charged until your 14-day trial ends.
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Button type="submit" className="w-full" size="lg">
-                  Confirm and Create Company
-                </Button>
+                <Button type="submit" className="w-full" size="lg">Confirm and Create Company</Button>
               </form>
             </>
           )}
 
+          {/* ── Confirmation ── */}
           {step === 'confirmation' && (
             <>
               <div className="text-center">
                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
                   <Check className="h-10 w-10 text-green-600" />
                 </div>
-
                 <h2 className="text-3xl font-bold text-slate-800">Company Created Successfully!</h2>
-                <p className="mt-2 text-slate-600">
-                  Welcome to InvoiceFlow, {formData.name}
-                </p>
+                <p className="mt-2 text-slate-600">Welcome to InvoiceFlow, {formData.name}</p>
               </div>
-
-              {/* Company Code Display */}
               <Card className="mt-8 border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-6">
                 <div className="text-center">
                   <Building2 className="mx-auto mb-3 h-8 w-8 text-blue-600" />
@@ -889,98 +617,40 @@ const handleAccountSubmit = async (e: React.FormEvent) => {
                     <code className="rounded-lg bg-white px-4 py-2 text-2xl font-bold tracking-wider text-blue-600">
                       {generatedCompanyCode || formData.companyCode}
                     </code>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={copyCompanyCode}
-                      className="gap-2"
-                    >
-                      <Copy className="h-4 w-4" />
-                      Copy
+                    <Button variant="outline" size="sm" onClick={copyCompanyCode} className="gap-2">
+                      <Copy className="h-4 w-4" />Copy
                     </Button>
                   </div>
-                  <p className="mt-3 text-xs text-slate-600">
-                    Share this code with your team members to invite them
-                  </p>
+                  <p className="mt-3 text-xs text-slate-600">Share this code with your team members to invite them</p>
                 </div>
               </Card>
-
-              {/* Subscription Summary */}
-              <Card className="mt-6 p-5">
-                <div className="flex items-start gap-3">
-                  <Crown className="h-6 w-6 text-purple-600" />
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-slate-800">
-                      {companyPlans.find(p => p.type === selectedPlan)?.name} Plan Active
-                    </h4>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Your 14-day free trial has started. You'll be charged ${companyPlans.find(p => p.type === selectedPlan)?.price}/month after the trial.
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Next Actions */}
-              <div className="mt-8">
-                <h3 className="mb-4 font-semibold text-slate-800">Suggested Next Steps</h3>
-                <div className="space-y-3">
-                  <Card className="cursor-pointer p-4 transition-colors hover:bg-slate-50">
+              <div className="mt-8 space-y-3">
+                <h3 className="font-semibold text-slate-800">Suggested Next Steps</h3>
+                {[
+                  { icon: <Users className="h-5 w-5 text-blue-600" />, bg: 'bg-blue-100', title: 'Invite Employees', desc: 'Add team members to upload invoices' },
+                  { icon: <User className="h-5 w-5 text-purple-600" />, bg: 'bg-purple-100', title: 'Invite Accountant', desc: 'Add accountants to validate invoices' },
+                  { icon: <FileText className="h-5 w-5 text-green-600" />, bg: 'bg-green-100', title: 'Upload First Invoice', desc: 'Start processing invoices with OCR' },
+                ].map((item, i) => (
+                  <Card key={i} className="cursor-pointer p-4 transition-colors hover:bg-slate-50">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                        <Users className="h-5 w-5 text-blue-600" />
-                      </div>
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${item.bg}`}>{item.icon}</div>
                       <div className="flex-1">
-                        <p className="font-medium text-slate-800">Invite Employees</p>
-                        <p className="text-xs text-slate-600">Add team members to upload invoices</p>
+                        <p className="font-medium text-slate-800">{item.title}</p>
+                        <p className="text-xs text-slate-600">{item.desc}</p>
                       </div>
                     </div>
                   </Card>
-
-                  <Card className="cursor-pointer p-4 transition-colors hover:bg-slate-50">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
-                        <User className="h-5 w-5 text-purple-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-slate-800">Invite Accountant</p>
-                        <p className="text-xs text-slate-600">Add accountants to validate invoices</p>
-                      </div>
-                    </div>
-                  </Card>
-
-                  <Card className="cursor-pointer p-4 transition-colors hover:bg-slate-50">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
-                        <FileText className="h-5 w-5 text-green-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-slate-800">Upload First Invoice</p>
-                        <p className="text-xs text-slate-600">Start processing invoices with OCR</p>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
+                ))}
               </div>
-
-              <Button
-                onClick={() => navigate('/dashboard')}
-                className="mt-8 w-full"
-                size="lg"
-              >
+              <Button onClick={() => navigate('/dashboard')} className="mt-8 w-full" size="lg">
                 Go to Dashboard
               </Button>
-
-              <p className="mt-4 text-center text-xs text-slate-500">
-                You can find your company code anytime in Settings
-              </p>
             </>
           )}
 
           <div className="mt-6 text-center text-sm text-slate-600">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">
-              Sign in
-            </Link>
+            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">Sign in</Link>
           </div>
         </div>
       </div>

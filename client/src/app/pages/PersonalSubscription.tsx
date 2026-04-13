@@ -4,6 +4,8 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Progress } from '../components/ui/progress';
 import { useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
+import api from '../../lib/api';
+import { toast } from 'sonner';
 
 // 1. Types for data safety
 interface PersonalPlan {
@@ -109,11 +111,43 @@ export function PersonalSubscription() {
     },
   ];
 
-  const handleSelectPlan = (planType: string) => {
-    console.log('Action for:', planType);
-    // Add your API subscription logic here
+const handleSelectPlan = async (planType: string) => {
+  if (isRegistration) {
+    // Get the pending registration data from localStorage
+    const pending = localStorage.getItem('pendingRegistration');
+    if (!pending) {
+      toast.error('Registration data lost. Please start again.');
+      navigate('/register');
+      return;
+    }
+
+    try {
+      const { name, email, password } = JSON.parse(pending);
+      const response = await api.post('/auth/register', {
+        name,
+        email,
+        password,
+        registrationType: 'personal',
+        plan: planType,
+      });
+
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      if (response.data.personalWorkspaceId) {
+        localStorage.setItem('activeWorkspaceId', response.data.personalWorkspaceId);
+      }
+      localStorage.removeItem('pendingRegistration');
+
+      toast.success('Account created successfully!');
+      navigate('/dashboard');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Registration failed');
+    }
+  } else {
+    // Already logged in, just upgrading plan
     navigate('/dashboard');
-  };
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-50">
