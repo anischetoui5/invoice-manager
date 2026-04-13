@@ -41,7 +41,7 @@ const navItems = [
   );
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r bg-slate-50">
+    <div className="flex h-screen w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center border-b px-6">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
