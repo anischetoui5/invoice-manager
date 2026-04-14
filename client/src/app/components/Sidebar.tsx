@@ -62,8 +62,8 @@ const navItems = [
               to={item.path}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
                 active
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-muted-foreground hover:bg-muted hover:text-slate-900'
+                  ? 'bg-blue-100 text-blue-600'
+                  : 'text-foreground hover:bg-muted hover:text-blue-500'
               }`}
             >
               <Icon className="h-5 w-5" />
@@ -74,13 +74,16 @@ const navItems = [
       </nav>
 
       <div className="border-t p-4">
-        <div className="rounded-lg bg-blue-50 p-3">
-          <p className="text-xs font-medium text-blue-900">Need Help?</p>
-          <p className="mt-1 text-xs text-blue-700">
-            Check our documentation or contact support.
-          </p>
-        </div>
+      <div
+        className="rounded-lg p-3"
+        style={{ backgroundColor: "var(--info)", color: "var(--info-foreground)" }}
+      >
+        <p className="text-xs font-medium">Need Help?</p>
+        <p className="mt-1 text-xs">
+          Check our documentation or contact support.
+        </p>
       </div>
+    </div>
     </div>
   );
 }

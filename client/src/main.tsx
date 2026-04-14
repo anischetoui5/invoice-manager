@@ -6,7 +6,7 @@ import App from './app/App.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider attribute="class" defaultTheme="">
+    <ThemeProvider attribute="class" defaultTheme="system">
       <App />
     </ThemeProvider>
   </StrictMode>,

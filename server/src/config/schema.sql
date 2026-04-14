@@ -50,7 +50,7 @@ CREATE TABLE invitations (
 
 -- Seed default roles
 INSERT INTO roles (name) VALUES
-  ('personal'),
+  ('Personal'),
   ('Director'),
   ('Employee'),
   ('Accountant');

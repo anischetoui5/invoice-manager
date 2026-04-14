@@ -105,19 +105,22 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
           </p>
         </div>
 
-        <Card className="bg-blue-50 p-4">
+        <div
+          style={{ backgroundColor: "var(--info)", color: "var(--info-foreground)" }}
+          className="rounded-xl p-4 transition-colors"
+        >
           <div className="flex gap-2">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-blue-600" />
-            <div className="text-sm text-blue-700">
-              <p className="font-medium">How it works:</p>
+            <AlertCircle className="h-5 w-5 flex-shrink-0" style={{ color: "var(--info-foreground)" }} />
+            <div className="text-sm">
+              <p className="font-semibold">How it works:</p>
               <ul className="mt-1 space-y-1">
                 <li>• Enter the company code provided by your director</li>
-                <li>• Your request will be sent for approval as an <span className="font-bold">{role}</span></li>
+                <li>• Your request will be sent for approval</li>
                 <li>• You'll get notified when approved</li>
               </ul>
             </div>
           </div>
-        </Card>
+        </div>
 
         <Button type="submit" className="w-full" disabled={isValidating}>
           {isValidating ? 'Validating...' : 'Send Join Request'}
