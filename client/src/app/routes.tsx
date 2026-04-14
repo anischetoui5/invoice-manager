@@ -7,8 +7,11 @@ import { Settings } from './pages/Settings';
 import { Layout } from './components/Layout';
 import { Subscription } from './pages/Subscription';
 import { PersonalSubscription } from './pages/PersonalSubscription';
+import { UploadInvoice } from './pages/UploadInvoice';
+import { InvoiceList } from './pages/Invoices';
 import type { User, Enterprise } from './types';
 import api from '../lib/api';
+
 
 // ─── Auth guard + real data fetcher ───────────────────────────────────────────
 // Replaces the hardcoded mockUser / mockEnterprises.
@@ -123,6 +126,14 @@ export const router = createBrowserRouter([
         path: 'subscription',
         element: <Subscription />,
       },
+      {
+        path: 'upload',
+        element: <UploadInvoice />,
+      },
+      {
+        path: 'invoices',
+        element: <InvoiceList />,
+      }
     ],
   },
   // Catch-all: unknown paths go to login

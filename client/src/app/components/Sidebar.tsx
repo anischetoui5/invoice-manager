@@ -26,7 +26,7 @@ export function Sidebar({ userRole }: SidebarProps) {
 const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
   { path: '/dashboard/upload', icon: Upload, label: 'Upload Invoice', roles: ['employee', 'admin', 'normal'] },
-  { path: '/dashboard/invoices', icon: FileText, label: 'Invoices', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
+  { path: '/dashboard/invoices', icon: FileText, label: 'Invoices', roles: ['admin', 'employee', 'director', 'normal'] },
   { path: '/dashboard/reports', icon: BarChart3, label: 'Reports', roles: ['admin', 'accountant', 'director'] },
   { path: '/dashboard/team', icon: UserPlus, label: 'Team Management', roles: ['director', 'admin'] },
   { path: '/dashboard/subscription', icon: CreditCard, label: 'Subscription', roles: ['director', 'admin'] },
