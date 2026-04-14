@@ -159,10 +159,10 @@ export function Users() {
               </div>
 
               <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button size="sm" className="flex-1">
                   View Profile
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button size="sm" className="flex-1">
                   Edit
                 </Button>
               </div>

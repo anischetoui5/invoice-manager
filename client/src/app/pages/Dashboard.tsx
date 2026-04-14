@@ -651,9 +651,9 @@ const renderAccountantDashboard = () => {
               <h3 className="font-semibold text-foreground">Company Code</h3>
               <p className="text-sm text-muted-foreground mt-1">Share with new team members</p>
             </div>
-            <div className="rounded-lg bg-blue-50 p-4 text-center">
-              <p className="text-sm font-medium text-blue-900">Your Company Code</p>
-              <p className="mt-2 text-2xl font-bold text-blue-600">—</p>
+            <div className="rounded-lg p-4 text-center" style={{ backgroundColor: "var(--info)", color: "var(--info-foreground)"}}>
+              <p className="text-sm font-bold">Your Company Code</p>
+              <p className="mt-2 text-2xl font-bold">—</p>
               <Button size="sm" variant="outline" className="mt-4 w-full">
                 Copy Code
               </Button>
