@@ -130,7 +130,7 @@ export function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="bg-background grid w-full grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="company">Company</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
@@ -196,8 +196,10 @@ export function Settings() {
 
         {/* ── Company tab ── */}
         <TabsContent value="company" className="space-y-6">
-          <JoinCompany userRole={currentUser.role} />
-
+          {currentUser.role == 'normal' && <JoinCompany userRole={currentUser.role} /> }
+          
+          {currentUser.role == 'accountant' && <JoinCompany userRole={currentUser.role} /> }
+          
           {currentUser.role !== 'normal' && (
             <Card className="p-6">
               <div className="mb-4 flex items-center gap-3">

@@ -10,7 +10,7 @@ import { PersonalSubscription } from './pages/PersonalSubscription';
 import { UploadInvoice } from './pages/UploadInvoice';
 import { InvoiceList } from './pages/Invoices';
 import { Users } from './pages/Users';
-import { InvoiceDetail } from './pages/InvoiceDetails';
+/* import { InvoiceDetail } from './pages/InvoiceDetails'; */
 import type { User, Enterprise } from './types';
 import api from '../lib/api';
 
