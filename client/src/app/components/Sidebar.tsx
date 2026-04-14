@@ -25,14 +25,14 @@ export function Sidebar({ userRole }: SidebarProps) {
 
 const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
-  { path: '/dashboard/upload', icon: Upload, label: 'Upload Invoice', roles: ['employee', 'admin', 'normal'] },
+  { path: '/dashboard/upload', icon: Upload, label: 'Upload Invoice', roles: ['employee', 'normal'] },
   { path: '/dashboard/invoices', icon: FileText, label: 'Invoices', roles: ['admin', 'employee', 'director', 'normal'] },
-  { path: '/dashboard/reports', icon: BarChart3, label: 'Reports', roles: ['admin', 'accountant', 'director'] },
+  { path: '/dashboard/reports', icon: BarChart3, label: 'Reports', roles: ['accountant', 'director'] },
   { path: '/dashboard/team', icon: UserPlus, label: 'Team Management', roles: ['director', 'admin'] },
-  { path: '/dashboard/subscription', icon: CreditCard, label: 'Subscription', roles: ['director', 'admin'] },
-  { path: '/personal-subscription', icon: CreditCard, label: 'Subscription', roles: ['normal', 'admin'] },
+  { path: '/dashboard/subscription', icon: CreditCard, label: 'Subscription', roles: ['director'] },
+  { path: '/personal-subscription', icon: CreditCard, label: 'Subscription', roles: ['normal'] },
   { path: '/dashboard/users', icon: Users, label: 'Users', roles: ['admin'] },
-  { path: '/dashboard/history', icon: History, label: 'History', roles: ['admin', 'accountant', 'normal'] },
+  { path: '/dashboard/history', icon: History, label: 'History', roles: ['admin', 'accountant', 'normal','employee', 'director'] },
   { path: '/dashboard/settings', icon: Settings, label: 'Settings', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
 ];
 
@@ -63,7 +63,7 @@ const navItems = [
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
                 active
                   ? 'bg-blue-100 text-blue-600'
-                  : 'text-foreground hover:bg-muted hover:text-blue-500'
+                  : 'text-foreground hover:bg-muted'
               }`}
             >
               <Icon className="h-5 w-5" />
