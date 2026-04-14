@@ -1,5 +1,15 @@
 const usersService = require('./users.service');
 
+
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await usersService.fetchUsersFromDb(); // assign + await
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching users", error: error.message });
+  }
+};
+
 async function getMe(req, res) {
   try {
     const user = await usersService.getMe(req.user.userId);
@@ -64,4 +74,4 @@ async function removeMember(req, res) {
   }
 }
 
-module.exports = { getMe, updateMe, updatePassword, getWorkspaceMembers, updateMemberRole, removeMember };
+module.exports = { getMe, updateMe, updatePassword, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers };

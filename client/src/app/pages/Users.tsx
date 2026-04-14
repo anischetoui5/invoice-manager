@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
+import api from '../../lib/api';
 
 // 1. Define your User type (ensure this matches your backend response)
 interface User {
@@ -28,25 +29,23 @@ export function Users() {
 
   // 2. Fetch data from backend on mount
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setIsLoading(true);
-        // Replace with your actual endpoint (e.g., process.env.VITE_API_URL + '/users') - TESTING TAOUFIK
-        const response = await fetch('https://api.yourapp.com/users');
-        
-        if (!response.ok) throw new Error('Failed to fetch users');
-        
-        const data = await response.json();
-        setUsers(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Something went wrong');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true);
+      // Use the SAME 'api' object from your login logic
+      const response = await api.get('/users'); 
+      
+      // Axios puts the response data inside a '.data' property automatically
+      setUsers(response.data); 
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to load users');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    fetchUsers();
-  }, []);
+  fetchUsers();
+}, []);
 
   const filteredUsers = users.filter((user) =>
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
