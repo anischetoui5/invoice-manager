@@ -2,24 +2,35 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+
 const authRoutes = require('./modules/auth/auth.routes');
 const workspaceRoutes = require('./modules/workspace/workspace.routes');
-const { authenticate } = require('./middlewares/auth.middleware');
 const usersRoutes = require('./modules/users/users.routes');
+const invoicesRoutes = require('./modules/invoices/invoices.routes');
+const documentsRoutes = require('./modules/documents/documents.routes');
+
+const { authenticate } = require('./middlewares/auth.middleware');
 
 const app = express();
 
 app.use(helmet());
-app.use(cors({ 
+app.use(cors({
   origin: [process.env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:5174'],
-  credentials: true 
+  credentials: true,
 }));
 app.use(morgan('dev'));
 app.use(express.json());
 
+// ── Routes ────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
+app.use('/api/users', usersRoutes);
 
+// Sprint 2 — invoices and documents (nested under workspace)
+app.use('/api/workspaces/:workspace_id/invoices', invoicesRoutes);
+app.use('/api/workspaces/:workspace_id/invoices/:invoice_id/documents', documentsRoutes);
+
+// ── Utility endpoints ─────────────────────────────────────────
 app.get('/api/me', authenticate, (req, res) => {
   res.json({ message: 'You are authenticated', user: req.user });
 });
@@ -27,6 +38,5 @@ app.get('/api/me', authenticate, (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-app.use('/api/users', usersRoutes);
 
 module.exports = app;
