@@ -2,7 +2,9 @@ const invoicesService = require('./invoices.service');
 
 async function createInvoice(req, res) {
   try {
-    const { invoice_number, supplier_name, amount, currency, invoice_date, due_date, notes } = req.body;
+    console.log('BODY:', req.body);
+    console.log('USER:', req.user);
+    const { invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes } = req.body;
     const workspace_id = req.params.workspace_id;
     const created_by = req.user.id;
 
@@ -10,7 +12,7 @@ async function createInvoice(req, res) {
       workspace_id,
       created_by,
       invoice_number,
-      supplier_name,
+      vendor_name,
       amount,
       currency,
       invoice_date,
@@ -39,12 +41,12 @@ async function getInvoice(req, res) {
 async function searchInvoices(req, res) {
   try {
     const workspace_id = req.params.workspace_id;
-    const { status, supplier_name, invoice_date_from, invoice_date_to, page, limit } = req.query;
+    const { status, vendor_name, invoice_date_from, invoice_date_to, page, limit } = req.query;
 
     const result = await invoicesService.searchInvoices({
       workspace_id,
       status,
-      supplier_name,
+      vendor_name,
       invoice_date_from,
       invoice_date_to,
       page: page ? parseInt(page) : 1,
