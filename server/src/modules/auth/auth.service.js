@@ -2,24 +2,31 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../../config/db');
 
+function generateToken(user) {
+  return jwt.sign(
+    { userId: user.id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+}
+
+const ROLE_MAP = {
+  Admin:      'admin',
+  Director:   'director',
+  Accountant: 'accountant',
+  Employee:   'employee',
+  Personal:   'normal',
+};
+
 async function register({ name, email, password, registrationType }) {
   if (!name || !email || !password) {
     throw new Error('Name, email and password are required');
   }
-
   if (password.length < 8) {
     throw new Error('Password must be at least 8 characters');
   }
 
-  const existing = await pool.query(
-    'SELECT id FROM users WHERE email = $1',
-    [email]
-  );
-
-  if (existing.rows.length > 0) {
-    throw new Error('Email already in use');
-  }
-
+  const isCompany = registrationType === 'company';
   const password_hash = await bcrypt.hash(password, 10);
   const client = await pool.connect();
 
@@ -35,50 +42,61 @@ async function register({ name, email, password, registrationType }) {
     );
     const user = userResult.rows[0];
 
-    // 2. Create personal workspace
+    // 2. Create workspace (type depends on registration)
+    const workspaceType = isCompany ? 'company' : 'personal';
     const workspaceResult = await client.query(
       `INSERT INTO workspaces (name, type, owner_id)
-       VALUES ($1, 'personal', $2)
+       VALUES ($1, $2, $3)
        RETURNING id`,
-      [`${name}'s Workspace`, user.id]
+      [`${name}'s Workspace`, workspaceType, user.id]
     );
     const workspace = workspaceResult.rows[0];
 
-    // 3. Dynamic Role Assignment
-    const roleName = registrationType === 'company' ? 'Director' : 'personal';
+    // 3. Set last_active_workspace_id on the user
+    await client.query(
+      `UPDATE users SET last_active_workspace_id = $1 WHERE id = $2`,
+      [workspace.id, user.id]
+    );
+
+    // 4. If company, create the companies profile row
+    if (isCompany) {
+      await client.query(
+        `INSERT INTO companies (workspace_id, name, email)
+         VALUES ($1, $2, $3)`,
+        [workspace.id, name, email]
+      );
+    }
+
+    // 5. Resolve role
+    const roleName = isCompany ? 'Director' : 'Personal';
     const roleResult = await client.query(
       'SELECT id FROM roles WHERE name = $1',
       [roleName]
     );
-    const role = roleResult.rows[0];
+    if (!roleResult.rows[0]) {
+      throw new Error(`Role '${roleName}' not found`);
+    }
 
-    // 4. Create membership link
+    // 6. Create membership
     await client.query(
       `INSERT INTO memberships (user_id, workspace_id, role_id)
        VALUES ($1, $2, $3)`,
-      [user.id, workspace.id, role.id]
+      [user.id, workspace.id, roleResult.rows[0].id]
     );
 
     await client.query('COMMIT');
 
-    // 5. Generate token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    // Map backend role name to frontend UserRole type
-    const frontendRole = roleName === 'Director' ? 'director' : 'normal';
-
     return {
-      user: { ...user, role: frontendRole },
-      token,
-      personalWorkspaceId: workspace.id
+      user: { ...user, role: ROLE_MAP[roleName] },
+      token: generateToken(user),
+      activeWorkspaceId: workspace.id,
     };
-
   } catch (err) {
     await client.query('ROLLBACK');
+    // Translate the unique-violation into a friendly message
+    if (err.code === '23505' && err.constraint === 'users_email_key') {
+      throw new Error('Email already in use');
+    }
     throw err;
   } finally {
     client.release();
@@ -91,54 +109,43 @@ async function login({ email, password }) {
   }
 
   const result = await pool.query(
-    'SELECT * FROM users WHERE email = $1',
+    `SELECT id, name, email, password_hash, last_active_workspace_id
+     FROM users WHERE email = $1`,
     [email]
   );
-
   const user = result.rows[0];
 
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     throw new Error('Invalid email or password');
   }
 
-  // Fetch workspace ID and role in one query
+  // Prefer last active workspace; fall back to personal workspace
   const workspaceResult = await pool.query(
-    `SELECT w.id as workspace_id, r.name as role_name
+    `SELECT w.id AS workspace_id, r.name AS role_name
      FROM workspaces w
      JOIN memberships m ON m.workspace_id = w.id
      JOIN roles r ON r.id = m.role_id
-     WHERE m.user_id = $1 AND w.type = 'personal'
+     WHERE m.user_id = $1
+       AND w.id = COALESCE($2, (
+         SELECT id FROM workspaces
+         WHERE owner_id = $1 AND type = 'personal'
+         LIMIT 1
+       ))
      LIMIT 1`,
-    [user.id]
+    [user.id, user.last_active_workspace_id]
   );
 
-  const token = jwt.sign(
-    { userId: user.id, email: user.email },
-    process.env.JWT_SECRET,
-    { expiresIn: '24h' }
-  );
-
-  // Map backend role name to frontend UserRole type
-  const roleMap = {
-    'Director': 'director',
-    'Personal': 'normal',
-    'Employee': 'employee',
-    'Accountant': 'accountant',
-    'Admin': 'admin',
-  };
-
-  const rawRole = workspaceResult.rows[0]?.role_name || 'Personal user';
-  const frontendRole = roleMap[rawRole] || 'normal';
+  const workspace = workspaceResult.rows[0];
 
   return {
-    token,
+    token: generateToken(user),
     user: {
-      id: user.id,
-      name: user.name,
+      id:    user.id,
+      name:  user.name,
       email: user.email,
-      role: frontendRole,
+      role:  ROLE_MAP[workspace?.role_name] ?? 'normal',
     },
-    activeWorkspaceId: workspaceResult.rows[0]?.workspace_id,
+    activeWorkspaceId: workspace?.workspace_id ?? null,
   };
 }
 
