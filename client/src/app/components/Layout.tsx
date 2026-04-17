@@ -4,19 +4,31 @@ import { TopBar } from './Topbar';
 import { Sidebar } from './Sidebar';
 import { NotificationsPanel } from './NotificationsPanel';
 import { Toaster } from 'sonner';
-import type { User, Enterprise, Notification } from '../types';
+import api from '../../lib/api';
+import type { User, Enterprise, Notification, Workspace } from '../types';
 
 interface LayoutProps {
   currentUser: User;
   enterprises: Enterprise[];
   initialNotifications?: Notification[];
+  workspaces: Workspace[];
+  currentWorkspace: { id: string; name: string };
+  onWorkspaceChange: (workspace: { id: string; name: string }) => void;
 }
 
-export function Layout({ currentUser, enterprises, initialNotifications = [] }: LayoutProps) {
+export function Layout({
+  currentUser,
+  enterprises,
+  initialNotifications = [],
+  workspaces,
+  currentWorkspace: initialWorkspace,
+  onWorkspaceChange,
+}: LayoutProps) {
   const navigate = useNavigate();
   const [activeEnterpriseId, setActiveEnterpriseId] = useState(currentUser.enterpriseId);
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [currentWorkspace, setCurrentWorkspace] = useState(initialWorkspace);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -34,6 +46,21 @@ export function Layout({ currentUser, enterprises, initialNotifications = [] }: 
     navigate('/login');
   };
 
+  const handleSwitchWorkspace = async (workspaceId: string) => {
+    // 1. Call API to update last_active_workspace_id
+    await api.patch('/auth/switch-workspace', { workspaceId });
+
+    // 2. Update local state
+    const workspace = workspaces.find(w => w.id === workspaceId);
+    if (workspace) {
+      setCurrentWorkspace({ id: workspace.id, name: workspace.name });
+      onWorkspaceChange({ id: workspace.id, name: workspace.name });
+    }
+
+    // 3. Reload dashboard with new workspace context
+    navigate('/dashboard');
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-muted">
       <Sidebar userRole={currentUser.role} />
@@ -41,18 +68,22 @@ export function Layout({ currentUser, enterprises, initialNotifications = [] }: 
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar
           user={currentUser}
-          enterprises={enterprises} // 👈 1. Added this
+          enterprises={enterprises}
           notificationCount={unreadCount}
           onNotificationsClick={() => setShowNotifications(true)}
           onLogout={handleLogout}
-          onEnterpriseSwitch={(id) => setActiveEnterpriseId(id)} // 👈 2. Added this to capture the switch
+          onEnterpriseSwitch={(id) => setActiveEnterpriseId(id)}
+          workspaces={workspaces}
+          currentWorkspace={currentWorkspace}
+          onSwitchWorkspace={handleSwitchWorkspace}
         />
 
         <main className="flex-1 overflow-y-auto p-8">
           <Outlet context={{ 
-            activeEnterpriseId, 
-            currentUser, 
-            enterprises 
+            activeEnterpriseId,
+            currentUser,
+            enterprises,
+            currentWorkspace,
           }} />
         </main>
       </div>

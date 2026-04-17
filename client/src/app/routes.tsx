@@ -10,29 +10,23 @@ import { PersonalSubscription } from './pages/PersonalSubscription';
 import { UploadInvoice } from './pages/UploadInvoice';
 import { InvoiceList } from './pages/Invoices';
 import { Users } from './pages/Users';
-/* import { InvoiceDetail } from './pages/InvoiceDetails'; */
-import type { User, Enterprise } from './types';
+import type { User, Enterprise, Workspace } from './types';
 import api from '../lib/api';
 
-
-// ─── Auth guard + real data fetcher ───────────────────────────────────────────
-// Replaces the hardcoded mockUser / mockEnterprises.
-// • Reads user from localStorage (written by Login on success)
-// • Fetches enterprises from GET /api/workspaces/my
-// • Redirects to /login if no token or user is missing
 
 function ProtectedLayout() {
   const navigate = useNavigate();
 
   const [user, setUser] = useState<User | null>(null);
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [currentWorkspace, setCurrentWorkspace] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     const raw = localStorage.getItem('user');
 
-    // No session → back to login
     if (!token || !raw) {
       navigate('/login', { replace: true });
       return;
@@ -48,8 +42,6 @@ function ProtectedLayout() {
 
     setUser(parsed);
 
-    // Fetch enterprises/workspaces for this user
-    // Normalizes both plain array and wrapped responses e.g. { workspaces: [] }
     api
       .get('/workspaces/my')
       .then(({ data }) => {
@@ -58,12 +50,17 @@ function ProtectedLayout() {
           : Array.isArray(data.enterprises) ? data.enterprises
           : Array.isArray(data.data) ? data.data
           : [];
+
         setEnterprises(list);
+        setWorkspaces(list);
+
+        // Pick the active workspace, fall back to first in list
+        const active = list.find((w: Workspace) => w.isActive) ?? list[0];
+        if (active) {
+          setCurrentWorkspace({ id: active.id, name: active.name });
+        }
       })
       .catch((err) => {
-        // 401 is handled globally in api.ts (redirects to /login)
-        // For other errors just continue with an empty list so the
-        // rest of the UI still works.
         if (err.response?.status !== 401) {
           console.error('Failed to load workspaces:', err);
         }
@@ -82,20 +79,39 @@ function ProtectedLayout() {
     );
   }
 
-  if (!user) return null; // navigate() already called above
+  if (!user) return null;
 
-  return <Layout currentUser={user} enterprises={enterprises} />;
+  // Still waiting for workspace to resolve
+  if (!currentWorkspace) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-muted">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+          <p className="text-sm text-slate-500">Loading your workspace…</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Layout
+      currentUser={user}
+      enterprises={enterprises}
+      workspaces={workspaces}
+      currentWorkspace={currentWorkspace}
+      onWorkspaceChange={setCurrentWorkspace}
+    />
+  );
 }
 
-// ─── Dashboard wrapper — reads role from the real user ─────────────────────────
-// No longer hardcodes mockUser.role.
+
 function DashboardWrapper() {
   const raw = localStorage.getItem('user');
   const userRole = raw ? (JSON.parse(raw) as User).role : 'normal';
   return <Dashboard userRole={userRole} />;
 }
 
-// ─── Router ────────────────────────────────────────────────────────────────────
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -112,8 +128,6 @@ export const router = createBrowserRouter([
   { path: '/personal-subscription', element: <PersonalSubscription /> },
   {
     path: '/dashboard',
-    // ProtectedLayout handles auth check + data fetching,
-    // then renders <Layout> which exposes <Outlet> for children.
     element: <ProtectedLayout />,
     children: [
       {
@@ -137,18 +151,11 @@ export const router = createBrowserRouter([
         element: <InvoiceList />,
       },
       {
-        path :'users',
-        element: <Users />
-      }
-      /*
-      {
-        path: 'invoices/:id',
-        element: <InvoiceDetail />,
-      }
-        */
+        path: 'users',
+        element: <Users />,
+      },
     ],
   },
-  // Catch-all: unknown paths go to login
   {
     path: '*',
     element: <Navigate to="/login" replace />,

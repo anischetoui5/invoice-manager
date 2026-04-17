@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Bell, Search, ChevronDown, LogOut, User as UserIcon, Building2, CheckCircle } from 'lucide-react';
+import { Bell, Search, ChevronDown, LogOut, User as UserIcon, Building2, Check, CheckCircle } from 'lucide-react';
+
 import { Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import type { User, Enterprise } from '../types';
+import type { User, Enterprise, Workspace } from '../types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ import { Badge } from './ui/badge';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
+
 interface TopBarProps {
   user: User;
   enterprises?: Enterprise[];
@@ -22,9 +24,22 @@ interface TopBarProps {
   onNotificationsClick: () => void;
   onLogout: () => void;
   onEnterpriseSwitch?: (enterpriseId: string) => void;
+  workspaces: Workspace[];
+  currentWorkspace: { id: string; name: string };
+  onSwitchWorkspace: (workspaceId: string) => void;
 }
 
-export function TopBar({ user, enterprises, notificationCount, onNotificationsClick, onLogout, onEnterpriseSwitch }: TopBarProps) {
+export function TopBar({
+  user,
+  enterprises,
+  notificationCount,
+  onNotificationsClick,
+  onLogout,
+  onEnterpriseSwitch,
+  workspaces,
+  currentWorkspace,
+  onSwitchWorkspace,
+}: TopBarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentEnterpriseId, setCurrentEnterpriseId] = useState(user.enterpriseId);
   const { theme, setTheme } = useTheme()
@@ -49,6 +64,13 @@ export function TopBar({ user, enterprises, notificationCount, onNotificationsCl
     const enterprise = (enterprises ?? []).find(ent => ent.id === enterpriseId);
     toast.success(`Switched to ${enterprise?.name}`);
     onEnterpriseSwitch?.(enterpriseId);
+  };
+
+  // ✅ New handler with toast
+  const handleWorkspaceSwitch = (workspaceId: string) => {
+    const workspace = workspaces.find(w => w.id === workspaceId);
+    onSwitchWorkspace(workspaceId);
+    toast.success(`Switched to ${workspace?.name}`);
   };
 
   return (
@@ -119,10 +141,11 @@ export function TopBar({ user, enterprises, notificationCount, onNotificationsCl
             </div>
             <div className="text-left">
               <div className="text-sm font-medium text-foreground">{user.name}</div>
-              <div className="text-xs text-muted-foreground capitalize">{user.role}</div>
+              <div className="text-xs text-muted-foreground capitalize">{currentWorkspace.name}</div>
             </div>
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </DropdownMenuTrigger>
+
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col gap-1">
@@ -133,14 +156,46 @@ export function TopBar({ user, enterprises, notificationCount, onNotificationsCl
                 </Badge>
               </div>
             </DropdownMenuLabel>
+
             <DropdownMenuSeparator />
+
+            <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+              Switch Workspace
+            </DropdownMenuLabel>
+            {workspaces.map((workspace) => (
+              <DropdownMenuItem
+                key={workspace.id}
+                onClick={() => handleWorkspaceSwitch(workspace.id)}
+                className="flex items-center justify-between gap-2"
+              >
+                <div className="flex items-center gap-2">
+                  {workspace.type === 'personal' ? (
+                    <UserIcon className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-sm">{workspace.name}</span>
+                    <span className="text-xs text-muted-foreground capitalize">{workspace.role}</span>
+                  </div>
+                </div>
+                {currentWorkspace.id === workspace.id && (
+                  <Check className="h-4 w-4 text-blue-600" />
+                )}
+              </DropdownMenuItem>
+            ))}
+
+            <DropdownMenuSeparator />
+
             <DropdownMenuItem asChild>
               <Link to="/dashboard/settings" className="flex items-center gap-2">
                 <UserIcon className="h-4 w-4" />
                 Profile Settings
               </Link>
             </DropdownMenuItem>
+
             <DropdownMenuSeparator />
+
             <DropdownMenuItem onClick={onLogout} className="flex items-center gap-2 text-red-600">
               <LogOut className="h-4 w-4" />
               Logout

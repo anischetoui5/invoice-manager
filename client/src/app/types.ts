@@ -2,6 +2,14 @@ export type UserRole = 'admin' | 'employee' | 'accountant' | 'director' | 'norma
 
 export type InvoiceStatus = 'pending' | 'processing' | 'validated' | 'rejected' | 'approved';
 
+export type Workspace = {
+  id: string;
+  name: string;
+  type: 'personal' | 'company';
+  role: string;
+  isActive?: boolean;
+}
+
 export interface Notification {
   id: string;
   type: 'info' | 'success' | 'warning' | 'error';
