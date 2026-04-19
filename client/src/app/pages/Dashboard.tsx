@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import {
   FileText, Upload, CheckCircle2, XCircle, Clock,
   TrendingUp, DollarSign, Users, Activity, Building2, Shield, CreditCard,
@@ -6,14 +6,31 @@ import {
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import type { UserRole } from '../types';
+import type { UserRole, Workspace } from '../types';
 import { JoinCompany } from '../components/JoinCompany';
+import { useState, useEffect } from 'react';
+import api from '../../lib/api';
 
 interface DashboardProps {
   userRole: UserRole;
 }
 
 export function Dashboard({ userRole }: DashboardProps) {
+
+  const { currentWorkspace } = useOutletContext<{
+    currentWorkspace: Workspace;
+  }>();
+
+  const [companyCode, setCompanyCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (currentWorkspace?.type === 'company') {
+      api.get(`/company/${currentWorkspace.id}`)
+        .then(({ data }) => setCompanyCode(data.company.code))
+        .catch(() => {});
+    }
+  }, [currentWorkspace?.id]);
+
   const pendingInvoices: any[] = [];
   const processingInvoices: any[] = [];
   const validatedInvoices: any[] = [];
@@ -653,8 +670,21 @@ const renderAccountantDashboard = () => {
             </div>
             <div className="rounded-lg p-4 text-center" style={{ backgroundColor: "var(--info)", color: "var(--info-foreground)"}}>
               <p className="text-sm font-bold">Your Company Code</p>
-              <p className="mt-2 text-2xl font-bold">—</p>
-              <Button size="sm" variant="outline" className="mt-4 w-full">
+              <p className="mt-2 text-2xl font-bold tracking-widest">
+                {companyCode ?? '—'}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-4 w-full"
+                disabled={!companyCode}
+                onClick={() => {
+                  if (companyCode) {
+                    navigator.clipboard.writeText(companyCode);
+                    toast.success('Company code copied!');
+                  }
+                }}
+              >
                 Copy Code
               </Button>
             </div>
