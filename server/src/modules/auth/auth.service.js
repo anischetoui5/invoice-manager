@@ -18,7 +18,10 @@ const ROLE_MAP = {
   Personal:   'normal',
 };
 
-async function register({ name, email, password, registrationType }) {
+async function register({ 
+  name, email, password, registrationType,
+  companyName, industry, companyEmail, phone, address 
+}) {
   if (!name || !email || !password) {
     throw new Error('Name, email and password are required');
   }
@@ -61,9 +64,9 @@ async function register({ name, email, password, registrationType }) {
     // 4. If company, create the companies profile row
     if (isCompany) {
       await client.query(
-        `INSERT INTO companies (workspace_id, name, email)
-         VALUES ($1, $2, $3)`,
-        [workspace.id, name, email]
+        `INSERT INTO companies (workspace_id, name, email, phone, address)
+        VALUES ($1, $2, $3, $4, $5)`,
+        [workspace.id, companyName, companyEmail || email, phone, address]
       );
     }
 

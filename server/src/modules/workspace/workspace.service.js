@@ -44,12 +44,13 @@ async function createWorkspace(userId, { name, type = 'company' }) {
 
 async function getMyWorkspaces(userId) {
   const result = await pool.query(
-    `SELECT w.*, r.name as role
-     FROM workspaces w
-     JOIN memberships m ON m.workspace_id = w.id
-     JOIN roles r ON r.id = m.role_id
-     WHERE m.user_id = $1
-     ORDER BY w.created_at ASC`,
+    `SELECT w.*, r.name as role, c.name as company_name
+    FROM workspaces w
+    JOIN memberships m ON m.workspace_id = w.id
+    JOIN roles r ON r.id = m.role_id
+    LEFT JOIN companies c ON c.workspace_id = w.id
+    WHERE m.user_id = $1
+    ORDER BY w.created_at ASC`,
     [userId]
   );
   return result.rows;

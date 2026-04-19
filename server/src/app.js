@@ -8,6 +8,7 @@ const workspaceRoutes = require('./modules/workspace/workspace.routes');
 const usersRoutes = require('./modules/users/users.routes');
 const invoicesRoutes = require('./modules/invoices/invoices.routes');
 const documentsRoutes = require('./modules/documents/documents.routes');
+const companyRoutes = require('./modules/company/company.routes');
 
 const { authenticate } = require('./middlewares/auth.middleware');
 
@@ -25,6 +26,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/company', companyRoutes);
 
 // Sprint 2 — invoices and documents (nested under workspace)
 app.use('/api/workspaces/:workspace_id/invoices', invoicesRoutes);

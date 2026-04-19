@@ -23,6 +23,8 @@ function ProtectedLayout() {
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
 
+  console.log('Layout currentWorkspace', currentWorkspace);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const raw = localStorage.getItem('user');

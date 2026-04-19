@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User as UserIcon, Mail, Lock, Bell, Shield, Save, Building2 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { Card } from '../components/ui/card';
@@ -13,6 +13,7 @@ import type { User, Enterprise, Workspace } from '../types';
 import api from '../../lib/api';
 
 export function Settings() {
+  
   const { currentUser, enterprises, currentWorkspace } = useOutletContext<{
   currentUser: User;
   enterprises: Enterprise[];
@@ -35,6 +36,23 @@ export function Settings() {
     pushNotifications: true,
     weeklyReport: false,
   });
+
+  const [companyDetails, setCompanyDetails] = useState<{
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  code?: string;
+} | null>(null);
+
+useEffect(() => {
+  if (currentWorkspace?.type === 'company') {
+    api.get(`/company/${currentWorkspace.id}`)
+      .then(({ data }) => setCompanyDetails(data.company))
+      .catch(() => {});
+  }
+}, [currentWorkspace?.id]);
+
 
   const currentEnterprise = enterprises.find(ent => ent.id === currentWorkspace?.id);
   
@@ -201,8 +219,10 @@ export function Settings() {
           {currentUser.role == 'normal' && <JoinCompany userRole={currentUser.role} /> }
           
           {currentUser.role == 'accountant' && <JoinCompany userRole={currentUser.role} /> }
+
           
-          {currentUser.role !== 'normal' && (
+          
+          {currentWorkspace?.type === 'company' && (
             <Card className="p-6">
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
@@ -214,18 +234,53 @@ export function Settings() {
                 </div>
               </div>
 
-              {currentEnterprise ? (
+              {companyDetails ? (
                 <div className="space-y-4">
                   <div>
                     <Label>Company Name</Label>
-                    <p className="mt-1 text-sm text-foreground">
-                        {currentWorkspace.companyName ?? currentWorkspace.name}
-                    </p>
+                    <p className="mt-1 text-sm text-foreground">{companyDetails.name}</p>
                   </div>
                   <div>
                     <Label>Your Role</Label>
-                    <p className="mt-1 text-sm capitalize text-foreground">{currentUser.role}</p>
+                    <p className="mt-1 text-sm capitalize text-foreground">{currentWorkspace.role}</p>
                   </div>
+                  {companyDetails.email && (
+                    <div>
+                      <Label>Company Email</Label>
+                      <p className="mt-1 text-sm text-foreground">{companyDetails.email}</p>
+                    </div>
+                  )}
+                  {companyDetails.phone && (
+                    <div>
+                      <Label>Company Phone</Label>
+                      <p className="mt-1 text-sm text-foreground">{companyDetails.phone}</p>
+                    </div>
+                  )}
+                  {companyDetails.address && (
+                    <div>
+                      <Label>Address</Label>
+                      <p className="mt-1 text-sm text-foreground">{companyDetails.address}</p>
+                    </div>
+                  )}
+                  {companyDetails.code && (
+                    <div>
+                      <Label>Company Code</Label>
+                      <div className="mt-1 flex items-center gap-2">
+                        <code className="text-sm font-bold tracking-wider text-blue-600">
+                          {companyDetails.code}
+                        </code>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(companyDetails.code!);
+                            toast.success('Company code copied!');
+                          }}
+                          className="text-xs text-muted-foreground hover:text-foreground underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
