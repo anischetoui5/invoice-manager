@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, useNavigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useNavigate, useOutletContext } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
@@ -10,7 +10,7 @@ import { PersonalSubscription } from './pages/PersonalSubscription';
 import { UploadInvoice } from './pages/UploadInvoice';
 import { InvoiceList } from './pages/Invoices';
 import { Users } from './pages/Users';
-import type { User, Enterprise, Workspace } from './types';
+import type { User, Enterprise, Workspace, UserRole } from './types';
 import api from '../lib/api';
 
 
@@ -22,8 +22,6 @@ function ProtectedLayout() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
-
-  console.log('Layout currentWorkspace', currentWorkspace);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -57,7 +55,7 @@ function ProtectedLayout() {
         setWorkspaces(list);
 
         // Pick the active workspace, fall back to first in list
-        const active = list.find((w: Workspace) => w.isActive) ?? list[0];
+        const active = list.find((w: Workspace) => w.is_active) ?? list[0];
         if (active) {
           setCurrentWorkspace(active);
         }
@@ -108,8 +106,17 @@ function ProtectedLayout() {
 
 
 function DashboardWrapper() {
-  const raw = localStorage.getItem('user');
-  const userRole = raw ? (JSON.parse(raw) as User).role : 'normal';
+  const { currentWorkspace } = useOutletContext<{ currentWorkspace: Workspace }>();
+
+  const roleMap: Record<string, UserRole> = {
+    'Director': 'director',
+    'Employee': 'employee',
+    'Accountant': 'accountant',
+    'Personal': 'normal',
+  };
+
+  const userRole = roleMap[currentWorkspace?.role] ?? 'normal';
+  
   return <Dashboard userRole={userRole} />;
 }
 

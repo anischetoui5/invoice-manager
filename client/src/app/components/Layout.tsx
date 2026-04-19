@@ -46,24 +46,21 @@ export function Layout({
     navigate('/login');
   };
 
-  const handleSwitchWorkspace = async (workspaceId: string) => {
-    // 1. Call API to update last_active_workspace_id
-    await api.patch('/auth/switch-workspace', { workspaceId });
+const handleSwitchWorkspace = async (workspaceId: string) => {
+  await api.patch('/auth/switch-workspace', { workspaceId });
 
-    // 2. Update local state
-    const workspace = workspaces.find(w => w.id === workspaceId);
-    if (workspace) {
-      setCurrentWorkspace(workspace); // ← pass full object, not { id, name }
-      onWorkspaceChange(workspace);
-    }
+  const workspace = workspaces.find(w => w.id === workspaceId);
+  if (workspace) {
+    setCurrentWorkspace(workspace); // ← full object, not just {id, name}
+    onWorkspaceChange(workspace);
+  }
 
-    // 3. Reload dashboard with new workspace context
-    navigate('/dashboard');
-  };
+  navigate('/dashboard');
+};
 
   return (
     <div className="flex h-screen overflow-hidden bg-muted">
-      <Sidebar userRole={currentUser.role} />
+      <Sidebar currentWorkspace={currentWorkspace} />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar
@@ -79,12 +76,12 @@ export function Layout({
         />
 
         <main className="flex-1 overflow-y-auto p-8">
-          <Outlet context={{ 
-            activeEnterpriseId,
-            currentUser,
-            enterprises,
-            currentWorkspace,
-          }} />
+            <Outlet context={{ 
+              activeEnterpriseId,
+              currentUser,
+              enterprises,
+              currentWorkspace,
+            }} />
         </main>
       </div>
 

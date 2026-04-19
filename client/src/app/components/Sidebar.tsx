@@ -1,44 +1,43 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Upload,
-  FileText,
-  BarChart3,
-  Settings,
-  Users,
-  History,
-  CreditCard,
-  UserPlus,
+  LayoutDashboard, Upload, FileText, BarChart3,
+  Settings, Users, History, CreditCard, UserPlus,
 } from 'lucide-react';
-import type { UserRole } from '../types';
+import type { Workspace } from '../types';
 
 interface SidebarProps {
-  userRole: UserRole;
+  currentWorkspace: Workspace;
 }
 
-export function Sidebar({ userRole }: SidebarProps) {
+export function Sidebar({ currentWorkspace }: SidebarProps) {
   const location = useLocation();
+  const isActive = (path: string) => location.pathname === path;
 
-  const isActive = (path: string) => {
-    return location.pathname === path;
+  // Map workspace role to sidebar role
+  const roleMap: Record<string, string> = {
+    'Director': 'director',
+    'Employee': 'employee',
+    'Accountant': 'accountant',
+    'Personal': 'normal',
+    'Owner': 'admin',
   };
 
-const navItems = [
-  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
-  { path: '/dashboard/upload', icon: Upload, label: 'Upload Invoice', roles: ['employee', 'normal'] },
-  { path: '/dashboard/invoices', icon: FileText, label: 'Invoices', roles: ['admin', 'employee', 'director', 'normal'] },
-  { path: '/dashboard/reports', icon: BarChart3, label: 'Reports', roles: ['accountant', 'director'] },
-  { path: '/dashboard/team', icon: UserPlus, label: 'Team Management', roles: ['director', 'admin'] },
-  { path: '/dashboard/subscription', icon: CreditCard, label: 'Subscription', roles: ['director'] },
-  { path: '/personal-subscription', icon: CreditCard, label: 'Subscription', roles: ['normal'] },
-  { path: '/dashboard/users', icon: Users, label: 'Users', roles: ['admin'] },
-  { path: '/dashboard/history', icon: History, label: 'History', roles: ['admin', 'accountant', 'normal','employee', 'director'] },
-  { path: '/dashboard/settings', icon: Settings, label: 'Settings', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
-];
+  const sidebarRole = roleMap[currentWorkspace?.role] ?? 'normal';
 
-  const filteredNavItems = navItems.filter((item) =>
-    item.roles.includes(userRole)
-  );
+  const navItems = [
+    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
+    { path: '/dashboard/upload', icon: Upload, label: 'Upload Invoice', roles: ['employee', 'normal'] },
+    { path: '/dashboard/invoices', icon: FileText, label: 'Invoices', roles: ['admin', 'employee', 'director', 'normal'] },
+    { path: '/dashboard/reports', icon: BarChart3, label: 'Reports', roles: ['accountant', 'director'] },
+    { path: '/dashboard/team', icon: UserPlus, label: 'Team Management', roles: ['director', 'admin'] },
+    { path: '/dashboard/subscription', icon: CreditCard, label: 'Subscription', roles: ['director'] },
+    { path: '/personal-subscription', icon: CreditCard, label: 'Subscription', roles: ['normal'] },
+    { path: '/dashboard/users', icon: Users, label: 'Users', roles: ['admin'] },
+    { path: '/dashboard/history', icon: History, label: 'History', roles: ['admin', 'accountant', 'normal', 'employee', 'director'] },
+    { path: '/dashboard/settings', icon: Settings, label: 'Settings', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
+  ];
+
+  const filteredNavItems = navItems.filter(item => item.roles.includes(sidebarRole));
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-background">
@@ -55,15 +54,12 @@ const navItems = [
         {filteredNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
-
           return (
             <Link
               key={item.path}
               to={item.path}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
-                active
-                  ? 'bg-blue-100 text-blue-600'
-                  : 'text-foreground hover:bg-muted'
+                active ? 'bg-blue-100 text-blue-600' : 'text-foreground hover:bg-muted'
               }`}
             >
               <Icon className="h-5 w-5" />
@@ -74,16 +70,14 @@ const navItems = [
       </nav>
 
       <div className="border-t p-4">
-      <div
-        className="rounded-lg p-3"
-        style={{ backgroundColor: "var(--info)", color: "var(--info-foreground)" }}
-      >
-        <p className="text-xs font-medium">Need Help?</p>
-        <p className="mt-1 text-xs">
-          Check our documentation or contact support.
-        </p>
+        <div
+          className="rounded-lg p-3"
+          style={{ backgroundColor: "var(--info)", color: "var(--info-foreground)" }}
+        >
+          <p className="text-xs font-medium">Need Help?</p>
+          <p className="mt-1 text-xs">Check our documentation or contact support.</p>
+        </div>
       </div>
-    </div>
     </div>
   );
 }

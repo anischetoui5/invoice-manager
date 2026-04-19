@@ -209,7 +209,8 @@ export function Register() {
         email: formData.email,
         password: formData.password,
         registrationType,
-        ...(registrationType === 'join' && { companyCode: formData.companyCode, joinRole }),
+        companyCode: formData.companyCode,
+        joinRole, // ← already in your state
       });
 
       localStorage.setItem('token', response.data.token);

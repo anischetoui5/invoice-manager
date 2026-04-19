@@ -151,9 +151,22 @@ export function TopBar({
               <div className="flex flex-col gap-1">
                 <span className="text-sm">{user.name}</span>
                 <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
-                <Badge className={`mt-1 w-fit capitalize ${getRoleBadgeColor(user.role)}`}>
-                  {user.role}
-                </Badge>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {workspaces.map((w) => (
+                    <span
+                      key={w.id}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        w.role === 'Director' ? 'bg-orange-100 text-orange-700' :
+                        w.role === 'Employee' ? 'bg-blue-100 text-blue-700' :
+                        w.role === 'Accountant' ? 'bg-green-100 text-green-700' :
+                        w.role === 'Personal' ? 'bg-gray-200 text-gray-600' :
+                        'bg-purple-100 text-purple-700'
+                      }`}
+                    >
+                      {w.role}
+                    </span>
+                  ))}
+                </div>
               </div>
             </DropdownMenuLabel>
 

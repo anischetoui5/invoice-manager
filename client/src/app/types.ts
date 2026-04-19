@@ -7,7 +7,7 @@ export type Workspace = {
   name: string;
   type: 'personal' | 'company';
   role: string;
-  isActive?: boolean;
+  is_active?: boolean;
   companyName?: string;
 }
 
