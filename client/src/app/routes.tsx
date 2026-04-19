@@ -113,6 +113,7 @@ function DashboardWrapper() {
     'Employee': 'employee',
     'Accountant': 'accountant',
     'Personal': 'normal',
+    'Admin': 'admin',
   };
 
   const userRole = roleMap[currentWorkspace?.role] ?? 'normal';

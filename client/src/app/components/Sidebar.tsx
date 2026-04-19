@@ -19,7 +19,7 @@ export function Sidebar({ currentWorkspace }: SidebarProps) {
     'Employee': 'employee',
     'Accountant': 'accountant',
     'Personal': 'normal',
-    'Owner': 'admin',
+    'Admin': 'admin',
   };
 
   const sidebarRole = roleMap[currentWorkspace?.role] ?? 'normal';

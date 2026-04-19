@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'; // Added useEffect
-import { UserPlus, Search, MoreVertical, Mail, Shield, Loader2 } from 'lucide-react'; // Added Loader2
+import { useState, useEffect } from 'react';
+import { UserPlus, Search, MoreVertical, Mail, Shield, Loader2, Building2, User as UserIcon } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -12,14 +12,24 @@ import {
 } from '../components/ui/dropdown-menu';
 import api from '../../lib/api';
 
-// 1. Define your User type (ensure this matches your backend response)
 interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'accountant' | 'director' | 'employee';
-  status: string;
+  roles: string[];
+  created_at: string;
 }
+
+const getRoleBadgeColor = (role: string) => {
+  switch (role) {
+    case 'Owner':    return 'bg-purple-100 text-purple-700';
+    case 'Director': return 'bg-orange-100 text-orange-700';
+    case 'Accountant': return 'bg-green-100 text-green-700';
+    case 'Employee': return 'bg-blue-100 text-blue-700';
+    case 'Personal': return 'bg-gray-100 text-gray-600';
+    default:         return 'bg-slate-100 text-slate-700';
+  }
+};
 
 export function Users() {
   const [users, setUsers] = useState<User[]>([]);
@@ -27,49 +37,38 @@ export function Users() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 2. Fetch data from backend on mount
   useEffect(() => {
-  const fetchUsers = async () => {
-    try {
-      setIsLoading(true);
-      // Use the SAME 'api' object from your login logic
-      const response = await api.get('/users'); 
-      
-      // Axios puts the response data inside a '.data' property automatically
-      setUsers(response.data); 
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load users');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  fetchUsers();
-}, []);
+    const fetchUsers = async () => {
+      try {
+        setIsLoading(true);
+        const response = await api.get('/users');
+        setUsers(response.data);
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Failed to load users');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter((user) =>
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchQuery.toLowerCase())
+    user.roles?.some(r => r.toLowerCase().includes(searchQuery.toLowerCase()))
   );
-
-  const getRoleBadge = (role: string) => {
-    const config: Record<string, string> = {
-      admin: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-      accountant: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-      director: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-      employee: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    };
-    return config[role] || 'bg-slate-100 text-slate-700';
-  };
+  
+  console.log('users:', users);
+  console.log('Director count:', users.filter(u => u.roles?.includes('Director')).length);
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">User Management</h1>
+          <h1 className="text-2xl font-bold text-foreground">User Management</h1>
           <p className="mt-1 text-muted-foreground">
-            Manage user accounts and permissions
+            {users.length} total users on the platform
           </p>
         </div>
         <Button>
@@ -78,11 +77,12 @@ export function Users() {
         </Button>
       </div>
 
-      <Card className="p-6">
+      {/* Search */}
+      <Card className="p-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search users..."
+            placeholder="Search by name, email or role..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -90,40 +90,53 @@ export function Users() {
         </div>
       </Card>
 
-      {/* 3. Loading State */}
+      {/* Stats row */}
+      {!isLoading && !error && (
+        <div className="grid gap-4 md:grid-cols-4">
+          {['Director', 'Employee', 'Accountant', 'Personal'].map((role) => (
+            <Card key={role} className="p-4">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{role}s</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">
+                {users.filter(u => u.roles?.includes(role)).length}
+              </p>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Loading */}
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : error ? (
-        /* 4. Error State */
         <Card className="p-12 border-destructive/50 bg-destructive/10">
           <div className="text-center text-destructive">
-             <p className="font-bold">Error</p>
-             <p>{error}</p>
-             <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
-               Try Again
-             </Button>
+            <p className="font-bold">Error</p>
+            <p>{error}</p>
+            <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
           </div>
         </Card>
       ) : (
-        /* 5. Data Display */
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredUsers.map((user) => (
-            <Card key={user.id} className="p-6">
+            <Card key={user.id} className="p-5 flex flex-col gap-4">
+              {/* User header */}
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-                    {user.name.split(' ').map(n => n[0]).join('')}
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">
+                    {user.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{user.name}</h3>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                  <div>
+                    <h3 className="font-semibold text-foreground leading-tight">{user.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
                   </div>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -143,28 +156,30 @@ export function Users() {
                 </DropdownMenu>
               </div>
 
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Role</span>
-                  <Badge className={`capitalize ${getRoleBadge(user.role)}`}>
-                    {user.role}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
-                    {user.status || 'Active'}
-                  </Badge>
+              {/* Roles */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Roles</p>
+                <div className="flex flex-wrap gap-1">
+                  {user.roles?.filter(r => r !== null).map((role) => (
+                    <span
+                      key={role}
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${getRoleBadgeColor(role)}`}
+                    >
+                      {role}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              <div className="mt-4 flex gap-2">
-                <Button size="sm" className="flex-1">
-                  View Profile
-                </Button>
-                <Button size="sm" className="flex-1">
-                  Edit
-                </Button>
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-2 border-t">
+                <span className="text-xs text-muted-foreground">
+                  Joined {new Date(user.created_at).toLocaleDateString()}
+                </span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline">View</Button>
+                  <Button size="sm">Edit</Button>
+                </div>
               </div>
             </Card>
           ))}
@@ -173,7 +188,7 @@ export function Users() {
 
       {!isLoading && filteredUsers.length === 0 && (
         <Card className="p-12 text-center text-muted-foreground">
-          No users found
+          No users found matching your search.
         </Card>
       )}
     </div>
