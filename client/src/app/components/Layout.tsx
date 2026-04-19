@@ -12,8 +12,8 @@ interface LayoutProps {
   enterprises: Enterprise[];
   initialNotifications?: Notification[];
   workspaces: Workspace[];
-  currentWorkspace: { id: string; name: string };
-  onWorkspaceChange: (workspace: { id: string; name: string }) => void;
+  currentWorkspace: Workspace;
+  onWorkspaceChange: (workspace: Workspace) => void;
 }
 
 export function Layout({
@@ -28,7 +28,7 @@ export function Layout({
   const [activeEnterpriseId, setActiveEnterpriseId] = useState(currentUser.enterpriseId);
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [currentWorkspace, setCurrentWorkspace] = useState(initialWorkspace);
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(initialWorkspace);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -53,8 +53,8 @@ export function Layout({
     // 2. Update local state
     const workspace = workspaces.find(w => w.id === workspaceId);
     if (workspace) {
-      setCurrentWorkspace({ id: workspace.id, name: workspace.name });
-      onWorkspaceChange({ id: workspace.id, name: workspace.name });
+      setCurrentWorkspace(workspace); // ← pass full object, not { id, name }
+      onWorkspaceChange(workspace);
     }
 
     // 3. Reload dashboard with new workspace context

@@ -9,13 +9,14 @@ import { Switch } from '../components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { toast } from 'sonner';
 import { JoinCompany } from '../components/JoinCompany';
-import type { User, Enterprise } from '../types';
+import type { User, Enterprise, Workspace } from '../types';
 import api from '../../lib/api';
 
 export function Settings() {
-  const { currentUser, enterprises } = useOutletContext<{
-    currentUser: User;
-    enterprises: Enterprise[];
+  const { currentUser, enterprises, currentWorkspace } = useOutletContext<{
+  currentUser: User;
+  enterprises: Enterprise[];
+  currentWorkspace: Workspace;
   }>();
 
   const [name, setName] = useState(currentUser.name);
@@ -35,7 +36,8 @@ export function Settings() {
     weeklyReport: false,
   });
 
-  const currentEnterprise = enterprises.find(ent => ent.id === currentUser.enterpriseId);
+  const currentEnterprise = enterprises.find(ent => ent.id === currentWorkspace?.id);
+  
 
   // ── Profile ────────────────────────────────────────────────────────────────
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -216,7 +218,9 @@ export function Settings() {
                 <div className="space-y-4">
                   <div>
                     <Label>Company Name</Label>
-                    <p className="mt-1 text-sm text-foreground">{currentEnterprise.name}</p>
+                    <p className="mt-1 text-sm text-foreground">
+                        {currentWorkspace.companyName ?? currentWorkspace.name}
+                    </p>
                   </div>
                   <div>
                     <Label>Your Role</Label>

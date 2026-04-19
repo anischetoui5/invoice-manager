@@ -172,82 +172,6 @@ export function Register() {
     setStep('account');
   };
 
-  const generateCompanyCode = (companyName: string): string => {
-    const prefix = companyName
-      .toUpperCase()
-      .replace(/[^A-Z]/g, '')
-      .substring(0, 4)
-      .padEnd(4, 'X');
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    return `${prefix}${randomNum}`;
-  };
-
-  const handleAccountSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    try {
-      // ALL types call the API directly — no more redirect for personal
-      const response = await api.post('/auth/register', {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        registrationType,
-      });
-
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      if (response.data.personalWorkspaceId) {
-        localStorage.setItem('activeWorkspaceId', response.data.personalWorkspaceId);
-      }
-
-      toast.success('Account created successfully!');
-
-      if (registrationType === 'company') {
-        setStep('company-setup');
-      } else if (registrationType === 'join') {
-        toast.info('Account created! You can now join a company from your dashboard.');
-        navigate('/dashboard');
-      } else {
-        // personal — go straight to dashboard
-        navigate('/dashboard');
-      }
-
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Registration failed');
-    }
-  };
-
-  const handleCompanySetupSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.companyName.trim()) {
-      toast.error('Please enter your company name');
-      return;
-    }
-    const code = generateCompanyCode(formData.companyName);
-    setGeneratedCompanyCode(code);
-    handleInputChange('companyCode', code);
-    setStep('subscription');
-  };
-
-  const handleSubscriptionSubmit = () => {
-    setStep('payment');
-  };
-
-  const handlePaymentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.cardNumber || !formData.cardExpiry || !formData.cardCVC || !formData.cardName) {
-      toast.error('Please fill in all payment details');
-      return;
-    }
-    toast.success('Payment processed successfully!');
-    setTimeout(() => setStep('confirmation'), 800);
-  };
-
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -262,6 +186,103 @@ export function Register() {
   const copyCompanyCode = () => {
     navigator.clipboard.writeText(generatedCompanyCode || formData.companyCode);
     toast.success('Company code copied to clipboard!');
+  };
+
+  // ── Step 1: Account — validate only, no API call for company flow ──────────
+  const handleAccountSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    if (registrationType === 'company') {
+      setStep('company-setup');
+      return;
+    }
+
+    // personal / join — call API immediately
+    try {
+      const response = await api.post('/auth/register', {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        registrationType,
+        ...(registrationType === 'join' && { companyCode: formData.companyCode, joinRole }),
+      });
+
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+
+      toast.success('Account created successfully!');
+
+      if (registrationType === 'join') {
+        toast.info('Account created! You can now join a company from your dashboard.');
+      }
+
+      navigate('/dashboard');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Registration failed');
+    }
+  };
+
+  // ── Step 2: Company setup — validate only, no API call ────────────────────
+  const handleCompanySetupSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.companyName.trim()) {
+      toast.error('Please enter your company name');
+      return;
+    }
+    setStep('subscription');
+  };
+
+  // ── Step 3: Subscription — just move forward ──────────────────────────────
+  const handleSubscriptionSubmit = () => {
+    setStep('payment');
+  };
+
+  // ── Step 4: Payment — single API call with all collected data ─────────────
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.cardNumber || !formData.cardExpiry || !formData.cardCVC || !formData.cardName) {
+      toast.error('Please fill in all payment details');
+      return;
+    }
+
+    try {
+      const response = await api.post('/auth/register', {
+        // Step 1
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        registrationType,
+        // Step 2
+        companyName: formData.companyName,
+        companyEmail: formData.companyEmail,
+        companyPhone: formData.companyPhone,
+        companyAddress: formData.companyAddress,
+        industry: formData.industry,
+        // Step 3
+        plan: selectedPlan,
+        // Step 4
+        cardName: formData.cardName,
+      });
+
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+
+      if (response.data.companyCode) {
+        setGeneratedCompanyCode(response.data.companyCode);
+        handleInputChange('companyCode', response.data.companyCode);
+      }
+
+      toast.success('Payment processed successfully!');
+      setStep('confirmation');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Registration failed');
+    }
   };
 
   return (

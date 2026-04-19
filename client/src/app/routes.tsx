@@ -20,7 +20,7 @@ function ProtectedLayout() {
   const [user, setUser] = useState<User | null>(null);
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [currentWorkspace, setCurrentWorkspace] = useState<{ id: string; name: string } | null>(null);
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,7 +57,7 @@ function ProtectedLayout() {
         // Pick the active workspace, fall back to first in list
         const active = list.find((w: Workspace) => w.isActive) ?? list[0];
         if (active) {
-          setCurrentWorkspace({ id: active.id, name: active.name });
+          setCurrentWorkspace(active);
         }
       })
       .catch((err) => {

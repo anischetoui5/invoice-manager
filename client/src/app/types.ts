@@ -8,6 +8,7 @@ export type Workspace = {
   type: 'personal' | 'company';
   role: string;
   isActive?: boolean;
+  companyName?: string;
 }
 
 export interface Notification {
