@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { User as UserIcon, Mail, Lock, Bell, Shield, Save, Building2 } from 'lucide-react';
+import { User as UserIcon, Mail, Lock, Bell, Shield, Save, Building2, Pencil, Phone, Copy} from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
+import { Textarea } from '../components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { toast } from 'sonner';
 import { JoinCompany } from '../components/JoinCompany';
 import type { User, Enterprise, Workspace } from '../types';
 import api from '../../lib/api';
+
 
 export function Settings() {
   
@@ -29,6 +31,59 @@ export function Settings() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
+  const [isEditingCompany, setIsEditingCompany] = useState(false);
+  const [savingCompany, setSavingCompany] = useState(false);
+  const [companyForm, setCompanyForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+  });
+
+    const [companyDetails, setCompanyDetails] = useState<{
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    code?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (currentWorkspace?.type === 'company') {
+      api.get(`/company/${currentWorkspace.id}`)
+        .then(({ data }) => setCompanyDetails(data.company))
+        .catch(() => {});
+    }
+  }, [currentWorkspace?.id]);
+
+  useEffect(() => {
+    if (companyDetails) {
+      setCompanyForm({
+        name: companyDetails.name ?? '',
+        email: companyDetails.email ?? '',
+        phone: companyDetails.phone ?? '',
+        address: companyDetails.address ?? '',
+      });
+    }
+  }, [companyDetails]);
+
+  const handleSaveCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingCompany(true);
+    try {
+      const { data } = await api.put(`/company/${currentWorkspace.id}`, companyForm);
+      setCompanyDetails(data.company);
+      setIsEditingCompany(false);
+      toast.success('Company updated successfully');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to update company');
+    } finally {
+      setSavingCompany(false);
+    }
+  };
+
+
+
   const [notifications, setNotifications] = useState({
     emailInvoiceUploaded: true,
     emailInvoiceValidated: true,
@@ -36,22 +91,6 @@ export function Settings() {
     pushNotifications: true,
     weeklyReport: false,
   });
-
-  const [companyDetails, setCompanyDetails] = useState<{
-  name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  code?: string;
-} | null>(null);
-
-useEffect(() => {
-  if (currentWorkspace?.type === 'company') {
-    api.get(`/company/${currentWorkspace.id}`)
-      .then(({ data }) => setCompanyDetails(data.company))
-      .catch(() => {});
-  }
-}, [currentWorkspace?.id]);
 
 
   const currentEnterprise = enterprises.find(ent => ent.id === currentWorkspace?.id);
@@ -216,78 +255,154 @@ useEffect(() => {
 
         {/* ── Company tab ── */}
         <TabsContent value="company" className="space-y-6">
-          {currentUser.role == 'normal' && <JoinCompany userRole={currentUser.role} /> }
-          
-          {currentUser.role == 'accountant' && <JoinCompany userRole={currentUser.role} /> }
+          {(currentUser.role === 'normal' || currentUser.role === 'accountant') && (
+            <JoinCompany userRole={currentUser.role} />
+          )}
 
-          
-          
           {currentWorkspace?.type === 'company' && (
-            <Card className="p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                  <Building2 className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Company Information</h3>
-                  <p className="text-sm text-muted-foreground">View your company details</p>
-                </div>
-              </div>
-
-              {companyDetails ? (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Company Name</Label>
-                    <p className="mt-1 text-sm text-foreground">{companyDetails.name}</p>
-                  </div>
-                  <div>
-                    <Label>Your Role</Label>
-                    <p className="mt-1 text-sm capitalize text-foreground">{currentWorkspace.role}</p>
-                  </div>
-                  {companyDetails.email && (
-                    <div>
-                      <Label>Company Email</Label>
-                      <p className="mt-1 text-sm text-foreground">{companyDetails.email}</p>
+            <>
+              {/* Company Header Card */}
+              <Card className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-blue-600 text-2xl font-bold text-white">
+                      {companyDetails?.name?.charAt(0).toUpperCase()}
                     </div>
-                  )}
-                  {companyDetails.phone && (
                     <div>
-                      <Label>Company Phone</Label>
-                      <p className="mt-1 text-sm text-foreground">{companyDetails.phone}</p>
-                    </div>
-                  )}
-                  {companyDetails.address && (
-                    <div>
-                      <Label>Address</Label>
-                      <p className="mt-1 text-sm text-foreground">{companyDetails.address}</p>
-                    </div>
-                  )}
-                  {companyDetails.code && (
-                    <div>
-                      <Label>Company Code</Label>
+                      <h2 className="text-xl font-bold text-foreground">{companyDetails?.name}</h2>
+                      <p className="text-sm text-muted-foreground">{companyDetails?.email}</p>
                       <div className="mt-1 flex items-center gap-2">
-                        <code className="text-sm font-bold tracking-wider text-blue-600">
-                          {companyDetails.code}
-                        </code>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(companyDetails.code!);
-                            toast.success('Company code copied!');
-                          }}
-                          className="text-xs text-muted-foreground hover:text-foreground underline"
-                        >
-                          Copy
-                        </button>
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 capitalize">
+                          {currentWorkspace.role}
+                        </span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Edit button — directors only */}
+                  {currentWorkspace.role === 'Director' && !isEditingCompany && (
+                    <Button variant="outline" size="sm" onClick={() => setIsEditingCompany(true)} className="gap-2">
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </Button>
                   )}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  You are not currently part of any company. Use the "Join a Company" section above to join one.
-                </p>
-              )}
-            </Card>
+              </Card>
+
+              {/* Company Details / Edit Form */}
+              <Card className="p-6">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                    <Building2 className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Company Details</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {isEditingCompany ? 'Update your company information' : 'Your company information'}
+                    </p>
+                  </div>
+                </div>
+
+                {isEditingCompany ? (
+                  <form onSubmit={handleSaveCompany} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="companyName">Company Name</Label>
+                      <Input
+                        id="companyName"
+                        value={companyForm.name}
+                        onChange={(e) => setCompanyForm(prev => ({ ...prev, name: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="companyEmail">Company Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          id="companyEmail"
+                          type="email"
+                          className="pl-10"
+                          value={companyForm.email}
+                          onChange={(e) => setCompanyForm(prev => ({ ...prev, email: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="companyPhone">Phone</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          id="companyPhone"
+                          type="tel"
+                          className="pl-10"
+                          value={companyForm.phone}
+                          onChange={(e) => setCompanyForm(prev => ({ ...prev, phone: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="companyAddress">Address</Label>
+                      <Textarea
+                        id="companyAddress"
+                        value={companyForm.address}
+                        onChange={(e) => setCompanyForm(prev => ({ ...prev, address: e.target.value }))}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <Button type="submit" className="flex-1" disabled={savingCompany}>
+                        <Save className="mr-2 h-4 w-4" />
+                        {savingCompany ? 'Saving…' : 'Save Changes'}
+                      </Button>
+                      <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditingCompany(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Name</p>
+                      <p className="mt-1 text-sm font-medium text-foreground">{companyDetails?.name ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Your Role</p>
+                      <p className="mt-1 text-sm font-medium text-foreground capitalize">{currentWorkspace.role}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Email</p>
+                      <p className="mt-1 text-sm font-medium text-foreground">{companyDetails?.email ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</p>
+                      <p className="mt-1 text-sm font-medium text-foreground">{companyDetails?.phone ?? '—'}</p>
+                    </div>
+                    {companyDetails?.address && (
+                      <div className="rounded-lg border p-4 sm:col-span-2">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address</p>
+                        <p className="mt-1 text-sm font-medium text-foreground">{companyDetails.address}</p>
+                      </div>
+                    )}
+                    <div className="rounded-lg border p-4 sm:col-span-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Code</p>
+                      <div className="mt-1 flex items-center gap-3">
+                        <code className="text-lg font-bold tracking-widest text-blue-600">{companyDetails?.code}</code>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(companyDetails?.code ?? '');
+                            toast.success('Company code copied!');
+                          }}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline"
+                        >
+                          <Copy className="h-3 w-3" /> Copy
+                        </button>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">Share this code with your team to invite them</p>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </>
           )}
         </TabsContent>
 
