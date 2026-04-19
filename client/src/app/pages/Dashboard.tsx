@@ -25,20 +25,23 @@ export function Dashboard({ userRole }: DashboardProps) {
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    if (currentWorkspace?.id) {
-      api.get(`/workspaces/${currentWorkspace.id}/stats`, {
-        params: { role: currentWorkspace.role }
-      })
-        .then(({ data }) => setStats(data.stats))
-        .catch(() => {});
-    }
+  if (!currentWorkspace?.id) return;
 
-    if (currentWorkspace?.type === 'company') {
-      api.get(`/company/${currentWorkspace.id}`)
-        .then(({ data }) => setCompanyCode(data.company.code))
-        .catch(() => {});
-    }
-  }, [currentWorkspace?.id]);
+  setStats(null); // ← clear stale stats immediately
+
+  api.get(`/workspaces/${currentWorkspace.id}/stats`, {
+    params: { role: currentWorkspace.role },
+    headers: { 'Cache-Control': 'no-cache' },
+  })
+    .then(({ data }) => setStats(data.stats))
+    .catch(() => {});
+
+  if (currentWorkspace?.type === 'company') {
+    api.get(`/company/${currentWorkspace.id}`)
+      .then(({ data }) => setCompanyCode(data.company.code))
+      .catch(() => {});
+  }
+}, [currentWorkspace?.id, currentWorkspace?.role]);
 
   // ── Normal/Personal ────────────────────────────────────────────────────────
   const renderNormalUserDashboard = () => {

@@ -70,7 +70,6 @@ export function TopBar({
   const handleWorkspaceSwitch = (workspaceId: string) => {
     const workspace = workspaces.find(w => w.id === workspaceId);
     onSwitchWorkspace(workspaceId);
-    toast.success(`Switched to ${workspace?.name}`);
   };
 
   return (

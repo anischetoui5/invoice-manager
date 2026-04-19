@@ -1,9 +1,9 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { TopBar } from './Topbar';
 import { Sidebar } from './Sidebar';
 import { NotificationsPanel } from './NotificationsPanel';
-import { Toaster } from 'sonner';
 import api from '../../lib/api';
 import type { User, Enterprise, Notification, Workspace } from '../types';
 
@@ -51,11 +51,14 @@ const handleSwitchWorkspace = async (workspaceId: string) => {
 
   const workspace = workspaces.find(w => w.id === workspaceId);
   if (workspace) {
-    setCurrentWorkspace(workspace); // ← full object, not just {id, name}
+    setCurrentWorkspace(workspace);
     onWorkspaceChange(workspace);
+    toast.success(`Switched to ${workspace.name}`);
   }
 
-  navigate('/dashboard');
+  if (!window.location.pathname.startsWith('/dashboard')) {
+    navigate('/dashboard');
+  }
 };
 
   return (
@@ -92,8 +95,6 @@ const handleSwitchWorkspace = async (workspaceId: string) => {
         onMarkAsRead={handleMarkAsRead}
         onMarkAllAsRead={handleMarkAllAsRead}
       />
-
-      <Toaster position="top-right" />
     </div>
   );
 }
