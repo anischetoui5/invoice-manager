@@ -1,14 +1,14 @@
 const usersService = require('./users.service');
 
 
-const getAllUsers = async (req, res) => {
+async function getAllUsers(req, res) {
   try {
-    const users = await usersService.fetchUsersFromDb(); // assign + await
+    const users = await usersService.getAllUsers();
     res.status(200).json(users);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching users", error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-};
+}
 
 async function getMe(req, res) {
   try {

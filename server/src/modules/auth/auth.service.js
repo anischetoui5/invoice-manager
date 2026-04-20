@@ -20,7 +20,8 @@ const ROLE_MAP = {
 
 async function register({ 
   name, email, password, registrationType,
-  companyName, industry, companyEmail, phone, address 
+  companyName, industry, companyEmail, phone, address,
+  companyCode, joinRole, plan
 }) {
   if (!name || !email || !password) {
     throw new Error('Name, email and password are required');
@@ -30,6 +31,7 @@ async function register({
   }
 
   const isCompany = registrationType === 'company';
+  const isJoin = registrationType === 'join';
   const password_hash = await bcrypt.hash(password, 10);
   const client = await pool.connect();
 
@@ -45,58 +47,135 @@ async function register({
     );
     const user = userResult.rows[0];
 
-    // 2. Create workspace (type depends on registration)
-    const workspaceType = isCompany ? 'company' : 'personal';
-    const workspaceResult = await client.query(
+    // 2. Always create a personal workspace for every user
+    const personalWorkspaceResult = await client.query(
       `INSERT INTO workspaces (name, type, owner_id)
-       VALUES ($1, $2, $3)
+       VALUES ($1, 'personal', $2)
        RETURNING id`,
-      [`${name}'s Workspace`, workspaceType, user.id]
+      [`${name}'s Workspace`, user.id]
     );
-    const workspace = workspaceResult.rows[0];
+    const personalWorkspace = personalWorkspaceResult.rows[0];
 
-    // 3. Set last_active_workspace_id on the user
-    await client.query(
-      `UPDATE users SET last_active_workspace_id = $1 WHERE id = $2`,
-      [workspace.id, user.id]
+    // 3. Create personal role membership
+    const personalRoleResult = await client.query(
+      `SELECT id FROM roles WHERE name = 'Personal'`
     );
-
-    // 4. If company, create the companies profile row
-    if (isCompany) {
-      await client.query(
-        `INSERT INTO companies (workspace_id, name, email, phone, address)
-        VALUES ($1, $2, $3, $4, $5)`,
-        [workspace.id, companyName, companyEmail || email, phone, address]
-      );
+    if (!personalRoleResult.rows[0]) {
+      throw new Error(`Role 'Personal' not found`);
     }
-
-    // 5. Resolve role
-    const roleName = isCompany ? 'Director' : 'Personal';
-    const roleResult = await client.query(
-      'SELECT id FROM roles WHERE name = $1',
-      [roleName]
-    );
-    if (!roleResult.rows[0]) {
-      throw new Error(`Role '${roleName}' not found`);
-    }
-
-    // 6. Create membership
     await client.query(
       `INSERT INTO memberships (user_id, workspace_id, role_id)
        VALUES ($1, $2, $3)`,
-      [user.id, workspace.id, roleResult.rows[0].id]
+      [user.id, personalWorkspace.id, personalRoleResult.rows[0].id]
     );
+
+    // 4. Set personal workspace as active by default
+    await client.query(
+      `UPDATE users SET last_active_workspace_id = $1 WHERE id = $2`,
+      [personalWorkspace.id, user.id]
+    );
+
+    let companyWorkspaceId = null;
+    let returnedRole = 'normal';
+    let companyCodeResult = null;
+
+    if (isCompany) {
+      // 5a. Create company workspace
+      const companyWorkspaceResult = await client.query(
+        `INSERT INTO workspaces (name, type, owner_id)
+         VALUES ($1, 'company', $2)
+         RETURNING id`,
+        [`${companyName}'s Workspace`, user.id]
+      );
+      const companyWorkspace = companyWorkspaceResult.rows[0];
+      companyWorkspaceId = companyWorkspace.id;
+
+      // 5b. Create companies profile row
+      const companyInsert = await client.query(
+        `INSERT INTO companies (workspace_id, name, email, phone, address)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING code`,
+        [companyWorkspace.id, companyName, companyEmail || email, phone || null, address || null]
+      );
+      companyCodeResult = companyInsert.rows[0].code;
+
+      // 5c. Create Director membership for company workspace
+      const directorRoleResult = await client.query(
+        `SELECT id FROM roles WHERE name = 'Director'`
+      );
+      if (!directorRoleResult.rows[0]) {
+        throw new Error(`Role 'Director' not found`);
+      }
+      await client.query(
+        `INSERT INTO memberships (user_id, workspace_id, role_id)
+         VALUES ($1, $2, $3)`,
+        [user.id, companyWorkspace.id, directorRoleResult.rows[0].id]
+      );
+
+      // 5d. Set company workspace as active for directors
+      await client.query(
+        `UPDATE users SET last_active_workspace_id = $1 WHERE id = $2`,
+        [companyWorkspace.id, user.id]
+      );
+
+      returnedRole = 'director';
+
+    } else if (isJoin) {
+      // 6a. Validate company code
+      if (!companyCode) throw new Error('Company code is required to join');
+
+      const roleName = joinRole === 'accountant' ? 'Accountant' : 'Employee';
+
+      const inviteResult = await client.query(
+        `SELECT c.workspace_id, r.id as role_id, r.name as role_name
+        FROM companies c
+        CROSS JOIN roles r
+        WHERE c.code = $1 AND r.name = $2`,
+        [companyCode, roleName]
+      );
+
+      if (!inviteResult.rows[0]) {
+        throw new Error('Invalid company code');
+      }
+
+      const { workspace_id, role_id, role_name } = inviteResult.rows[0];
+
+      // 6b. Check not already a member
+      const existing = await client.query(
+        `SELECT id FROM memberships WHERE user_id = $1 AND workspace_id = $2`,
+        [user.id, workspace_id]
+      );
+      if (existing.rows.length > 0) {
+        throw new Error('Already a member of this company');
+      }
+
+      // 6c. Add membership to company workspace
+      await client.query(
+        `INSERT INTO memberships (user_id, workspace_id, role_id)
+         VALUES ($1, $2, $3)`,
+        [user.id, workspace_id, role_id]
+      );
+
+      // 6d. Set company workspace as active
+      await client.query(
+        `UPDATE users SET last_active_workspace_id = $1 WHERE id = $2`,
+        [workspace_id, user.id]
+      );
+
+      returnedRole = role_name.toLowerCase();
+    }
 
     await client.query('COMMIT');
 
     return {
-      user: { ...user, role: ROLE_MAP[roleName] },
+      user: { ...user, role: returnedRole },
       token: generateToken(user),
-      activeWorkspaceId: workspace.id,
+      activeWorkspaceId: companyWorkspaceId ?? personalWorkspace.id,
+      companyCode: companyCodeResult,
     };
+
   } catch (err) {
     await client.query('ROLLBACK');
-    // Translate the unique-violation into a friendly message
     if (err.code === '23505' && err.constraint === 'users_email_key') {
       throw new Error('Email already in use');
     }

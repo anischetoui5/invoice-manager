@@ -1,12 +1,21 @@
 const pool = require('../../config/db');
 const bcrypt = require('bcryptjs');
 
-const fetchUsersFromDb = async () => {
-  // Use the connection logic defined in your config/db.js
-  const query = 'SELECT name, email FROM users'; 
-  const { rows } = await pool.query(query);
-  return rows;
-};
+async function getAllUsers() {
+  const result = await pool.query(
+    `SELECT 
+      u.name,
+      u.email,
+      u.created_at,
+      array_remove(array_agg(DISTINCT r.name), NULL) as roles
+     FROM users u
+     LEFT JOIN memberships m ON m.user_id = u.id
+     LEFT JOIN roles r ON r.id = m.role_id
+     GROUP BY u.id
+     ORDER BY u.created_at ASC`
+  );
+  return result.rows;
+}
 
 async function getMe(userId) {
   const result = await pool.query(
@@ -120,4 +129,4 @@ async function removeMember(requesterId, workspaceId, targetUserId) {
   );
 }
 
-module.exports = { getMe, updateMe, updatePassword, getWorkspaceMembers, updateMemberRole, removeMember, fetchUsersFromDb };
+module.exports = { getMe, updateMe, updatePassword, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers };

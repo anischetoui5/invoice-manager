@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router({ mergeParams: true });
 const { authenticate } = require('../../middlewares/auth.middleware');
+const { getDashboardStats } = require('./invoices.controller');
 const {
   createInvoice,
   getInvoice,
@@ -9,6 +10,8 @@ const {
   getStatusHistory,
   deleteDraftInvoice,
 } = require('./invoices.controller');
+
+
 
 // All invoice routes require authentication
 router.use(authenticate);

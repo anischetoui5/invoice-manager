@@ -40,4 +40,23 @@ async function generateInviteCode(req, res) {
   }
 }
 
-module.exports = { createWorkspace, getMyWorkspaces, joinWorkspace, generateInviteCode };
+async function getWorkspaceStats(req, res) {
+  try {
+    const workspaceId = req.params.id;
+    const userId      = req.user.userId;
+    const role        = req.query.role;
+
+    if (!role) {
+      return res.status(400).json({ error: 'role query param is required' });
+    }
+
+    const stats = await workspaceService.getWorkspaceStats(workspaceId, userId, role);
+
+    res.json({ stats });
+  } catch (err) {
+    console.error('Failed to get workspace stats:', err);
+    res.status(500).json({ error: 'Failed to load dashboard stats' });
+  }
+}
+
+module.exports = { createWorkspace, getMyWorkspaces, joinWorkspace, generateInviteCode, getWorkspaceStats };

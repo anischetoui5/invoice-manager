@@ -2,8 +2,6 @@ const invoicesService = require('./invoices.service');
 
 async function createInvoice(req, res) {
   try {
-    console.log('BODY:', req.body);
-    console.log('USER:', req.user);
     const { invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes } = req.body;
     const workspace_id = req.params.workspace_id;
     const created_by = req.user.id;

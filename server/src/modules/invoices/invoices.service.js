@@ -140,7 +140,6 @@ async function deleteDraftInvoice(invoice_id, workspace_id) {
   if (check.rows[0].current_status !== 'draft') {
     throw new Error('Only draft invoices can be deleted');
   }
-
   await db.query(`DELETE FROM invoices WHERE id = $1`, [invoice_id]);
 }
 
