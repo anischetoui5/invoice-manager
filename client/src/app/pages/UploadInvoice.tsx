@@ -65,27 +65,87 @@ export function UploadInvoice() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (files.length === 0) {
-      toast.error('Please select at least one file');
-      return;
-    }
+  if (files.length === 0) {
+    toast.error('Please select at least one file');
+    return;
+  }
 
-    if (!category) {
-      toast.error('Please select a category');
-      return;
-    }
+  if (!category) {
+    toast.error('Please select a category');
+    return;
+  }
 
-    setIsUploading(true);
+  setIsUploading(true);
 
-    // Simulate upload process
-    setTimeout(() => {
+  try {
+    const token = localStorage.getItem('token');
+    const workspaceId = localStorage.getItem('activeWorkspaceId');
+
+    // Step 1 — create the invoice
+    const invoiceRes = await fetch(
+      `http://localhost:3000/api/workspaces/${workspaceId}/invoices`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          vendor_name: vendor || 'Unknown Vendor',
+          notes: notes || null,
+        }),
+      }
+    );
+
+    const invoiceData = await invoiceRes.json();
+
+    if (!invoiceRes.ok) {
+      toast.error(invoiceData.error || 'Failed to create invoice');
       setIsUploading(false);
-      toast.success('Invoice uploaded successfully! OCR processing started.');
-      navigate('/dashboard/invoices');
-    }, 2000);
-  };
+      return;
+    }
+
+    const invoiceId = invoiceData.invoice.id;
+
+    // Step 2 — upload each file to that invoice
+    for (let i = 0; i < files.length; i++) {
+      const formData = new FormData();
+      formData.append('file', files[i]);
+      formData.append('is_primary', i === 0 ? 'true' : 'false');
+
+      const uploadRes = await fetch(
+        `http://localhost:3000/api/workspaces/${workspaceId}/invoices/${invoiceId}/documents`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // ← NO Content-Type here, let browser set it for FormData
+          },
+          body: formData,
+        }
+      );
+
+      const uploadData = await uploadRes.json();
+
+      if (!uploadRes.ok) {
+        toast.error(`Failed to upload ${files[i].name}: ${uploadData.error}`);
+        setIsUploading(false);
+        return;
+      }
+    }
+
+    toast.success('Invoice uploaded successfully!');
+    navigate('/dashboard/invoices');
+
+  } catch (err) {
+    console.error(err);
+    toast.error('Something went wrong. Please try again.');
+  } finally {
+    setIsUploading(false);
+  }
+};
 
   const categories = [
     'Office Supplies',

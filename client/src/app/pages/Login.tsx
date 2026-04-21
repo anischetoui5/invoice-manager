@@ -18,6 +18,7 @@ export function Login() {
       const response = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('activeWorkspaceId', response.data.activeWorkspaceId); // ← add this
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (err: any) {
