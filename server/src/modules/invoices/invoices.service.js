@@ -40,10 +40,17 @@ async function getInvoiceById(invoice_id, workspace_id) {
   return result.rows[0];
 }
 
-async function searchInvoices({ workspace_id, status, vendor_name, invoice_date_from, invoice_date_to, page = 1, limit = 20 }) {
+async function searchInvoices({ workspace_id, userId, role, status, vendor_name, invoice_date_from, invoice_date_to, page = 1, limit = 20 }) {
+  const r = role?.toLowerCase();
   const conditions = ['i.workspace_id = $1'];
   const values = [workspace_id];
   let idx = 2;
+
+  // employees only see their own invoices
+  if (r === 'employee' || r === 'normal') {
+    conditions.push(`i.created_by = $${idx++}`);
+    values.push(userId);
+  }
 
   if (status) {
     conditions.push(`i.current_status = $${idx++}`);
@@ -146,8 +153,8 @@ async function deleteDraftInvoice(invoice_id, workspace_id) {
 module.exports = {
   createInvoice,
   getInvoiceById,
-  searchInvoices,
   updateInvoiceStatus,
   getStatusHistory,
   deleteDraftInvoice,
+  searchInvoices
 };

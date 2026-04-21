@@ -1,109 +1,138 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, Filter, Download, Eye } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link, useOutletContext } from 'react-router-dom';
+import { Search, Filter, Download, Eye, Loader2 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../components/ui/table';
-import type { InvoiceStatus } from '../types';
+import type { Workspace, User } from '../types';
+import api from '../../lib/api';
+
+interface Invoice {
+  id: string;
+  invoice_number: string;
+  vendor_name: string;
+  created_by_name: string;
+  amount: number;
+  currency: string;
+  invoice_date: string;
+  due_date: string;
+  current_status: string;
+  created_at: string;
+}
+
+const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+  draft:          { color: 'bg-gray-100 text-gray-700',   label: 'Draft' },
+  pending_review: { color: 'bg-yellow-100 text-yellow-700', label: 'Pending Review' },
+  approved:       { color: 'bg-green-100 text-green-700',  label: 'Approved' },
+  rejected:       { color: 'bg-red-100 text-red-700',     label: 'Rejected' },
+};
 
 export function InvoiceList() {
+  const { currentWorkspace, currentUser } = useOutletContext<{
+    currentWorkspace: Workspace;
+    currentUser: User;
+  }>();
+
+  const [invoices, setInvoices]       = useState<Invoice[]>([]);
+  const [total, setTotal]             = useState(0);
+  const [page, setPage]               = useState(1);
+  const [isLoading, setIsLoading]     = useState(true);
+  const [error, setError]             = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  const invoices: any[] = [];
+  const limit = 20;
 
-  const getStatusBadge = (status: InvoiceStatus) => {
-    const config = {
-      pending: { color: 'bg-yellow-100 text-yellow-700', label: 'Pending' },
-      processing: { color: 'bg-blue-100 text-blue-700', label: 'Processing' },
-      validated: { color: 'bg-purple-100 text-purple-700', label: 'Validated' },
-      approved: { color: 'bg-green-100 text-green-700', label: 'Approved' },
-      rejected: { color: 'bg-red-100 text-red-700', label: 'Rejected' },
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
+
+    const fetchInvoices = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const params: Record<string, any> = {
+          role: currentWorkspace.role,
+          page,
+          limit,
+        };
+        if (statusFilter !== 'all') params.status = statusFilter;
+        if (searchQuery.trim())     params.vendor_name = searchQuery.trim();
+
+        const { data } = await api.get(
+          `/workspaces/${currentWorkspace.id}/invoices`,
+          { params }
+        );
+        setInvoices(data.invoices);
+        setTotal(data.total);
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Failed to load invoices');
+      } finally {
+        setIsLoading(false);
+      }
     };
-    return config[status];
-  };
 
-  const filteredInvoices = invoices.filter((invoice) => {
-    const matchesSearch =
-      invoice.vendor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.employeeName.toLowerCase().includes(searchQuery.toLowerCase());
+    fetchInvoices();
+  }, [currentWorkspace?.id, currentWorkspace?.role, page, statusFilter]);
 
-    const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
-    const matchesCategory = categoryFilter === 'all' || invoice.category === categoryFilter;
+  // search on enter or after debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    return matchesSearch && matchesStatus && matchesCategory;
-  });
+  const totalPages = Math.ceil(total / limit);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Invoices</h1>
-          <p className="mt-1 text-muted-foreground">Manage and track all invoices</p>
+          <p className="mt-1 text-muted-foreground">
+            {currentWorkspace?.role === 'employee' || currentWorkspace?.role === 'normal'
+              ? 'Your submitted invoices'
+              : 'All invoices across your organization'}
+          </p>
         </div>
         <Button asChild>
           <Link to="/dashboard/upload">Upload Invoice</Link>
         </Button>
       </div>
 
-      <Card className="p-6">
+      {/* Filters */}
+      <Card className="p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by vendor, invoice number, or employee..."
+              placeholder="Search by vendor name..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
-
           <div className="flex gap-3">
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => setStatusFilter(value as InvoiceStatus | 'all')}
-            >
-              <SelectTrigger className="w-[160px]">
+            <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-[180px]">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="validated">Validated</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="pending_review">Pending Review</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
-
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-              </SelectContent>
-            </Select>
-
             <Button variant="outline">
               <Download className="mr-2 h-4 w-4" />
               Export
@@ -112,81 +141,104 @@ export function InvoiceList() {
         </div>
       </Card>
 
+      {/* Table */}
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Invoice #</TableHead>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Employee</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Upload Date</TableHead>
-              <TableHead>Due Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredInvoices.length === 0 ? (
+        {isLoading ? (
+          <div className="flex h-64 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="flex h-64 flex-col items-center justify-center gap-2 text-destructive">
+            <p>{error}</p>
+            <Button variant="outline" size="sm" onClick={() => setPage(1)}>Retry</Button>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={9} className="h-32 text-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <p className="text-muted-foreground">No invoices found</p>
-                    <Button asChild variant="outline" size="sm">
-                      <Link to="/dashboard/upload">Upload Invoice</Link>
-                    </Button>
-                  </div>
-                </TableCell>
+                <TableHead>Invoice #</TableHead>
+                <TableHead>Vendor</TableHead>
+                {currentWorkspace?.role !== 'employee' && currentWorkspace?.role !== 'normal' && (
+                  <TableHead>Uploaded By</TableHead>
+                )}
+                <TableHead>Amount</TableHead>
+                <TableHead>Invoice Date</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              filteredInvoices.map((invoice) => {
-                const badge = getStatusBadge(invoice.status);
-                return (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">{invoice.number}</TableCell>
-                    <TableCell>{invoice.vendor}</TableCell>
-                    <TableCell>{invoice.employeeName}</TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground">{invoice.category}</span>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      ${invoice.amount.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {invoice.uploadDate}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {invoice.dueDate}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={badge.color}>{badge.label}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild variant="ghost" size="sm">
-                        <Link to={`/invoices/${invoice.id}`}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View
-                        </Link>
+            </TableHeader>
+            <TableBody>
+              {invoices.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-32 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-muted-foreground">No invoices found</p>
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/dashboard/upload">Upload Invoice</Link>
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                invoices.map(invoice => {
+                  const badge = STATUS_CONFIG[invoice.current_status] ?? { color: 'bg-gray-100 text-gray-700', label: invoice.current_status };
+                  return (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                      <TableCell>{invoice.vendor_name}</TableCell>
+                      {currentWorkspace?.role !== 'employee' && currentWorkspace?.role !== 'normal' && (
+                        <TableCell className="text-muted-foreground">{invoice.created_by_name}</TableCell>
+                      )}
+                      <TableCell className="font-medium">
+                        {invoice.currency} {Number(invoice.amount).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString() : '—'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.color}`}>
+                          {badge.label}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="ghost" size="sm">
+                          <Link to={`/dashboard/invoices/${invoice.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
+      {/* Pagination */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Showing {filteredInvoices.length} of {invoices.length} invoices
+          Showing {invoices.length} of {total} invoices
         </p>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled>
+          <Button
+            variant="outline" size="sm"
+            disabled={page === 1}
+            onClick={() => setPage(p => p - 1)}
+          >
             Previous
           </Button>
-          <Button variant="outline" size="sm" disabled>
+          <Button
+            variant="outline" size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage(p => p + 1)}
+          >
             Next
           </Button>
         </div>

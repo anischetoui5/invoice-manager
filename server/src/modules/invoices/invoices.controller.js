@@ -39,10 +39,14 @@ async function getInvoice(req, res) {
 async function searchInvoices(req, res) {
   try {
     const workspace_id = req.params.workspace_id;
+    const userId = req.user.userId;
+    const role = req.query.role;
     const { status, vendor_name, invoice_date_from, invoice_date_to, page, limit } = req.query;
 
     const result = await invoicesService.searchInvoices({
       workspace_id,
+      userId,
+      role,
       status,
       vendor_name,
       invoice_date_from,
@@ -57,7 +61,6 @@ async function searchInvoices(req, res) {
     res.status(400).json({ error: err.message });
   }
 }
-
 async function updateInvoiceStatus(req, res) {
   try {
     const { invoice_id } = req.params;
