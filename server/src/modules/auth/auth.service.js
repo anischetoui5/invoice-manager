@@ -20,7 +20,7 @@ const ROLE_MAP = {
 
 async function register({ 
   name, email, password, registrationType,
-  companyName, industry, companyEmail, phone, address,
+  companyName, industry, companyEmail, companyPhone, companyAddress,
   companyCode, joinRole, plan
 }) {
   if (!name || !email || !password) {
@@ -92,10 +92,10 @@ async function register({
 
       // 5b. Create companies profile row
       const companyInsert = await client.query(
-        `INSERT INTO companies (workspace_id, name, email, phone, address)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING code`,
-        [companyWorkspace.id, companyName, companyEmail || email, phone || null, address || null]
+        `INSERT INTO companies (workspace_id, name, email, phone, address, industry)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING code`,
+        [companyWorkspace.id, companyName, companyEmail || email, companyPhone || null, companyAddress || null, industry || null]
       );
       companyCodeResult = companyInsert.rows[0].code;
 

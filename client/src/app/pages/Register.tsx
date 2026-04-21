@@ -536,7 +536,7 @@ export function Register() {
               <div className="mt-8 space-y-4">
                 {companyPlans.map((plan) => (
                   <Card key={plan.type}
-                    className={`cursor-pointer p-5 transition-all ${selectedPlan === plan.type ? 'border-2 border-blue-500 bg-blue-50 shadow-md' : 'hover:border-blue-300 hover:shadow-sm'}`}
+                    className={`cursor-pointer p-5 transition-all ${selectedPlan === plan.type ? 'border-2 border-blue-500 bg-muted shadow-md' : 'hover:border-blue-300 hover:shadow-sm'}`}
                     onClick={() => setSelectedPlan(plan.type)}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -574,7 +574,7 @@ export function Register() {
             <>
               <h2 className="text-3xl font-bold text-foreground">Payment Information</h2>
               <p className="mt-2 text-muted-foreground">Complete your subscription setup</p>
-              <Card className="mt-6 bg-gradient-to-br from-blue-50 to-purple-50 p-5">
+              <Card className="mt-6 p-5" style={{ backgroundColor: "var(--info)", color: "var(--info-foreground)" }}>
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
