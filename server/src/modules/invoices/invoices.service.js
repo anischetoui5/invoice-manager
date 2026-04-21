@@ -10,7 +10,7 @@ async function createInvoice({ workspace_id, created_by, invoice_number, vendor_
         (workspace_id, created_by, invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes, current_status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft')
        RETURNING *`,
-      [workspace_id, created_by, invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes]
+      [workspace_id, created_by, invoice_number || null, vendor_name, amount || null, currency || 'USD', invoice_date || null, due_date || null, notes]
     );
 
     const invoice = invoiceResult.rows[0];

@@ -9,6 +9,7 @@ import { Subscription } from './pages/Subscription';
 import { PersonalSubscription } from './pages/PersonalSubscription';
 import { UploadInvoice } from './pages/UploadInvoice';
 import { InvoiceList } from './pages/Invoices';
+import { InvoiceDetail } from './pages/InvoiceDetails';
 import { Users } from './pages/Users';
 import type { User, Enterprise, Workspace, UserRole } from './types';
 import api from '../lib/api';
@@ -159,6 +160,10 @@ export const router = createBrowserRouter([
       {
         path: 'invoices',
         element: <InvoiceList />,
+      },
+      {
+        path: 'invoices/:invoice_id',  // ← add this
+        element: <InvoiceDetail />,
       },
       {
         path: 'users',

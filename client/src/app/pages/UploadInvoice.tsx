@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Upload, File, X, CheckCircle2 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { toast } from 'sonner';
+import type { Workspace } from '../types';
 
 export function UploadInvoice() {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ export function UploadInvoice() {
   const [vendor, setVendor] = useState('');
   const [notes, setNotes] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const { currentWorkspace } = useOutletContext<{ currentWorkspace: Workspace }>();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -81,7 +83,7 @@ export function UploadInvoice() {
 
   try {
     const token = localStorage.getItem('token');
-    const workspaceId = localStorage.getItem('activeWorkspaceId');
+    const workspaceId = currentWorkspace.id;
 
     // Step 1 — create the invoice
     const invoiceRes = await fetch(
