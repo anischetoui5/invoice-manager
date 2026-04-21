@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 async function getAllUsers() {
   const result = await pool.query(
     `SELECT 
+      u.id,
       u.name,
       u.email,
       u.created_at,
@@ -129,4 +130,84 @@ async function removeMember(requesterId, workspaceId, targetUserId) {
   );
 }
 
-module.exports = { getMe, updateMe, updatePassword, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers };
+async function getUserById(userId) {
+  const result = await pool.query(
+    `SELECT 
+      u.id, u.name, u.email, u.created_at,
+      array_remove(array_agg(DISTINCT r.name), NULL) as roles
+     FROM users u
+     LEFT JOIN memberships m ON m.user_id = u.id
+     LEFT JOIN roles r ON r.id = m.role_id
+     WHERE u.id = $1
+     GROUP BY u.id`,
+    [userId]
+  );
+  if (!result.rows.length) throw new Error('User not found');
+  return result.rows[0];
+}
+
+async function adminUpdateUser(userId, { name, email }) {
+  if (email) {
+    const existing = await pool.query(
+      `SELECT id FROM users WHERE email = $1 AND id != $2`,
+      [email, userId]
+    );
+    if (existing.rows.length) throw new Error('Email already in use');
+  }
+
+  const result = await pool.query(
+    `UPDATE users SET
+       name  = COALESCE($1, name),
+       email = COALESCE($2, email)
+     WHERE id = $3
+     RETURNING id, name, email, created_at`,
+    [name || null, email || null, userId]
+  );
+  if (!result.rows.length) throw new Error('User not found');
+  return result.rows[0];
+}
+
+async function deleteUser(targetUserId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Get all workspaces owned by this user
+    const ownedWorkspaces = await client.query(
+      `SELECT id FROM workspaces WHERE owner_id = $1`,
+      [targetUserId]
+    );
+
+    for (const ws of ownedWorkspaces.rows) {
+      // Delete company tied to this workspace (if any)
+      await client.query(`DELETE FROM companies WHERE workspace_id = $1`, [ws.id]);
+      // Delete all invoices in this workspace
+      await client.query(`DELETE FROM invoices WHERE workspace_id = $1`, [ws.id]);
+      // Delete all memberships in this workspace
+      await client.query(`DELETE FROM memberships WHERE workspace_id = $1`, [ws.id]);
+    }
+
+    // Delete all workspaces owned by this user
+    await client.query(`DELETE FROM workspaces WHERE owner_id = $1`, [targetUserId]);
+
+    // Delete invoices created by this user in any other workspace
+    await client.query(`DELETE FROM invoices WHERE created_by = $1`, [targetUserId]);
+
+    // Delete any remaining memberships of this user
+    await client.query(`DELETE FROM memberships WHERE user_id = $1`, [targetUserId]);
+
+    // Finally delete the user
+    await client.query(`DELETE FROM users WHERE id = $1`, [targetUserId]);
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+
+
+module.exports = { getMe, updateMe, updatePassword, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers, getUserById, adminUpdateUser, deleteUser };

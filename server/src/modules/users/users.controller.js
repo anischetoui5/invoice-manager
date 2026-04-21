@@ -74,4 +74,35 @@ async function removeMember(req, res) {
   }
 }
 
-module.exports = { getMe, updateMe, updatePassword, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers };
+async function getUserById(req, res) {
+  try {
+    const user = await usersService.getUserById(req.params.userId);
+    res.status(200).json({ user });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+}
+
+async function adminUpdateUser(req, res) {
+  try {
+    const { name, email } = req.body;
+    if (!name && !email) {
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
+    const user = await usersService.adminUpdateUser(req.params.userId, { name, email });
+    res.status(200).json({ message: 'User updated', user });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+async function deleteUser(req, res) {
+  try {
+    await usersService.deleteUser(req.params.userId);
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { getMe, updateMe, updatePassword, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers, getUserById, adminUpdateUser, deleteUser };
