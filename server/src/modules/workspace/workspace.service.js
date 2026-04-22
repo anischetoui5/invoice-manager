@@ -89,64 +89,6 @@ async function generateInviteCode(userId, workspaceId, { roleId, maxUses, expire
   return result.rows[0];
 }
 
-async function joinWorkspace(userId, code) {
-  if (!code) throw new Error('Invite code is required');
-
-  const inviteResult = await pool.query(
-    `SELECT * FROM invitations WHERE code = $1`,
-    [code]
-  );
-
-  const invite = inviteResult.rows[0];
-
-  if (!invite) throw new Error('Invalid invite code');
-
-  if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-    throw new Error('Invite code has expired');
-  }
-
-  if (invite.max_uses && invite.used_count >= invite.max_uses) {
-    throw new Error('Invite code has reached maximum uses');
-  }
-
-  // Check if already a member
-  const existing = await pool.query(
-    `SELECT id FROM memberships WHERE user_id = $1 AND workspace_id = $2`,
-    [userId, invite.workspace_id]
-  );
-
-  if (existing.rows.length > 0) {
-    throw new Error('You are already a member of this workspace');
-  }
-
-  const client = await pool.connect();
-
-  try {
-    await client.query('BEGIN');
-
-    const membership = await client.query(
-      `INSERT INTO memberships (user_id, workspace_id, role_id)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [userId, invite.workspace_id, invite.role_id]
-    );
-
-    await client.query(
-      `UPDATE invitations SET used_count = used_count + 1 WHERE id = $1`,
-      [invite.id]
-    );
-
-    await client.query('COMMIT');
-    return membership.rows[0];
-
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-}
-
 async function getWorkspaceStats(workspaceId, userId, role) {
   const r = role.toLowerCase();
 
@@ -240,4 +182,4 @@ async function getWorkspaceStats(workspaceId, userId, role) {
 }
 
 
-module.exports = { createWorkspace, getMyWorkspaces, generateInviteCode, joinWorkspace, getWorkspaceStats };
+module.exports = { createWorkspace, getMyWorkspaces, generateInviteCode, getWorkspaceStats };

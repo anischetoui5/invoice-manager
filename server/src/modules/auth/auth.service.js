@@ -123,46 +123,8 @@ async function register({
     } else if (isJoin) {
       // 6a. Validate company code
       if (!companyCode) throw new Error('Company code is required to join');
-
-      const roleName = joinRole === 'accountant' ? 'Accountant' : 'Employee';
-
-      const inviteResult = await client.query(
-        `SELECT c.workspace_id, r.id as role_id, r.name as role_name
-        FROM companies c
-        CROSS JOIN roles r
-        WHERE c.code = $1 AND r.name = $2`,
-        [companyCode, roleName]
-      );
-
-      if (!inviteResult.rows[0]) {
-        throw new Error('Invalid company code');
-      }
-
-      const { workspace_id, role_id, role_name } = inviteResult.rows[0];
-
-      // 6b. Check not already a member
-      const existing = await client.query(
-        `SELECT id FROM memberships WHERE user_id = $1 AND workspace_id = $2`,
-        [user.id, workspace_id]
-      );
-      if (existing.rows.length > 0) {
-        throw new Error('Already a member of this company');
-      }
-
-      // 6c. Add membership to company workspace
-      await client.query(
-        `INSERT INTO memberships (user_id, workspace_id, role_id)
-         VALUES ($1, $2, $3)`,
-        [user.id, workspace_id, role_id]
-      );
-
-      // 6d. Set company workspace as active
-      await client.query(
-        `UPDATE users SET last_active_workspace_id = $1 WHERE id = $2`,
-        [workspace_id, user.id]
-      );
-
-      returnedRole = role_name.toLowerCase();
+      await invitationsService.createInvitationRequest(user.id, companyCode, joinRole);
+      returnedRole = 'normal';
     }
 
     await client.query('COMMIT');

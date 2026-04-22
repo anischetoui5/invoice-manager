@@ -6,11 +6,11 @@ import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { toast } from 'sonner';
-import type { UserRole } from '../types'; // Import your types
+import type { UserRole } from '../types';
+import api from '../../lib/api';
 
 type JoinRole = 'employee' | 'accountant';
 
-// 1. Define the props to accept userRole
 interface JoinCompanyProps {
   userRole: UserRole;
 }
@@ -18,9 +18,8 @@ interface JoinCompanyProps {
 export function JoinCompany({ userRole }: JoinCompanyProps) {
   const [companyCode, setCompanyCode] = useState('');
   const [role, setRole] = useState<JoinRole>('employee');
-  const [isValidating, setIsValidating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 2. Lock in the role automatically if they are already an accountant or employee
   useEffect(() => {
     if (userRole === 'accountant' || userRole === 'employee') {
       setRole(userRole);
@@ -29,22 +28,22 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
 
   const handleJoinCompany = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!companyCode.trim()) {
       toast.error('Please enter a company code');
       return;
     }
-
-    setIsValidating(true);
-
-    setTimeout(() => {
-      toast.success('Request sent! Waiting for director approval.', { duration: 4000 });
+    setIsSubmitting(true);
+    try {
+      await api.post('/invitations/request', { code: companyCode.trim(), role });
+      toast.success('Join request sent! Waiting for director approval.', { duration: 4000 });
       setCompanyCode('');
-      setIsValidating(false);
-    }, 1000);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to send join request');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // 3. Determine if this is a "Normal" user who actually needs to pick a role
   const isNormalUser = userRole === 'normal';
 
   return (
@@ -60,20 +59,18 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
       </div>
 
       <form onSubmit={handleJoinCompany} className="space-y-4">
-        
-        {/* 4. Conditional Rendering: Only show radio buttons for normal users */}
         {isNormalUser ? (
           <div className="space-y-2">
-            <Label htmlFor="role">Join as</Label>
-            <RadioGroup value={role} onValueChange={(value) => setRole(value as JoinRole)}>
-              <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-background">
+            <Label>Join as</Label>
+            <RadioGroup value={role} onValueChange={v => setRole(v as JoinRole)}>
+              <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-muted">
                 <RadioGroupItem value="employee" id="employee" />
                 <Label htmlFor="employee" className="flex-1 cursor-pointer">
                   <div className="font-medium text-foreground">Employee</div>
                   <div className="text-xs text-muted-foreground">Upload and manage invoices</div>
                 </Label>
               </div>
-              <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-background">
+              <div className="flex items-center space-x-2 rounded-lg border p-3 hover:bg-muted">
                 <RadioGroupItem value="accountant" id="accountant" />
                 <Label htmlFor="accountant" className="flex-1 cursor-pointer">
                   <div className="font-medium text-foreground">Accountant</div>
@@ -83,10 +80,9 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
             </RadioGroup>
           </div>
         ) : (
-          // Show a helpful locked badge for accountant/employee instead of options
-          <div className="rounded-lg border bg-background p-4">
-            <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Role</p>
-            <p className="font-medium text-foreground capitalize mt-0.5">{userRole}</p>
+          <div className="rounded-lg border bg-muted p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</p>
+            <p className="mt-0.5 font-medium capitalize text-foreground">{userRole}</p>
           </div>
         )}
 
@@ -95,10 +91,9 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
           <Input
             id="companyCode"
             type="text"
-            placeholder="e.g., ACME2024"
+            placeholder="e.g., A1B2C3D4"
             value={companyCode}
-            onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
-            className="uppercase"
+            onChange={e => setCompanyCode(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
             Ask your company director for the company code
@@ -106,24 +101,24 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
         </div>
 
         <div
-          style={{ backgroundColor: "var(--info)", color: "var(--info-foreground)" }}
-          className="rounded-xl p-4 transition-colors"
+          className="rounded-xl p-4"
+          style={{ backgroundColor: 'var(--info)', color: 'var(--info-foreground)' }}
         >
           <div className="flex gap-2">
-            <AlertCircle className="h-5 w-5 flex-shrink-0" style={{ color: "var(--info-foreground)" }} />
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
             <div className="text-sm">
               <p className="font-semibold">How it works:</p>
               <ul className="mt-1 space-y-1">
                 <li>• Enter the company code provided by your director</li>
                 <li>• Your request will be sent for approval</li>
-                <li>• You'll get notified when approved</li>
+                <li>• You'll get access once the director approves</li>
               </ul>
             </div>
           </div>
         </div>
 
-        <Button type="submit" className="w-full" disabled={isValidating}>
-          {isValidating ? 'Validating...' : 'Send Join Request'}
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? 'Sending...' : 'Send Join Request'}
         </Button>
       </form>
     </Card>

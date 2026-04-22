@@ -10,6 +10,9 @@ const {
   deleteDocument,
 } = require('./documents.controller');
 
+
+// const documentsController = require('./documents.controller');
+
 // ── Multer configuration ──────────────────────────────────────
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -21,7 +24,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // make sure this folder exists at the root of /server
+    cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
     const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
@@ -71,5 +74,8 @@ router.get('/:document_id/download', downloadDocument);
 
 // DELETE /api/workspaces/:workspace_id/invoices/:invoice_id/documents/:document_id
 router.delete('/:document_id', deleteDocument);
+
+// Get invoice : full details
+// router.get('/invoice-detail/:invoice_id', documentsController.getInvoiceDetail);
 
 module.exports = router;

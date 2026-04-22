@@ -53,9 +53,33 @@ async function deleteDocument(document_id) {
   await db.query(`DELETE FROM documents WHERE id = $1`, [document_id]);
 }
 
+/*
+async function getInvoiceFullDetails(invoice_id) {
+  const query = `
+    SELECT 
+      i.*,
+      u.name as employee_name,
+      d.storage_path as document_url,
+      d.mime_type,
+      o.extracted_text,
+      o.extracted_amount,
+      o.confidence
+    FROM invoices i
+    LEFT JOIN users u ON i.created_by = u.id
+    LEFT JOIN documents d ON i.id = d.invoice_id AND d.is_primary = TRUE
+    LEFT JOIN ocr_data o ON i.id = o.invoice_id
+    WHERE i.id = $1
+  `;
+  
+  const result = await db.query(query, [invoice_id]);
+  return result.rows[0];
+}
+*/
+
 module.exports = {
   attachDocument,
   getDocumentsByInvoice,
   getDocumentById,
   deleteDocument,
+  //getInvoiceFullDetails,
 };

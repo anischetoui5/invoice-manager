@@ -9,10 +9,12 @@ const usersRoutes = require('./modules/users/users.routes');
 const invoicesRoutes = require('./modules/invoices/invoices.routes');
 const documentsRoutes = require('./modules/documents/documents.routes');
 const companyRoutes = require('./modules/company/company.routes');
+const invitationsRoutes = require('./modules/invitations/invitations.routes');
 
 const { authenticate } = require('./middlewares/auth.middleware');
 
 const app = express();
+
 
 app.use(helmet());
 app.use(cors({
@@ -28,9 +30,12 @@ app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/company', companyRoutes);
 
-// Sprint 2 — invoices and documents (nested under workspace)
+// invoices and documents (nested under workspace)
 app.use('/api/workspaces/:workspace_id/invoices', invoicesRoutes);
 app.use('/api/workspaces/:workspace_id/invoices/:invoice_id/documents', documentsRoutes);
+
+// invitations
+app.use('/api/invitations', invitationsRoutes);
 
 // ── Utility endpoints ─────────────────────────────────────────
 app.get('/api/me', authenticate, (req, res) => {

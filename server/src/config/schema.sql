@@ -80,7 +80,9 @@ CREATE TABLE memberships (
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   role_id      UUID NOT NULL REFERENCES roles(id)      ON DELETE RESTRICT,
   joined_at    TIMESTAMP DEFAULT NOW(),
-  UNIQUE (user_id, workspace_id)
+  contract_start TIMESTAMP,
+  contract_end TIMESTAMP,
+  UNIQUE (user_id, workspace_id),
 );
 
 
@@ -98,7 +100,8 @@ CREATE TABLE invitations (
   created_by   UUID NOT NULL REFERENCES users(id)      ON DELETE CASCADE,
   created_at   TIMESTAMP DEFAULT NOW(),
   accepted_by  UUID      REFERENCES users(id)          ON DELETE SET NULL,
-  accepted_at  TIMESTAMP
+  accepted_at  TIMESTAMP,
+  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected'));
 );
 
 

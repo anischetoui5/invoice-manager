@@ -18,15 +18,6 @@ async function getMyWorkspaces(req, res) {
   }
 }
 
-async function joinWorkspace(req, res) {
-  try {
-    const membership = await workspaceService.joinWorkspace(req.user.userId, req.body.code);
-    res.status(200).json({ message: 'Joined workspace successfully', membership });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-}
-
 async function generateInviteCode(req, res) {
   try {
     const invitation = await workspaceService.generateInviteCode(
@@ -59,4 +50,4 @@ async function getWorkspaceStats(req, res) {
   }
 }
 
-module.exports = { createWorkspace, getMyWorkspaces, joinWorkspace, generateInviteCode, getWorkspaceStats };
+module.exports = { createWorkspace, getMyWorkspaces, generateInviteCode, getWorkspaceStats };
