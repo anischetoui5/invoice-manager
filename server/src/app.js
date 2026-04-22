@@ -8,10 +8,7 @@ const workspaceRoutes = require('./modules/workspace/workspace.routes');
 const usersRoutes = require('./modules/users/users.routes');
 const invoicesRoutes = require('./modules/invoices/invoices.routes');
 const documentsRoutes = require('./modules/documents/documents.routes');
-const companyRoutes = require('./modules/company/company.routes');
-const invitationsRoutes = require('./modules/invitations/invitations.routes');
-const { getAllInvoices } = require('./modules/invoices/invoices.controller'); // ← add
-
+const subscriptionRoutes = require('./modules/subscription/subscription.routes');
 const { authenticate } = require('./middlewares/auth.middleware');
 
 const app = express();
@@ -24,20 +21,14 @@ app.use(cors({
 app.use(morgan('dev'));
 app.use(express.json());
 
-// ── Routes ────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/users', usersRoutes);
-app.use('/api/company', companyRoutes);
-
-app.get('/api/invoices', authenticate, getAllInvoices); // ← add (before nested routes)
+app.use('/api/subscriptions', subscriptionRoutes);
 
 app.use('/api/workspaces/:workspace_id/invoices', invoicesRoutes);
 app.use('/api/workspaces/:workspace_id/invoices/:invoice_id/documents', documentsRoutes);
 
-app.use('/api/invitations', invitationsRoutes);
-
-// ── Utility endpoints ─────────────────────────────────────────
 app.get('/api/me', authenticate, (req, res) => {
   res.json({ message: 'You are authenticated', user: req.user });
 });
