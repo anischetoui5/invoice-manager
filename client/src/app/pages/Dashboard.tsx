@@ -519,7 +519,7 @@ export function Dashboard({ userRole }: DashboardProps) {
                   Manage Team
                 </Button>
               </Link>
-              <Link to="/company-subscription">
+              <Link to="subscription">
                 <Button variant="outline" size="sm">
                   View Subscription
                 </Button>

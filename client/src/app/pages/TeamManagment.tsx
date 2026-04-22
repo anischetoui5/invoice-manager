@@ -164,214 +164,191 @@ export function TeamManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Team Management</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage your company team members and join requests
-        </p>
-      </div>
-
-      {/* Summary */}
-      <Card className="p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-blue-100">
-            <Users className="h-8 w-8 text-blue-600" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-foreground">{currentWorkspace?.name}</h3>
-            <p className="text-sm text-muted-foreground">{members.length} team members</p>
-          </div>
-          <div className="flex gap-6 text-center">
-            <div>
-              <p className="text-2xl font-bold text-foreground">{employees.length}</p>
-              <p className="text-xs text-muted-foreground">Employees</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{accountants.length}</p>
-              <p className="text-xs text-muted-foreground">Accountants</p>
-            </div>
-            {invitations.length > 0 && (
-              <div>
-                <p className="text-2xl font-bold text-yellow-600">{invitations.length}</p>
-                <p className="text-xs text-muted-foreground">Pending</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {/* Director */}
-      {director && (
-        <Card className="p-6">
-          <h3 className="mb-4 font-semibold text-foreground">Director</h3>
-          <MemberRow member={director} />
-        </Card>
-      )}
-
-      {/* Accountants */}
-      <Card className="p-6">
-        <h3 className="mb-4 font-semibold text-foreground">
-          Accountants ({accountants.length})
-        </h3>
-        {accountants.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No accountants yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {accountants.map(m => <MemberRow key={m.id} member={m} />)}
-          </div>
-        )}
-      </Card>
-
-      {/* Employees */}
-      <Card className="p-6">
-        <h3 className="mb-4 font-semibold text-foreground">
-          Employees ({employees.length})
-        </h3>
-        {employees.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No employees yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {employees.map(m => <MemberRow key={m.id} member={m} />)}
-          </div>
-        )}
-      </Card>
-
-      {/* Join Requests */}
-    <Card className="p-6">
-    <div className="mb-6 flex items-center justify-between">
+        {/* Header */}
         <div>
-        <h3 className="font-semibold text-foreground">Join Requests</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-            Review and manage pending membership requests
-        </p>
+            <h1 className="text-2xl font-bold text-foreground">Team Management</h1>
+            <p className="mt-1 text-muted-foreground">
+            Manage your company team members and join requests
+            </p>
         </div>
-        {invitations.length > 0 && (
-        <span className="rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
-            {invitations.length} pending
-        </span>
+
+        {/* Summary */}
+        <Card className="p-6">
+            <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-blue-100">
+                <Users className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="flex-1">
+                <h3 className="font-semibold text-foreground">{currentWorkspace?.name}</h3>
+                <p className="text-sm text-muted-foreground">{members.length} team members</p>
+            </div>
+            <div className="flex gap-6 text-center">
+                <div>
+                <p className="text-2xl font-bold text-foreground">{employees.length}</p>
+                <p className="text-xs text-muted-foreground">Employees</p>
+                </div>
+                <div>
+                <p className="text-2xl font-bold text-foreground">{accountants.length}</p>
+                <p className="text-xs text-muted-foreground">Accountants</p>
+                </div>
+                {invitations.length > 0 && (
+                <div>
+                    <p className="text-2xl font-bold text-yellow-600">{invitations.length}</p>
+                    <p className="text-xs text-muted-foreground">Pending</p>
+                </div>
+                )}
+            </div>
+            </div>
+        </Card>
+
+        {/* Director */}
+        {director && (
+            <Card className="p-6">
+            <h3 className="mb-4 font-semibold text-foreground">Director</h3>
+            <MemberRow member={director} />
+            </Card>
         )}
-    </div>
 
-    {invitations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 mb-3">
-            <Check className="h-7 w-7 text-green-600" />
-        </div>
-        <p className="font-medium text-foreground">All caught up!</p>
-        <p className="text-sm text-muted-foreground mt-1">No pending join requests.</p>
-        </div>
-    ) : (
-        <div className="space-y-4">
-        {invitations.map(inv => (
-            <div key={inv.id} className="rounded-xl border bg-card shadow-sm overflow-hidden">
-            
-            {/* Top — user info */}
-            <div className="flex items-center gap-4 p-4 border-b bg-muted/40">
-                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-bold text-white">
-                {inv.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground">{inv.name}</p>
-                <p className="text-sm text-muted-foreground truncate">{inv.email}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${getRoleBadgeColor(inv.role)}`}>
-                    {inv.role}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                    {new Date(inv.created_at).toLocaleDateString('en-US', {
-                    month: 'short', day: 'numeric', year: 'numeric'
-                    })}
-                </span>
-                </div>
+        {/* Accountants */}
+        <Card className="p-6">
+            <h3 className="mb-4 font-semibold text-foreground">
+            Accountants ({accountants.length})
+            </h3>
+            {accountants.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No accountants yet.</p>
+            ) : (
+            <div className="space-y-3">
+                {accountants.map(m => <MemberRow key={m.id} member={m} />)}
             </div>
+            )}
+        </Card>
 
-            {/* Middle — contract dates */}
-            <div className="p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-medium text-foreground">Contract Duration</p>
-                <span className="text-xs text-muted-foreground">(required to accept)</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Start Date
-                    </label>
-                    <input
-                    type="date"
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    onChange={e => setContractDates(prev => ({
-                        ...prev,
-                        [inv.id]: { ...prev[inv.id], start: e.target.value }
-                    }))}
-                    />
-                </div>
-                <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    End Date
-                    </label>
-                    <input
-                    type="date"
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    onChange={e => setContractDates(prev => ({
-                        ...prev,
-                        [inv.id]: { ...prev[inv.id], end: e.target.value }
-                    }))}
-                    />
-                </div>
-                </div>
+        {/* Employees */}
+        <Card className="p-6">
+            <h3 className="mb-4 font-semibold text-foreground">
+            Employees ({employees.length})
+            </h3>
+            {employees.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No employees yet.</p>
+            ) : (
+            <div className="space-y-3">
+                {employees.map(m => <MemberRow key={m.id} member={m} />)}
+            </div>
+            )}
+        </Card>
 
-                {/* Show contract summary if both dates are set */}
-                {contractDates[inv.id]?.start && contractDates[inv.id]?.end && (
-                <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700 flex items-center gap-2">
-                    <Calendar className="h-3 w-3 flex-shrink-0" />
-                    Contract from{' '}
-                    <span className="font-medium">
-                    {new Date(contractDates[inv.id].start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                    {' '}to{' '}
-                    <span className="font-medium">
-                    {new Date(contractDates[inv.id].end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
+        {/* Join Requests */}
+        <Card className="p-6">
+            <div className="mb-6 flex items-center justify-between">
+                <div>
+                <h3 className="font-semibold text-foreground">Join Requests</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                    Review and manage pending membership requests
+                </p>
                 </div>
+                {invitations.length > 0 && (
+                <span className="rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
+                    {invitations.length} pending
+                </span>
                 )}
             </div>
 
-            {/* Bottom — actions */}
-            <div className="flex gap-2 px-4 pb-4">
-                <Button
-                size="sm"
-                className="flex-1"
-                onClick={() => handleInvitation(inv.id, 'accept')}
-                disabled={actionLoading === inv.id}
-                >
-                {actionLoading === inv.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                    <>
-                    <Check className="mr-1.5 h-4 w-4" />
-                    Accept & Create Membership
-                    </>
-                )}
-                </Button>
-                <Button
-                size="sm"
-                variant="outline"
-                className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                onClick={() => handleInvitation(inv.id, 'reject')}
-                disabled={actionLoading === inv.id}
-                >
-                <X className="mr-1.5 h-4 w-4" />
-                Reject
-                </Button>
-            </div>
-            </div>
-        ))}
-        </div>
-    )}
-    </Card>
+            {invitations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 mb-3">
+                    <Check className="h-7 w-7 text-green-600" />
+                </div>
+                <p className="font-medium text-foreground">All caught up!</p>
+                <p className="text-sm text-muted-foreground mt-1">No pending join requests.</p>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                {invitations.map(inv => (
+                    <div key={inv.id} className="rounded-xl border bg-muted/30 p-5">
+                        {/* Top row — user info + role + date */}
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-bold text-white">
+                                {inv.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                                <p className="font-semibold text-foreground">{inv.name}</p>
+                                <p className="text-xs text-muted-foreground">{inv.email}</p>
+                            </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                            <span className={`rounded-full px-3 py-1 text-xs font-medium ${getRoleBadgeColor(inv.role)}`}>
+                                {inv.role}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                                {new Date(inv.created_at).toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric', year: 'numeric'
+                                })}
+                            </span>
+                            </div>
+                        </div>
+
+                        {/* Contract dates row */}
+                        <div className="mb-4 grid grid-cols-2 gap-4">
+                            <div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Contract Start
+                            </label>
+                            <input
+                                type="date"
+                                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onChange={e => setContractDates(prev => ({
+                                ...prev,
+                                [inv.id]: { ...prev[inv.id], start: e.target.value }
+                                }))}
+                            />
+                            </div>
+                            <div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Contract End
+                            </label>
+                            <input
+                                type="date"
+                                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onChange={e => setContractDates(prev => ({
+                                ...prev,
+                                [inv.id]: { ...prev[inv.id], end: e.target.value }
+                                }))}
+                            />
+                            </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                size="sm"
+                                className="transition-opacity hover:opacity-80"
+                                style={{ backgroundColor: "var(--destructive)", color: "var(--destructive-foreground)" }}
+                                onClick={() => handleInvitation(inv.id, 'reject')}
+                                disabled={actionLoading === inv.id}
+                            >
+                                <X className="mr-1.5 h-4 w-4" />
+                                Reject
+                            </Button>
+                            <Button
+                                size="sm"
+                                className="transition-opacity hover:opacity-80"
+                                style={{ backgroundColor: "var(--success)", color: "var(--success-foreground)" }}
+                                onClick={() => handleInvitation(inv.id, 'accept')}
+                                disabled={actionLoading === inv.id}
+                            >
+                                {actionLoading === inv.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                <><Check className="mr-1.5 h-4 w-4" />Accept</>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                ))}
+                </div>
+            )}
+        </Card>
     </div>
   );
 }
