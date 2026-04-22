@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../../config/db');
+const invitationsService = require('../invitations/invitations.service');
 
 function generateToken(user) {
   return jwt.sign(
@@ -121,13 +122,15 @@ async function register({
       returnedRole = 'director';
 
     } else if (isJoin) {
-      // 6a. Validate company code
       if (!companyCode) throw new Error('Company code is required to join');
-      await invitationsService.createInvitationRequest(user.id, companyCode, joinRole);
       returnedRole = 'normal';
     }
 
     await client.query('COMMIT');
+
+    if (isJoin) {
+      await invitationsService.createInvitationRequest(user.id, companyCode, joinRole);
+    }
 
     return {
       user: { ...user, role: returnedRole },

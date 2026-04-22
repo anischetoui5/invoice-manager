@@ -238,98 +238,140 @@ export function TeamManagement() {
       </Card>
 
       {/* Join Requests */}
-      <Card className="p-6">
-        <h3 className="mb-4 font-semibold text-foreground">
-          Join Requests
-          {invitations.length > 0 && (
-            <span className="ml-2 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
-              {invitations.length} pending
-            </span>
-          )}
-        </h3>
-        {invitations.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No pending join requests.</p>
-        ) : (
-          <div className="space-y-4">
-            {invitations.map(inv => (
-              <div key={inv.id} className="rounded-lg border p-4 space-y-4">
-                {/* User info */}
-                <div className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-600">
-                    {inv.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{inv.name}</p>
-                    <p className="text-sm text-muted-foreground">{inv.email}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Requested {new Date(inv.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${getRoleBadgeColor(inv.role)}`}>
-                    {inv.role}
-                  </span>
-                </div>
-
-                {/* Contract dates */}
-                <div className="rounded-lg bg-muted p-3 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    Set Contract Duration (required to accept)
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-muted-foreground">Start Date</label>
-                      <input
-                        type="date"
-                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        onChange={e => setContractDates(prev => ({
-                          ...prev,
-                          [inv.id]: { ...prev[inv.id], start: e.target.value }
-                        }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">End Date</label>
-                      <input
-                        type="date"
-                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        onChange={e => setContractDates(prev => ({
-                          ...prev,
-                          [inv.id]: { ...prev[inv.id], end: e.target.value }
-                        }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleInvitation(inv.id, 'accept')}
-                    disabled={actionLoading === inv.id}
-                  >
-                    {actionLoading === inv.id
-                      ? <Loader2 className="h-4 w-4 animate-spin" />
-                      : <><Check className="mr-1 h-4 w-4" />Accept</>
-                    }
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="flex-1"
-                    onClick={() => handleInvitation(inv.id, 'reject')}
-                    disabled={actionLoading === inv.id}
-                  >
-                    <X className="mr-1 h-4 w-4" />Reject
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+    <Card className="p-6">
+    <div className="mb-6 flex items-center justify-between">
+        <div>
+        <h3 className="font-semibold text-foreground">Join Requests</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+            Review and manage pending membership requests
+        </p>
+        </div>
+        {invitations.length > 0 && (
+        <span className="rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
+            {invitations.length} pending
+        </span>
         )}
-      </Card>
+    </div>
+
+    {invitations.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 mb-3">
+            <Check className="h-7 w-7 text-green-600" />
+        </div>
+        <p className="font-medium text-foreground">All caught up!</p>
+        <p className="text-sm text-muted-foreground mt-1">No pending join requests.</p>
+        </div>
+    ) : (
+        <div className="space-y-4">
+        {invitations.map(inv => (
+            <div key={inv.id} className="rounded-xl border bg-card shadow-sm overflow-hidden">
+            
+            {/* Top — user info */}
+            <div className="flex items-center gap-4 p-4 border-b bg-muted/40">
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-bold text-white">
+                {inv.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground">{inv.name}</p>
+                <p className="text-sm text-muted-foreground truncate">{inv.email}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                <span className={`rounded-full px-3 py-1 text-xs font-medium ${getRoleBadgeColor(inv.role)}`}>
+                    {inv.role}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                    {new Date(inv.created_at).toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                    })}
+                </span>
+                </div>
+            </div>
+
+            {/* Middle — contract dates */}
+            <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium text-foreground">Contract Duration</p>
+                <span className="text-xs text-muted-foreground">(required to accept)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Start Date
+                    </label>
+                    <input
+                    type="date"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={e => setContractDates(prev => ({
+                        ...prev,
+                        [inv.id]: { ...prev[inv.id], start: e.target.value }
+                    }))}
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    End Date
+                    </label>
+                    <input
+                    type="date"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={e => setContractDates(prev => ({
+                        ...prev,
+                        [inv.id]: { ...prev[inv.id], end: e.target.value }
+                    }))}
+                    />
+                </div>
+                </div>
+
+                {/* Show contract summary if both dates are set */}
+                {contractDates[inv.id]?.start && contractDates[inv.id]?.end && (
+                <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700 flex items-center gap-2">
+                    <Calendar className="h-3 w-3 flex-shrink-0" />
+                    Contract from{' '}
+                    <span className="font-medium">
+                    {new Date(contractDates[inv.id].start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                    {' '}to{' '}
+                    <span className="font-medium">
+                    {new Date(contractDates[inv.id].end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                </div>
+                )}
+            </div>
+
+            {/* Bottom — actions */}
+            <div className="flex gap-2 px-4 pb-4">
+                <Button
+                size="sm"
+                className="flex-1"
+                onClick={() => handleInvitation(inv.id, 'accept')}
+                disabled={actionLoading === inv.id}
+                >
+                {actionLoading === inv.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <>
+                    <Check className="mr-1.5 h-4 w-4" />
+                    Accept & Create Membership
+                    </>
+                )}
+                </Button>
+                <Button
+                size="sm"
+                variant="outline"
+                className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                onClick={() => handleInvitation(inv.id, 'reject')}
+                disabled={actionLoading === inv.id}
+                >
+                <X className="mr-1.5 h-4 w-4" />
+                Reject
+                </Button>
+            </div>
+            </div>
+        ))}
+        </div>
+    )}
+    </Card>
     </div>
   );
 }

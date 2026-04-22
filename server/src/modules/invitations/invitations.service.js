@@ -1,5 +1,7 @@
 const pool = require('../../config/db');
 
+const crypto = require('crypto');
+
 async function createInvitationRequest(userId, companyCode, requestedRole) {
   const roleName = requestedRole === 'accountant' ? 'Accountant' : 'Employee';
 
@@ -44,12 +46,13 @@ async function createInvitationRequest(userId, companyCode, requestedRole) {
   const directorId = directorResult.rows[0]?.user_id;
 
   // Create pending invitation
+  const uniqueCode = crypto.randomBytes(8).toString('hex');
   const result = await pool.query(
     `INSERT INTO invitations
       (workspace_id, code, role_id, created_by, user_id, requested_role_id, status)
      VALUES ($1, $2, $3, $4, $5, $6, 'pending')
      RETURNING *`,
-    [workspace_id, `${companyCode}-${userId}`, role_id, directorId, userId, role_id]
+    [workspace_id, uniqueCode, role_id, directorId, userId, role_id]
   );
 
   return result.rows[0];

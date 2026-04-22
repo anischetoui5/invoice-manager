@@ -151,18 +151,18 @@ export function TopBar({
                 <span className="text-sm">{user.name}</span>
                 <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {workspaces.map((w) => (
+                  {[...new Set(workspaces.map(w => w.role))].map(role => (
                     <span
-                      key={w.id}
+                      key={role}
                       className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        w.role === 'Director' ? 'bg-orange-100 text-orange-700' :
-                        w.role === 'Employee' ? 'bg-blue-100 text-blue-700' :
-                        w.role === 'Accountant' ? 'bg-green-100 text-green-700' :
-                        w.role === 'Personal' ? 'bg-gray-200 text-gray-600' :
+                        role === 'Director'   ? 'bg-orange-100 text-orange-700' :
+                        role === 'Employee'   ? 'bg-blue-100 text-blue-700' :
+                        role === 'Accountant' ? 'bg-green-100 text-green-700' :
+                        role === 'Personal'   ? 'bg-gray-200 text-gray-600' :
                         'bg-purple-100 text-purple-700'
                       }`}
                     >
-                      {w.role}
+                      {role}
                     </span>
                   ))}
                 </div>
