@@ -84,6 +84,7 @@ const handleSwitchWorkspace = async (workspaceId: string) => {
               currentUser,
               enterprises,
               currentWorkspace,
+              workspaces,
             }} />
         </main>
       </div>
