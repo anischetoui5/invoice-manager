@@ -30,7 +30,7 @@ export function Sidebar({ currentWorkspace }: SidebarProps) {
     { path: '/dashboard/upload', icon: Upload, label: 'Upload Invoice', roles: ['employee', 'normal'] },
     { path: '/dashboard/invoices', icon: FileText, label: 'Invoices', roles: ['admin', 'employee', 'director', 'normal', 'accountant'] },
     { path: '/dashboard/reports', icon: BarChart3, label: 'Reports', roles: ['accountant', 'director'] },
-    { path: '/dashboard/team', icon: UserPlus, label: 'Team Management', roles: ['director', 'admin'] },
+    { path: '/dashboard/team', icon: UserPlus, label: 'Team Management', roles: ['director'] },
     { path: '/dashboard/subscription', icon: CreditCard, label: 'Subscription', roles: ['director'] },
     { path: '/personal-subscription', icon: CreditCard, label: 'Subscription', roles: ['normal'] },
     { path: '/dashboard/users', icon: Users, label: 'Users', roles: ['admin'] },
