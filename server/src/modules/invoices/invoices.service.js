@@ -150,11 +150,54 @@ async function deleteDraftInvoice(invoice_id, workspace_id) {
   await db.query(`DELETE FROM invoices WHERE id = $1`, [invoice_id]);
 }
 
+async function getAllInvoices({ status, vendor_name, page = 1, limit = 20 }) {
+  const conditions = [];
+  const values = [];
+  let idx = 1;
+
+  if (status) {
+    conditions.push(`i.current_status = $${idx++}`);
+    values.push(status);
+  }
+  if (vendor_name) {
+    conditions.push(`i.vendor_name ILIKE $${idx++}`);
+    values.push(`%${vendor_name}%`);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const offset = (page - 1) * limit;
+
+  const result = await db.query(
+    `SELECT i.*, u.name AS created_by_name, w.name AS workspace_name, c.name AS company_name
+     FROM invoices i
+     LEFT JOIN users u ON u.id = i.created_by
+     LEFT JOIN workspaces w ON w.id = i.workspace_id
+     LEFT JOIN companies c ON c.workspace_id = i.workspace_id
+     ${where}
+     ORDER BY i.created_at DESC
+     LIMIT $${idx++} OFFSET $${idx++}`,
+    [...values, limit, offset]
+  );
+
+  const countResult = await db.query(
+    `SELECT COUNT(*) FROM invoices i ${where}`,
+    values
+  );
+
+  return {
+    invoices: result.rows,
+    total: parseInt(countResult.rows[0].count),
+    page,
+    limit,
+  };
+}
+
 module.exports = {
   createInvoice,
   getInvoiceById,
   updateInvoiceStatus,
   getStatusHistory,
   deleteDraftInvoice,
-  searchInvoices
+  searchInvoices,
+  getAllInvoices,
 };

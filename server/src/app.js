@@ -10,11 +10,11 @@ const invoicesRoutes = require('./modules/invoices/invoices.routes');
 const documentsRoutes = require('./modules/documents/documents.routes');
 const companyRoutes = require('./modules/company/company.routes');
 const invitationsRoutes = require('./modules/invitations/invitations.routes');
+const { getAllInvoices } = require('./modules/invoices/invoices.controller'); // ← add
 
 const { authenticate } = require('./middlewares/auth.middleware');
 
 const app = express();
-
 
 app.use(helmet());
 app.use(cors({
@@ -30,11 +30,11 @@ app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/company', companyRoutes);
 
-// invoices and documents (nested under workspace)
+app.get('/api/invoices', authenticate, getAllInvoices); // ← add (before nested routes)
+
 app.use('/api/workspaces/:workspace_id/invoices', invoicesRoutes);
 app.use('/api/workspaces/:workspace_id/invoices/:invoice_id/documents', documentsRoutes);
 
-// invitations
 app.use('/api/invitations', invitationsRoutes);
 
 // ── Utility endpoints ─────────────────────────────────────────

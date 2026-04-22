@@ -97,6 +97,21 @@ async function deleteDraftInvoice(req, res) {
   }
 }
 
+async function getAllInvoices(req, res) {
+  try {
+    const { status, vendor_name, page, limit } = req.query;
+    const result = await invoicesService.getAllInvoices({
+      status,
+      vendor_name,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   createInvoice,
   getInvoice,
@@ -104,4 +119,5 @@ module.exports = {
   updateInvoiceStatus,
   getStatusHistory,
   deleteDraftInvoice,
+  getAllInvoices,
 };

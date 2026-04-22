@@ -50,6 +50,8 @@ export function InvoiceList() {
 
   const limit = 20;
 
+  const isAdmin = currentWorkspace?.role === 'Admin';
+
   useEffect(() => {
     if (!currentWorkspace?.id) return;
 
@@ -65,10 +67,7 @@ export function InvoiceList() {
         if (statusFilter !== 'all') params.status = statusFilter;
         if (searchQuery.trim())     params.vendor_name = searchQuery.trim();
 
-        const { data } = await api.get(
-          `/workspaces/${currentWorkspace.id}/invoices`,
-          { params }
-        );
+        const { data } = isAdmin ? await api.get('/invoices', { params }) : await api.get(`/workspaces/${currentWorkspace.id}/invoices`, { params });
         setInvoices(data.invoices);
         setTotal(data.total);
       } catch (err: any) {
@@ -157,6 +156,7 @@ export function InvoiceList() {
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice #</TableHead>
+                {isAdmin && <TableHead>Company</TableHead>}
                 <TableHead>Vendor</TableHead>
                 {currentWorkspace?.role !== 'employee' && currentWorkspace?.role !== 'normal' && (
                   <TableHead>Uploaded By</TableHead>
@@ -186,6 +186,11 @@ export function InvoiceList() {
                   return (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-muted-foreground">
+                          {(invoice as any).company_name ?? (invoice as any).workspace_name}
+                        </TableCell>
+                      )}
                       <TableCell>{invoice.vendor_name}</TableCell>
                       {currentWorkspace?.role !== 'employee' && currentWorkspace?.role !== 'normal' && (
                         <TableCell className="text-muted-foreground">{invoice.created_by_name}</TableCell>
