@@ -106,4 +106,21 @@ async function getInvitations(userId, workspaceId) {
   return result.rows;
 }
 
-module.exports = { getCompany, updateCompany, getMembers, removeMember, getInvitations };
+async function getAllCompanies() {
+  const result = await pool.query(
+    `SELECT 
+      c.*,
+      w.created_at as workspace_created_at,
+      COUNT(DISTINCT m.user_id) as member_count,
+      COUNT(DISTINCT i.id) as invoice_count
+     FROM companies c
+     JOIN workspaces w ON w.id = c.workspace_id
+     LEFT JOIN memberships m ON m.workspace_id = c.workspace_id
+     LEFT JOIN invoices i ON i.workspace_id = c.workspace_id
+     GROUP BY c.id, w.created_at
+     ORDER BY w.created_at DESC`
+  );
+  return result.rows;
+}
+
+module.exports = { getCompany, updateCompany, getMembers, removeMember, getInvitations, getAllCompanies };

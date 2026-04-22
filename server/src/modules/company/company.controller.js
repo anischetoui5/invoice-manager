@@ -56,4 +56,13 @@ async function getInvitations(req, res) {
   }
 }
 
-module.exports = { getCompany, updateCompany, getMembers, removeMember, getInvitations };
+async function getAllCompanies(req, res) {
+  try {
+    const companies = await companyService.getAllCompanies();
+    res.status(200).json({ companies });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { getCompany, updateCompany, getMembers, removeMember, getInvitations, getAllCompanies };

@@ -12,6 +12,7 @@ import { InvoiceList } from './pages/Invoices';
 //import { InvoiceDetail } from './pages/InvoiceDetails';
 import { TeamManagement } from './pages/TeamManagment';
 import { Users } from './pages/Users';
+import { Companies } from './pages/Companies';
 import type { User, Enterprise, Workspace, UserRole } from './types';
 import api from '../lib/api';
 
@@ -174,6 +175,10 @@ export const router = createBrowserRouter([
         path: 'users',
         element: <Users />,
       },
+      {
+        path: 'companies',
+        element: <Companies />,
+      }
     ],
   },
   {

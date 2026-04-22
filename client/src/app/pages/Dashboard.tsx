@@ -43,6 +43,16 @@ export function Dashboard({ userRole }: DashboardProps) {
   }
 }, [currentWorkspace?.id, currentWorkspace?.role]);
 
+const [recentCompanies, setRecentCompanies] = useState<any[]>([]);
+
+useEffect(() => {
+  if (userRole === 'admin') {
+    api.get('/company')
+      .then(({ data }) => setRecentCompanies(data.companies.slice(0, 4)))
+      .catch(() => {});
+  }
+}, [userRole]);
+
   // ── Normal/Personal ────────────────────────────────────────────────────────
   const renderNormalUserDashboard = () => {
     const totalInvoices = Number(stats?.total ?? 0);
@@ -704,18 +714,35 @@ export function Dashboard({ userRole }: DashboardProps) {
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="p-6">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-foreground">All Companies</h3>
-                <p className="text-sm text-muted-foreground mt-1">Platform-wide company overview</p>
+                <h3 className="font-semibold text-foreground">Recent Companies</h3>
+                <p className="text-sm text-muted-foreground mt-1">Latest registered companies</p>
               </div>
-              <Link to="/dashboard/users" className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                Manage
+              <Link to="/dashboard/companies" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+                View all
               </Link>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {totalCompanies === 0 ? 'No companies yet.' : `${totalCompanies} companies registered.`}
-            </p>
+            {recentCompanies.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No companies yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {recentCompanies.map(company => (
+                  <div key={company.id} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
+                        {company.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{company.name}</p>
+                        <p className="text-xs text-muted-foreground">{company.member_count} members</p>
+                      </div>
+                    </div>
+                    <code className="text-xs font-bold tracking-wider text-blue-600">{company.code}</code>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
 
           <Card className="p-6">

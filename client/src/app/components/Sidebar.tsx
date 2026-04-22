@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Upload, FileText, BarChart3,
   Settings, Users, History, CreditCard, UserPlus,
+  Building2
 } from 'lucide-react';
 import type { Workspace } from '../types';
 
@@ -33,6 +34,7 @@ export function Sidebar({ currentWorkspace }: SidebarProps) {
     { path: '/dashboard/subscription', icon: CreditCard, label: 'Subscription', roles: ['director'] },
     { path: '/personal-subscription', icon: CreditCard, label: 'Subscription', roles: ['normal'] },
     { path: '/dashboard/users', icon: Users, label: 'Users', roles: ['admin'] },
+    { path: '/dashboard/companies', icon: Building2, label: 'Companies', roles: ['admin'] },
     { path: '/dashboard/history', icon: History, label: 'History', roles: ['admin', 'accountant', 'normal', 'employee', 'director'] },
     { path: '/dashboard/settings', icon: Settings, label: 'Settings', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
   ];

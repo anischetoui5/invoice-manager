@@ -238,6 +238,8 @@ export function Settings() {
     weeklyReport: false,
   });
 
+  const isAdmin = currentUser.role === 'admin';
+
   // ── Profile ──────────────────────────────────────────────────────────────
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,12 +303,20 @@ export function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="bg-background grid w-full grid-cols-4">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="company">Company</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-        </TabsList>
+        {isAdmin ? (
+          <TabsList className="bg-background grid w-full grid-cols-3">
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          </TabsList>
+        ) : (
+          <TabsList className="bg-background grid w-full grid-cols-4">
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="company">Company</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          </TabsList>
+        )}
 
         {/* ── Profile tab ── */}
         <TabsContent value="profile" className="space-y-6">
@@ -349,34 +359,38 @@ export function Settings() {
         </TabsContent>
 
         {/* ── Company tab ── */}
-        <TabsContent value="company" className="space-y-6">
-          {(currentUser.role === 'normal' || currentUser.role === 'accountant') && (
-            <JoinCompany userRole={currentUser.role} />
-          )}
+        {!isAdmin && (
+          <TabsContent value="company" className="space-y-6">
+            {!workspaces.some(w => 
+              w.type === 'company' && ['Employee', 'Director','Admin'].includes(w.role)
+            ) && (
+              <JoinCompany userRole={currentUser.role} />
+            )}
 
-          {companyWorkspaces.length === 0 ? (
-            <Card className="p-6">
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 mb-3">
-                  <Building2 className="h-7 w-7 text-blue-600" />
+            {companyWorkspaces.length === 0 ? (
+              <Card className="p-6">
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 mb-3">
+                    <Building2 className="h-7 w-7 text-blue-600" />
+                  </div>
+                  <p className="font-medium text-foreground">No company yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    You are not currently part of any company.
+                  </p>
                 </div>
-                <p className="font-medium text-foreground">No company yet</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  You are not currently part of any company.
-                </p>
-              </div>
-            </Card>
-          ) : (
-            companyWorkspaces.map(workspace => (
-              <CompanyCard
-                key={workspace.id}
-                workspace={workspace}
-                isActive={workspace.id === currentWorkspace?.id}
-                currentUser={currentUser}
-              />
-            ))
-          )}
-        </TabsContent>
+              </Card>
+            ) : (
+              companyWorkspaces.map(workspace => (
+                <CompanyCard
+                  key={workspace.id}
+                  workspace={workspace}
+                  isActive={workspace.id === currentWorkspace?.id}
+                  currentUser={currentUser}
+                />
+              ))
+            )}
+          </TabsContent>
+        )}
 
         {/* ── Security tab ── */}
         <TabsContent value="security" className="space-y-6">
