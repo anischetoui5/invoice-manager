@@ -175,7 +175,19 @@ export function PersonalSubscription() {
                   className="w-full"
                   variant={isCurrentUserPlan ? 'outline' : 'default'}
                   disabled={isCurrentUserPlan}
-                  onClick={() => handleSelectPlan(plan.name.toLowerCase())}
+                  onClick={async () => {
+                    if (isRegistration) {
+                      handleSelectPlan(plan.name.toLowerCase());
+                    } else {
+                      try {
+                        await api.patch('/subscriptions/upgrade', { planId: plan.id });
+                        toast.success(`Upgraded to ${plan.name}!`);
+                        window.location.reload();
+                      } catch (err: any) {
+                        toast.error(err.response?.data?.error || 'Upgrade failed');
+                      }
+                    }
+                  }}
                 >
                   {isRegistration
                     ? 'Select Plan'
