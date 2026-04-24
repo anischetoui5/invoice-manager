@@ -1,27 +1,25 @@
 import { CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
-import type { InvoiceStatus } from '../types';
 
 interface WorkflowStepperProps {
-  status: InvoiceStatus;
+  status: string;
 }
 
 export function WorkflowStepper({ status }: WorkflowStepperProps) {
   const steps = [
-    { key: 'pending', label: 'Uploaded', icon: FileText },
-    { key: 'processing', label: 'OCR Processing', icon: Clock },
-    { key: 'validated', label: 'Validated', icon: CheckCircle },
-    { key: 'approved', label: 'Approved', icon: CheckCircle },
+    { key: 'draft',          label: 'Uploaded',      icon: FileText },
+    { key: 'pending_review', label: 'Pending Review', icon: Clock },
+    { key: 'approved',       label: 'Approved',       icon: CheckCircle },
   ];
+
+  const statusOrder = ['draft', 'pending_review', 'approved'];
 
   const getStepStatus = (stepKey: string) => {
     if (status === 'rejected') {
-      return stepKey === 'pending' || stepKey === 'processing' ? 'completed' : 'rejected';
+      const stepIndex = statusOrder.indexOf(stepKey);
+      return stepIndex <= 1 ? 'completed' : 'rejected';
     }
-
-    const statusOrder = ['pending', 'processing', 'validated', 'approved'];
     const currentIndex = statusOrder.indexOf(status);
     const stepIndex = statusOrder.indexOf(stepKey);
-
     if (stepIndex < currentIndex) return 'completed';
     if (stepIndex === currentIndex) return 'current';
     return 'upcoming';
@@ -29,14 +27,10 @@ export function WorkflowStepper({ status }: WorkflowStepperProps) {
 
   const getStepColor = (stepStatus: string) => {
     switch (stepStatus) {
-      case 'completed':
-        return 'bg-green-500 border-green-500 text-white';
-      case 'current':
-        return 'bg-blue-500 border-blue-500 text-white';
-      case 'rejected':
-        return 'bg-red-500 border-red-500 text-white';
-      default:
-        return 'bg-white border-slate-300 text-slate-400';
+      case 'completed': return 'bg-green-500 border-green-500 text-white';
+      case 'current':   return 'bg-blue-500 border-blue-500 text-white';
+      case 'rejected':  return 'bg-red-500 border-red-500 text-white';
+      default:          return 'bg-white border-slate-300 text-slate-400';
     }
   };
 
@@ -47,7 +41,6 @@ export function WorkflowStepper({ status }: WorkflowStepperProps) {
     return 'bg-slate-200';
   };
 
-  // Handle rejected status separately
   if (status === 'rejected') {
     return (
       <div className="rounded-lg bg-red-50 p-6">
@@ -65,45 +58,33 @@ export function WorkflowStepper({ status }: WorkflowStepperProps) {
   }
 
   return (
-    <div className="rounded-lg bg-slate-50 p-6">
-      <h3 className="mb-6 font-semibold text-slate-800">Validation Workflow</h3>
+    <div className="rounded-lg bg-card border p-6">
       <div className="relative">
         <div className="flex items-center justify-between">
           {steps.map((step, index) => {
             const stepStatus = getStepStatus(step.key);
             const StepIcon = step.icon;
-
             return (
               <div key={step.key} className="flex flex-1 flex-col items-center">
                 <div className="relative z-10 flex flex-col items-center">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all ${getStepColor(
-                      stepStatus
-                    )}`}
-                  >
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all ${getStepColor(stepStatus)}`}>
                     <StepIcon className="h-5 w-5" />
                   </div>
                   <div className="mt-2 text-center">
-                    <p
-                      className={`text-sm font-medium ${
-                        stepStatus === 'upcoming' ? 'text-slate-500' : 'text-slate-800'
-                      }`}
-                    >
+                    <p className={`text-sm font-medium ${stepStatus === 'upcoming' ? 'text-muted-foreground' : 'text-foreground'}`}>
                       {step.label}
                     </p>
                     {stepStatus === 'current' && (
                       <p className="mt-1 text-xs font-medium text-blue-600">In Progress</p>
                     )}
                     {stepStatus === 'completed' && (
-                      <p className="mt-1 text-xs text-slate-500">Completed</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Completed</p>
                     )}
                   </div>
                 </div>
-
-                {/* Connector line */}
                 {index < steps.length - 1 && (
                   <div
-                    className={`absolute left-0 right-0 top-6 -z-0 h-0.5 ${getLineColor(index)}`}
+                    className={`absolute top-6 -z-0 h-0.5 ${getLineColor(index)}`}
                     style={{
                       left: `${(100 / (steps.length - 1)) * index + 100 / (steps.length - 1) / 2}%`,
                       right: `${100 - (100 / (steps.length - 1)) * (index + 1) + 100 / (steps.length - 1) / 2}%`,

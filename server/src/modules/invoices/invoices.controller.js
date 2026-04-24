@@ -31,7 +31,6 @@ async function getInvoice(req, res) {
     const invoice = await invoicesService.getInvoiceById(invoice_id, workspace_id);
     res.status(200).json({ invoice });
   } catch (err) {
-    console.error('getInvoice error:', err.message);
     res.status(404).json({ error: err.message });
   }
 }
@@ -112,6 +111,16 @@ async function getAllInvoices(req, res) {
   }
 }
 
+async function updateInvoice(req, res) {
+  try {
+    const { workspace_id, invoice_id } = req.params;
+    const invoice = await invoicesService.updateInvoice(invoice_id, workspace_id, req.body);
+    res.status(200).json({ message: 'Invoice updated', invoice });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
 module.exports = {
   createInvoice,
   getInvoice,
@@ -120,4 +129,5 @@ module.exports = {
   getStatusHistory,
   deleteDraftInvoice,
   getAllInvoices,
+  updateInvoice,
 };

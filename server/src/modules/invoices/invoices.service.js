@@ -33,7 +33,10 @@ async function createInvoice({ workspace_id, created_by, invoice_number, vendor_
 
 async function getInvoiceById(invoice_id, workspace_id) {
   const result = await db.query(
-    `SELECT * FROM invoices WHERE id = $1 AND workspace_id = $2`,
+    `SELECT i.*, u.name AS created_by_name
+     FROM invoices i
+     LEFT JOIN users u ON u.id = i.created_by
+     WHERE i.id = $1 AND i.workspace_id = $2`,
     [invoice_id, workspace_id]
   );
   if (result.rows.length === 0) throw new Error('Invoice not found');
@@ -192,6 +195,22 @@ async function getAllInvoices({ status, vendor_name, page = 1, limit = 20 }) {
   };
 }
 
+async function updateInvoice(invoice_id, workspace_id, { invoice_number, vendor_name, amount, invoice_date, due_date }) {
+  const result = await db.query(
+    `UPDATE invoices
+     SET invoice_number = COALESCE($1, invoice_number),
+         vendor_name    = COALESCE($2, vendor_name),
+         amount         = COALESCE($3, amount),
+         invoice_date   = COALESCE($4, invoice_date),
+         due_date       = COALESCE($5, due_date)
+     WHERE id = $6 AND workspace_id = $7
+     RETURNING *`,
+    [invoice_number, vendor_name, amount, invoice_date, due_date, invoice_id, workspace_id]
+  );
+  if (!result.rows.length) throw new Error('Invoice not found');
+  return result.rows[0];
+}
+
 module.exports = {
   createInvoice,
   getInvoiceById,
@@ -200,4 +219,5 @@ module.exports = {
   deleteDraftInvoice,
   searchInvoices,
   getAllInvoices,
+  updateInvoice,
 };

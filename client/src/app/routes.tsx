@@ -9,7 +9,7 @@ import { Subscription } from './pages/Subscription';
 import { PersonalSubscription } from './pages/PersonalSubscription';
 import { UploadInvoice } from './pages/UploadInvoice';
 import { InvoiceList } from './pages/Invoices';
-//import { InvoiceDetail } from './pages/InvoiceDetails';
+import { InvoiceDetails } from './pages/InvoiceDetails';
 import { TeamManagement } from './pages/TeamManagment';
 import { Users } from './pages/Users';
 import { Companies } from './pages/Companies';
@@ -163,10 +163,10 @@ export const router = createBrowserRouter([
         path: 'invoices',
         element: <InvoiceList />,
       },
-      //{
-        //path: 'invoices/:invoice_id',
-        //element: <InvoiceDetail />,
-      //},
+      {
+        path: 'invoices/:id',
+        element: <InvoiceDetails />,
+      },
       {
         path: 'team',
         element: <TeamManagement />,
