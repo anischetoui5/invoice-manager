@@ -9,6 +9,8 @@ const usersRoutes = require('./modules/users/users.routes');
 const invoicesRoutes = require('./modules/invoices/invoices.routes');
 const documentsRoutes = require('./modules/documents/documents.routes');
 const subscriptionRoutes = require('./modules/subscription/subscription.routes');
+const companyRoutes = require('./modules/company/company.routes');
+const invitationsRoutes = require('./modules/invitations/invitations.routes');
 const { authenticate } = require('./middlewares/auth.middleware');
 
 const app = express();
@@ -28,6 +30,9 @@ app.use('/api/subscriptions', subscriptionRoutes);
 
 app.use('/api/workspaces/:workspace_id/invoices', invoicesRoutes);
 app.use('/api/workspaces/:workspace_id/invoices/:invoice_id/documents', documentsRoutes);
+
+app.use('/api/company', companyRoutes);
+app.use('/api/invitations', invitationsRoutes);
 
 app.get('/api/me', authenticate, (req, res) => {
   res.json({ message: 'You are authenticated', user: req.user });
