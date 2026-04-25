@@ -31,8 +31,9 @@ async function register({
     throw new Error('Password must be at least 8 characters');
   }
 
-  const isCompany = registrationType === 'company';
-  const isJoin = registrationType === 'join';
+  const isCompany  = registrationType === 'company';
+  const isJoin     = registrationType === 'join';
+  const isPersonal = registrationType === 'personal';
   const password_hash = await bcrypt.hash(password, 10);
   const client = await pool.connect();
 
@@ -48,7 +49,7 @@ async function register({
     );
     const user = userResult.rows[0];
 
-    // 2. Always create a personal workspace for every user
+    // 2. Always create a personal workspace
     const personalWorkspaceResult = await client.query(
       `INSERT INTO workspaces (name, type, owner_id)
        VALUES ($1, 'personal', $2)
@@ -57,7 +58,7 @@ async function register({
     );
     const personalWorkspace = personalWorkspaceResult.rows[0];
 
-    // 3. Create personal role membership
+    // 3. Personal role membership
     const personalRoleResult = await client.query(
       `SELECT id FROM roles WHERE name = 'Personal'`
     );
@@ -76,12 +77,36 @@ async function register({
       [personalWorkspace.id, user.id]
     );
 
+    // 5. Personal registration — create subscription by user_id
+    if (isPersonal) {
+      const planName = plan || 'free';
+
+      const planResult = await client.query(
+        `SELECT id FROM subscription_plans
+         WHERE LOWER(name) = LOWER($1)
+           AND plan_type = 'personal'
+           AND is_active = true
+         LIMIT 1`,
+        [planName]
+      );
+      if (!planResult.rows[0]) {
+        throw new Error(`Personal plan '${planName}' not found`);
+      }
+
+      await client.query(
+        `INSERT INTO subscriptions
+           (user_id, plan_id, status, billing_start, current_period_end, credits)
+         VALUES ($1, $2, 'active', NOW(), NOW() + INTERVAL '30 days', 0)`,
+        [user.id, planResult.rows[0].id]
+      );
+    }
+
     let companyWorkspaceId = null;
     let returnedRole = 'normal';
     let companyCodeResult = null;
 
     if (isCompany) {
-      // 5a. Create company workspace
+      // 6a. Create company workspace
       const companyWorkspaceResult = await client.query(
         `INSERT INTO workspaces (name, type, owner_id)
          VALUES ($1, 'company', $2)
@@ -91,16 +116,17 @@ async function register({
       const companyWorkspace = companyWorkspaceResult.rows[0];
       companyWorkspaceId = companyWorkspace.id;
 
-      // 5b. Create companies profile row
+      // 6b. Create company profile
       const companyInsert = await client.query(
         `INSERT INTO companies (workspace_id, name, email, phone, address, industry)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING code`,
-        [companyWorkspace.id, companyName, companyEmail || email, companyPhone || null, companyAddress || null, industry || null]
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING code`,
+        [companyWorkspace.id, companyName, companyEmail || email,
+         companyPhone || null, companyAddress || null, industry || null]
       );
       companyCodeResult = companyInsert.rows[0].code;
 
-      // 5c. Create Director membership for company workspace
+      // 6c. Director membership
       const directorRoleResult = await client.query(
         `SELECT id FROM roles WHERE name = 'Director'`
       );
@@ -113,7 +139,7 @@ async function register({
         [user.id, companyWorkspace.id, directorRoleResult.rows[0].id]
       );
 
-      // 5d. Set company workspace as active for directors
+      // 6d. Company workspace as active for directors
       await client.query(
         `UPDATE users SET last_active_workspace_id = $1 WHERE id = $2`,
         [companyWorkspace.id, user.id]
@@ -136,6 +162,7 @@ async function register({
       user: { ...user, role: returnedRole },
       token: generateToken(user),
       activeWorkspaceId: companyWorkspaceId ?? personalWorkspace.id,
+      personalWorkspaceId: personalWorkspace.id,
       companyCode: companyCodeResult,
     };
 
@@ -166,7 +193,6 @@ async function login({ email, password }) {
     throw new Error('Invalid email or password');
   }
 
-  // Prefer last active workspace; fall back to personal workspace
   const workspaceResult = await pool.query(
     `SELECT w.id AS workspace_id, r.name AS role_name
      FROM workspaces w

@@ -1,12 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { ArrowLeft, Edit, Save, FileText, Clock } from 'lucide-react';
-import { Button } from '../components/ui/button';
+import {
+  ArrowLeft, Download, CheckCircle2, XCircle,
+  Edit2, Save, AlertCircle, Loader2,
+} from 'lucide-react';
+import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
-import { WorkflowStepper } from '../components/WorkflowStepper';
-import type { Workspace, User } from '../types';
 import api from '../../lib/api';
+import type { Workspace, User } from '../types';
+
+interface ExtractedField {
+  id: string;
+  field_name: string;
+  field_value: string;
+  confidence: number;
+  needs_review: boolean;
+  manually_corrected: boolean;
+}
 
 interface Invoice {
   id: string;
@@ -16,73 +31,112 @@ interface Invoice {
   currency: string;
   invoice_date: string;
   due_date: string;
-  notes: string;
   current_status: string;
+  ocr_status: string;
+  ocr_confidence: number;
   created_at: string;
-  created_by_name?: string;
+  created_by_name: string;
+  notes: string;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  draft:          { label: 'Draft',          className: 'bg-gray-100 text-gray-700 border-gray-200' },
-  pending_review: { label: 'Pending Review', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-  approved:       { label: 'Approved',       className: 'bg-green-100 text-green-700 border-green-200' },
-  rejected:       { label: 'Rejected',       className: 'bg-red-100 text-red-700 border-red-200' },
+const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+  draft:          { color: 'bg-gray-100 text-gray-700',    label: 'Draft' },
+  pending_review: { color: 'bg-yellow-100 text-yellow-700', label: 'Pending Review' },
+  approved:       { color: 'bg-green-100 text-green-700',   label: 'Approved' },
+  rejected:       { color: 'bg-red-100 text-red-700',      label: 'Rejected' },
+  paid:           { color: 'bg-blue-100 text-blue-700',    label: 'Paid' },
+  archived:       { color: 'bg-slate-100 text-slate-700',  label: 'Archived' },
 };
 
-export function InvoiceDetails() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+const FIELD_LABELS: Record<string, string> = {
+  invoice_number: 'Invoice Number',
+  invoice_date:   'Invoice Date',
+  total_amount:   'Total Amount',
+  tax_amount:     'Tax Amount',
+  supplier_name:  'Supplier Name',
+};
 
+export function InvoiceDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const { currentWorkspace, currentUser } = useOutletContext<{
     currentWorkspace: Workspace;
     currentUser: User;
   }>();
 
-  const [invoice, setInvoice]         = useState<Invoice | null>(null);
-  const [status, setStatus]           = useState('draft');
-  const [notes, setNotes]             = useState('');
-  const [loading, setLoading]         = useState(true);
-  const [notesError, setNotesError]   = useState(false);
-  const [isEditing, setIsEditing]     = useState(false);
-  const [editForm, setEditForm]       = useState({
-    invoice_number: '',
-    vendor_name: '',
-    amount: '',
-    invoice_date: '',
-    due_date: '',
-  });
-
-  const canSubmitForReview = status === 'draft' && 
-  (currentWorkspace?.role === 'Employee' || currentWorkspace?.role === 'Director');
+  const [invoice, setInvoice]       = useState<Invoice | null>(null);
+  const [fields, setFields]         = useState<ExtractedField[]>([]);
+  const [isLoading, setIsLoading]   = useState(true);
+  const [isEditing, setIsEditing]   = useState(false);
+  const [editedFields, setEditedFields] = useState<Record<string, string>>({});
+  const [notes, setNotes]           = useState('');
+  const [rejecting, setRejecting]   = useState(false);
 
   useEffect(() => {
-    if (!currentWorkspace?.id || !id) return;
-    api.get(`/workspaces/${currentWorkspace.id}/invoices/${id}`)
-      .then(({ data }) => {
-        const inv = data.invoice;
-        setInvoice(inv);
-        setStatus(inv.current_status);
-        setNotes(inv.notes ?? '');
-        setEditForm({
-          invoice_number: inv.invoice_number ?? '',
-          vendor_name: inv.vendor_name ?? '',
-          amount: inv.amount ?? '',
-          invoice_date: inv.invoice_date?.split('T')[0] ?? '',
-          due_date: inv.due_date?.split('T')[0] ?? '',
+    if (!id || !currentWorkspace?.id) return;
+
+    const fetchInvoice = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch invoice details
+        const { data: invoiceData } = await api.get(
+          `/workspaces/${currentWorkspace.id}/invoices/${id}`
+        );
+        setInvoice(invoiceData.invoice);
+        setNotes(invoiceData.invoice.notes || '');
+
+        // Fetch OCR extracted fields
+        const { data: fieldsData } = await api.get(
+          `/workspaces/${currentWorkspace.id}/invoices/${id}/fields`
+        );
+        setFields(fieldsData.fields || []);
+
+        // Set initial editable values
+        const initial: Record<string, string> = {};
+        fieldsData.fields?.forEach((f: ExtractedField) => {
+          initial[f.field_name] = f.field_value;
         });
-      })
-      .catch(() => toast.error('Failed to load invoice'))
-      .finally(() => setLoading(false));
-  }, [currentWorkspace?.id, id]);
+        setEditedFields(initial);
+
+      } catch (err: any) {
+        toast.error('Failed to load invoice');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInvoice();
+  }, [id, currentWorkspace?.id]);
+
+  const handleSaveFields = async () => {
+    try {
+      for (const [fieldName, value] of Object.entries(editedFields)) {
+        await api.patch(
+          `/workspaces/${currentWorkspace.id}/invoices/${id}/fields/${fieldName}`,
+          { value }
+        );
+      }
+      toast.success('Fields updated successfully');
+      setIsEditing(false);
+
+      // Refresh fields
+      const { data } = await api.get(
+        `/workspaces/${currentWorkspace.id}/invoices/${id}/fields`
+      );
+      setFields(data.fields || []);
+    } catch (err: any) {
+      toast.error('Failed to save fields');
+    }
+  };
 
   const handleApprove = async () => {
     try {
-      await api.patch(`/workspaces/${currentWorkspace.id}/invoices/${id}/status`, {
-        status: 'approved',
-        comment: notes || null,
-      });
-      setStatus('approved');
+      await api.patch(
+        `/workspaces/${currentWorkspace.id}/invoices/${id}/status`,
+        { status: 'approved', comment: 'Approved by accountant' }
+      );
       toast.success('Invoice approved successfully');
+      setTimeout(() => navigate('/dashboard/invoices'), 1000);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to approve invoice');
     }
@@ -90,295 +144,250 @@ export function InvoiceDetails() {
 
   const handleReject = async () => {
     if (!notes.trim()) {
-      setNotesError(true);
-      toast.error('Please add rejection notes before rejecting');
+      toast.error('Please provide a reason for rejection');
       return;
     }
     try {
-      await api.patch(`/workspaces/${currentWorkspace.id}/invoices/${id}/status`, {
-        status: 'rejected',
-        comment: notes,
-      });
-      setStatus('rejected');
-      toast.error('Invoice rejected');
+      await api.patch(
+        `/workspaces/${currentWorkspace.id}/invoices/${id}/status`,
+        { status: 'rejected', comment: notes }
+      );
+      toast.success('Invoice rejected');
+      setTimeout(() => navigate('/dashboard/invoices'), 1000);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to reject invoice');
     }
   };
 
-  const handleSaveEdit = async () => {
-    try {
-      const { data } = await api.put(`/workspaces/${currentWorkspace.id}/invoices/${id}`, editForm);
-      setInvoice(prev => prev ? { ...prev, ...data.invoice } : prev);
-      setIsEditing(false);
-      toast.success('Invoice updated successfully');
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to update invoice');
-    }
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '—';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric', month: 'long', day: 'numeric',
-    });
-  };
-
-  const canApproveReject = currentWorkspace?.role === 'Accountant' && status === 'pending_review';
-  const canEdit = (currentWorkspace?.role === 'Accountant' || currentWorkspace?.role === 'Employee') && status === 'draft';
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Clock className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (!invoice) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 gap-4">
-        <p className="text-muted-foreground">Invoice not found</p>
-        <Button variant="outline" onClick={() => navigate('/dashboard/invoices')}>
+      <div className="flex flex-col items-center justify-center py-12">
+        <AlertCircle className="h-12 w-12 text-slate-400" />
+        <h2 className="mt-4 text-xl font-semibold">Invoice not found</h2>
+        <Button className="mt-6" onClick={() => navigate('/dashboard/invoices')}>
           Back to Invoices
         </Button>
       </div>
     );
   }
 
-  const badge = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft;
+  const badge = STATUS_CONFIG[invoice.current_status] ?? {
+    color: 'bg-gray-100 text-gray-700',
+    label: invoice.current_status,
+  };
+
+  const canValidate = ['Director', 'Accountant'].includes(currentWorkspace?.role);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/invoices')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-      </div>
-
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-foreground">
-            {invoice.invoice_number ?? 'Untitled Invoice'}
-          </h1>
-          <Badge className={`border ${badge.className}`} variant="outline">
-            {badge.label}
-          </Badge>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/invoices')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-slate-800">
+                {invoice.invoice_number || 'No Invoice Number'}
+              </h1>
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${badge.color}`}>
+                {badge.label}
+              </span>
+            </div>
+            <p className="mt-1 text-slate-600">{invoice.vendor_name}</p>
+          </div>
         </div>
       </div>
 
-      {/* Workflow Stepper */}
-      <WorkflowStepper status={status as any} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left — PDF + Invoice Info */}
-
-        <div className="bg-card rounded-lg border p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <FileText className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-lg font-semibold text-foreground">Invoice Document</h2>
-          </div>
-          <div
-            className="bg-muted rounded-lg flex flex-col items-center justify-center border cursor-pointer hover:bg-muted/70 transition-colors py-10"
-            onClick={() => toast.info('Document viewer coming soon')}
-          >
-            <FileText className="h-10 w-10 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">No document uploaded yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Click to view full document</p>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-lg border p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Invoice Information</h2>
-            {canEdit && !isEditing && (
-              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-            )}
-            {isEditing && (
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveEdit}>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
-                  Cancel
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Always show the grid — edit form overlays only when editing */}
-          {isEditing ? (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Invoice Number</label>
-                <input
-                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={editForm.invoice_number}
-                  onChange={e => setEditForm(p => ({ ...p, invoice_number: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Vendor</label>
-                <input
-                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={editForm.vendor_name}
-                  onChange={e => setEditForm(p => ({ ...p, vendor_name: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount ({invoice.currency})</label>
-                <input
-                  type="number"
-                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={editForm.amount}
-                  onChange={e => setEditForm(p => ({ ...p, amount: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Invoice Date</label>
-                <input
-                  type="date"
-                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={editForm.invoice_date}
-                  onChange={e => setEditForm(p => ({ ...p, invoice_date: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Due Date</label>
-                <input
-                  type="date"
-                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={editForm.due_date}
-                  onChange={e => setEditForm(p => ({ ...p, due_date: e.target.value }))}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Invoice Number</p>
-                <p className="mt-1 font-medium text-foreground">{invoice.invoice_number ?? '—'}</p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendor</p>
-                <p className="mt-1 font-medium text-foreground">{invoice.vendor_name ?? '—'}</p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Amount</p>
-                <p className="mt-1 font-medium text-foreground">
-                  {invoice.currency} {Number(invoice.amount ?? 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Uploaded By</p>
-                <p className="mt-1 font-medium text-foreground">{invoice.created_by_name ?? '—'}</p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Invoice Date</p>
-                <p className="mt-1 font-medium text-foreground">{formatDate(invoice.invoice_date)}</p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Due Date</p>
-                <p className="mt-1 font-medium text-foreground">{formatDate(invoice.due_date)}</p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Status</p>
-                <p className="mt-1 font-medium text-foreground capitalize">{status.replace('_', ' ')}</p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Submitted</p>
-                <p className="mt-1 font-medium text-foreground">{formatDate(invoice.created_at)}</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right — Notes + Actions */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Left — Invoice Info */}
         <div className="space-y-6">
-
-          {/* OCR placeholder */}
-          <div className="bg-card rounded-lg border p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-3">OCR Data</h2>
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <FileText className="h-10 w-10 text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">OCR processing not yet available</p>
-              <p className="text-xs text-muted-foreground mt-1">Data will appear here once processed</p>
-            </div>
-          </div>
+          <Card className="p-6">
+            <h3 className="mb-4 font-semibold text-slate-800">Invoice Information</h3>
+            <dl className="space-y-3">
+              <div className="flex justify-between">
+                <dt className="text-sm text-slate-600">Uploaded by</dt>
+                <dd className="text-sm font-medium">{invoice.created_by_name}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-sm text-slate-600">Upload date</dt>
+                <dd className="text-sm font-medium">
+                  {new Date(invoice.created_at).toLocaleDateString()}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-sm text-slate-600">Amount</dt>
+                <dd className="text-sm font-medium">
+                  {invoice.currency} {Number(invoice.amount).toLocaleString()}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-sm text-slate-600">Invoice date</dt>
+                <dd className="text-sm font-medium">
+                  {invoice.invoice_date
+                    ? new Date(invoice.invoice_date).toLocaleDateString()
+                    : '—'}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-sm text-slate-600">Due date</dt>
+                <dd className="text-sm font-medium">
+                  {invoice.due_date
+                    ? new Date(invoice.due_date).toLocaleDateString()
+                    : '—'}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-sm text-slate-600">OCR Status</dt>
+                <dd className="text-sm font-medium capitalize">{invoice.ocr_status}</dd>
+              </div>
+              {invoice.ocr_confidence && (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-slate-600">OCR Confidence</dt>
+                  <dd className="text-sm font-medium">
+                    {Number(invoice.ocr_confidence).toFixed(1)}%
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </Card>
 
           {/* Notes */}
-          <div className="bg-card rounded-lg border p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Notes</h2>
-            <textarea
+          <Card className="p-6">
+            <h3 className="mb-4 font-semibold text-slate-800">Notes</h3>
+            <Textarea
+              placeholder="Add notes or reason for rejection..."
               value={notes}
-              onChange={e => {
-                setNotes(e.target.value);
-                if (notesError && e.target.value.trim()) setNotesError(false);
-              }}
-              placeholder="Add notes about this invoice..."
-              rows={4}
-              disabled={currentWorkspace?.role === 'Director'}
-              className={`w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none ${
-                notesError ? 'border-red-500 focus:ring-red-500' : 'border-input'
-              }`}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[100px]"
             />
-            {notesError && (
-              <p className="text-xs text-destructive mt-1">
-                Please add rejection notes before rejecting
-              </p>
-            )}
-          </div>
-
-          {canSubmitForReview && (
-            <div className="bg-card rounded-lg border p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Actions</h2>
-              <Button
-                className="w-full"
-                onClick={async () => {
-                  try {
-                    await api.patch(`/workspaces/${currentWorkspace.id}/invoices/${id}/status`, {
-                      status: 'pending_review',
-                    });
-                    setStatus('pending_review');
-                    toast.success('Invoice submitted for review');
-                  } catch (err: any) {
-                    toast.error(err.response?.data?.error || 'Failed to submit invoice');
-                  }
-                }}
-              >
-                Submit for Review
-              </Button>
-            </div>
-          )}
+          </Card>
 
           {/* Validation Actions */}
-          {canApproveReject && (
-            <div className="bg-card rounded-lg border p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Validation Actions</h2>
-              <div className="space-y-3">
-                <Button
-                  className="w-full transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: 'var(--success)', color: 'var(--success-foreground)' }}
-                  onClick={handleApprove}
-                >
-                  Approve Invoice
+          {canValidate && invoice.current_status !== 'approved' && invoice.current_status !== 'rejected' && (
+            <Card className="p-6">
+              <h3 className="mb-4 font-semibold text-slate-800">Validation Actions</h3>
+              <div className="flex gap-3">
+                <Button className="flex-1" onClick={handleApprove}>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Approve
                 </Button>
-                <Button
-                  className="w-full transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}
-                  onClick={handleReject}
-                >
-                  Reject Invoice
+                <Button variant="destructive" className="flex-1" onClick={handleReject}>
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Reject
                 </Button>
               </div>
-            </div>
+            </Card>
           )}
+        </div>
+
+        {/* Right — OCR Extracted Fields */}
+        <div className="space-y-6">
+          <Card className="p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-slate-800">Extracted Data (OCR)</h2>
+                {invoice.ocr_confidence && (
+                  <p className="mt-1 text-sm text-slate-500">
+                    Confidence: {Number(invoice.ocr_confidence).toFixed(1)}%
+                  </p>
+                )}
+              </div>
+              {fields.length > 0 && canValidate && (
+                !isEditing ? (
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                    <Edit2 className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={handleSaveFields}>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save
+                  </Button>
+                )
+              )}
+            </div>
+
+            {invoice.ocr_status === 'processing' && (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <p className="text-sm text-slate-600">OCR is processing your document...</p>
+              </div>
+            )}
+
+            {invoice.ocr_status === 'failed' && (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <AlertCircle className="h-8 w-8 text-red-500" />
+                <p className="text-sm text-slate-600">OCR processing failed for this document.</p>
+              </div>
+            )}
+
+            {invoice.ocr_status === 'pending' && (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <AlertCircle className="h-8 w-8 text-yellow-500" />
+                <p className="text-sm text-slate-600">OCR has not started yet.</p>
+              </div>
+            )}
+
+            {fields.length > 0 && (
+              <div className="space-y-4">
+                {fields.map((field) => (
+                  <div key={field.id} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">
+                        {FIELD_LABELS[field.field_name] || field.field_name}
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        {field.needs_review && (
+                          <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
+                            Needs Review
+                          </span>
+                        )}
+                        {field.manually_corrected && (
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                            Corrected
+                          </span>
+                        )}
+                        <span className="text-xs text-slate-500">
+                          {Number(field.confidence).toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                    <Input
+                      value={editedFields[field.field_name] ?? field.field_value}
+                      onChange={(e) =>
+                        setEditedFields((prev) => ({
+                          ...prev,
+                          [field.field_name]: e.target.value,
+                        }))
+                      }
+                      disabled={!isEditing}
+                      className={field.needs_review ? 'border-yellow-400' : ''}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {fields.length === 0 && invoice.ocr_status === 'completed' && (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <AlertCircle className="h-8 w-8 text-slate-400" />
+                <p className="text-sm text-slate-600">
+                  No fields could be extracted from this document.
+                </p>
+              </div>
+            )}
+          </Card>
         </div>
       </div>
     </div>

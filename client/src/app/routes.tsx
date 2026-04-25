@@ -9,7 +9,7 @@ import { Subscription } from './pages/Subscription';
 import { PersonalSubscription } from './pages/PersonalSubscription';
 import { UploadInvoice } from './pages/UploadInvoice';
 import { InvoiceList } from './pages/Invoices';
-import { InvoiceDetails } from './pages/InvoiceDetails';
+import { InvoiceDetail } from './pages/InvoiceDetails';
 import { TeamManagement } from './pages/TeamManagment';
 import { Users } from './pages/Users';
 import { Companies } from './pages/Companies';
@@ -57,7 +57,6 @@ function ProtectedLayout() {
         setEnterprises(list);
         setWorkspaces(list);
 
-        // Pick the active workspace, fall back to first in list
         const active = list.find((w: Workspace) => w.is_active) ?? list[0];
         if (active) {
           setCurrentWorkspace(active);
@@ -84,7 +83,6 @@ function ProtectedLayout() {
 
   if (!user) return null;
 
-  // Still waiting for workspace to resolve
   if (!currentWorkspace) {
     return (
       <div className="flex h-screen items-center justify-center bg-muted">
@@ -138,7 +136,10 @@ export const router = createBrowserRouter([
     path: '/register',
     element: <Register />,
   },
-  { path: '/personal-subscription', element: <PersonalSubscription /> },
+  {
+    path: '/personal-subscription',
+    element: <PersonalSubscription />,
+  },
   {
     path: '/dashboard',
     element: <ProtectedLayout />,
@@ -165,7 +166,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'invoices/:id',
-        element: <InvoiceDetails />,
+        element: <InvoiceDetail />,
       },
       {
         path: 'team',
@@ -178,7 +179,7 @@ export const router = createBrowserRouter([
       {
         path: 'companies',
         element: <Companies />,
-      }
+      },
     ],
   },
   {

@@ -1,5 +1,6 @@
 const documentsService = require('./documents.service');
 const invoicesService = require('../invoices/invoices.service');
+const ocrService = require('../ocr/ocr.service');
 const path = require('path');
 
 async function uploadDocument(req, res) {
@@ -9,7 +10,7 @@ async function uploadDocument(req, res) {
     }
 
     const { invoice_id, workspace_id } = req.params;
-    const uploaded_by = req.user.id;
+    const uploaded_by = req.user.userId; // fixed: was req.user.id
 
     // Verify invoice belongs to this workspace
     await invoicesService.getInvoiceById(invoice_id, workspace_id);
@@ -25,6 +26,17 @@ async function uploadDocument(req, res) {
     });
 
     res.status(201).json({ message: 'Document uploaded successfully', document });
+
+    // Auto-trigger OCR after response is sent
+    try {
+      const absolutePath = path.join(__dirname, '../../../', req.file.path);
+      ocrService.processInvoice(invoice_id, absolutePath, req.file.mimetype)
+        .then(() => console.log(`OCR completed for invoice ${invoice_id}`))
+        .catch((err) => console.error('OCR error:', err.message));
+    } catch (ocrErr) {
+      console.error('OCR setup error:', ocrErr.message);
+    }
+
   } catch (err) {
     console.error('uploadDocument error:', err.message);
     res.status(400).json({ error: err.message });
@@ -46,7 +58,6 @@ async function downloadDocument(req, res) {
   try {
     const { document_id } = req.params;
     const doc = await documentsService.getDocumentById(document_id);
-
     res.download(doc.storage_path, doc.file_name);
   } catch (err) {
     console.error('downloadDocument error:', err.message);
@@ -65,28 +76,9 @@ async function deleteDocument(req, res) {
   }
 }
 
-/*
-async function getInvoiceDetail(req, res) {
-  try {
-    const { invoice_id } = req.params;
-    const invoice = await documentsService.getInvoiceFullDetails(invoice_id);
-
-    if (!invoice) {
-      return res.status(404).json({ error: 'Invoice not found' });
-    }
-
-    res.status(200).json(invoice);
-  } catch (err) {
-    console.error('getInvoiceDetail error:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
-*/
-
 module.exports = {
   uploadDocument,
   getDocuments,
   downloadDocument,
   deleteDocument,
-  //getInvoiceDetail,
 };
