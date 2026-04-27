@@ -97,7 +97,7 @@ export function InvoiceList() {
   const [deleting, setDeleting]         = useState(false);
 
   const limit = 20;
-  const isAdmin = currentWorkspace?.role === 'Owner';
+  const isAdmin = currentWorkspace?.role === 'Admin';
   const role = currentWorkspace?.role;
 
   const canDelete = (invoice: Invoice) => {

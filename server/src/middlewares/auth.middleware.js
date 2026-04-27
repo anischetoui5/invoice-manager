@@ -19,9 +19,10 @@ async function authenticate(req, res, next) {
   }
 }
 
-async function authorizeInWorkspace(...allowedRoles) {
+function authorizeInWorkspace(...allowedRoles) {          // ← not async
   return async (req, res, next) => {
-    const workspaceId = req.headers['x-workspace-id'];
+    const workspaceId = req.params.workspace_id           // ← URL param first
+                     || req.headers['x-workspace-id'];    // ← header fallback
 
     if (!workspaceId) {
       return res.status(400).json({ error: 'Workspace ID is required' });
@@ -33,7 +34,7 @@ async function authorizeInWorkspace(...allowedRoles) {
          FROM memberships m
          JOIN roles r ON r.id = m.role_id
          WHERE m.user_id = $1 AND m.workspace_id = $2`,
-        [req.user.userId, workspaceId]
+        [req.user.id, workspaceId]                        // ← req.user.id
       );
 
       if (result.rows.length === 0) {
@@ -51,9 +52,32 @@ async function authorizeInWorkspace(...allowedRoles) {
       next();
 
     } catch (err) {
+      console.error('authorizeInWorkspace error:', err.message);
       return res.status(500).json({ error: 'Authorization error' });
     }
   };
 }
 
-module.exports = { authenticate, authorizeInWorkspace };
+async function authorizeAdmin(req, res, next) {
+  try {
+    const result = await pool.query(
+      `SELECT r.name as role
+       FROM memberships m
+       JOIN roles r ON r.id = m.role_id
+       WHERE m.user_id = $1 AND r.name = 'Admin'
+       LIMIT 1`,
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    next();
+  } catch (err) {
+    console.error('authorizeAdmin error:', err.message);
+    return res.status(500).json({ error: 'Authorization error' });
+  }
+}
+
+module.exports = { authenticate, authorizeInWorkspace, authorizeAdmin };
