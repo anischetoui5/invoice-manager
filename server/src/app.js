@@ -3,16 +3,16 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
-const authRoutes = require('./modules/auth/auth.routes.js');
-const workspaceRoutes = require('./modules/workspace/workspace.routes.js');
-const usersRoutes = require('./modules/users/users.routes.js');
-const invoicesRoutes = require('./modules/invoices/invoices.routes.js');
-const documentsRoutes = require('./modules/documents/documents.routes.js');
-const subscriptionRoutes = require('./modules/subscription/subscription.routes.js');
-const companyRoutes = require('./modules/company/company.routes.js');
-const invitationsRoutes = require('./modules/invitations/invitations.routes.js');
-const ocrRoutes = require('./modules/ocr/ocr.routes.js');
-const { getAllInvoices } = require('./modules/invoices/invoices.controller.js');
+const authRoutes = require('./modules/auth/auth.routes');
+const workspaceRoutes = require('./modules/workspace/workspace.routes');
+const usersRoutes = require('./modules/users/users.routes');
+const invoicesRoutes = require('./modules/invoices/invoices.routes');
+const documentsRoutes = require('./modules/documents/documents.routes');
+const subscriptionRoutes = require('./modules/subscription/subscription.routes');
+const companyRoutes = require('./modules/company/company.routes');
+const invitationsRoutes = require('./modules/invitations/invitations.routes');
+const ocrRoutes = require('./modules/ocr/ocr.routes');
+const { getAllInvoices } = require('./modules/invoices/invoices.controller');
 const { authenticate, authorizeAdmin } = require('./middlewares/auth.middleware');
 
 

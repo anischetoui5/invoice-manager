@@ -40,15 +40,15 @@ router.delete('/:invoice_id',
 
 // ── OCR ───────────────────────────────────────────────────────
 router.get('/:invoice_id/fields',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant'),
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
   ocrController.getExtractedFields
 );
-router.patch('/:invoice_id/fields/:fieldName',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant'),
-  ocrController.updateField
+router.patch('/:invoice_id/fields',
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
+  ocrController.updateExtractedFields
 );
 router.post('/:invoice_id/ocr',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant'),
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
   ocrController.triggerOCR
 );
 

@@ -140,7 +140,7 @@ export function InvoiceDetail() {
   // Accountant only: can approve or reject when pending_review
   const canApproveReject = role === 'Accountant' && status === 'pending_review';
 
-  // Accountant and Director can edit OCR fields
+  // Can edit OCR fields
   const canEditOCR = (role === 'Accountant' || role === 'Director' || role === 'Employee') && fields.length > 0;
 
   // Employee and Accountant can edit basic fields on draft
@@ -194,12 +194,10 @@ export function InvoiceDetail() {
 
   const handleSaveOCRFields = async () => {
     try {
-      for (const [fieldName, value] of Object.entries(editedFields)) {
-        await api.patch(
-          `/workspaces/${currentWorkspace.id}/invoices/${id}/fields/${fieldName}`,
-          { value }
-        );
-      }
+      await api.put(
+        `/workspaces/${currentWorkspace.id}/invoices/${id}/fields/batch`,
+        { fields: editedFields }
+      );
       toast.success('Fields updated successfully');
       setIsEditing(false);
       const { data } = await api.get(

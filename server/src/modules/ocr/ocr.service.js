@@ -9,6 +9,9 @@ const preprocessImage = async (inputPath, outputPath) => {
     .grayscale()
     .normalize()
     .sharpen()
+    .resize({ width: 2000, withoutEnlargement: false })
+    .median(1)
+    .gamma(1.5)
     .toFile(outputPath);
   return outputPath;
 };
@@ -27,7 +30,7 @@ const parseInvoiceFields = (text, ocrConfidence) => {
   const fields = {};
 
   const invoiceNumberMatch = text.match(
-    /(?:invoice\s*(?:no|number|#)?[:.\s]*|inv[-\s]?)(\w+[-/]?\w+)/i
+    /(?:invoice\s*(?:no|number|num|#|n°)[\s.:]*)([\w][\w\-\/\.]{2,20})/i
   );
   fields.invoice_number = {
     value: invoiceNumberMatch ? invoiceNumberMatch[1].trim() : null,
@@ -35,7 +38,7 @@ const parseInvoiceFields = (text, ocrConfidence) => {
   };
 
   const dateMatch = text.match(
-    /(?:date[:.\s]*)?(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i
+    /(?:date[\s.:]*)?(\d{1,2}[\s\/\-\.]\d{1,2}[\s\/\-\.]\d{2,4}|\d{4}[\s\/\-\.]\d{1,2}[\s\/\-\.]\d{1,2}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s.,]+\d{1,2}[\s.,]+\d{4})/i
   );
   fields.invoice_date = {
     value: dateMatch ? dateMatch[1].trim() : null,
@@ -43,7 +46,7 @@ const parseInvoiceFields = (text, ocrConfidence) => {
   };
 
   const totalMatch = text.match(
-    /(?:total\s*(?:amount|due|price)?[:.\s]*(?:EUR|USD|TND|€|\$|DT)?)\s*([\d,]+\.?\d{0,2})/i
+    /(?:total\s*(?:amount|due|ttc|net|price|à\s*payer)?[\s.:]*)([\d\s,]+\.?\d{0,3})\s*(?:EUR|USD|TND|DT|€|\$|dt)?/i
   );
   fields.total_amount = {
     value: totalMatch ? parseFloat(totalMatch[1].replace(',', '')) : null,
@@ -51,7 +54,7 @@ const parseInvoiceFields = (text, ocrConfidence) => {
   };
 
   const taxMatch = text.match(
-    /(?:tax|tva|vat)[\s:]*(?:EUR|USD|TND|€|\$|DT)?\s*([\d,]+\.?\d{0,2})/i
+    /(?:(?:tax|tva|vat|t\.v\.a)[\s.:]*(?:\d{1,2}%)?[\s.:]*)([\d\s,]+\.?\d{0,3})\s*(?:EUR|USD|TND|DT|€|\$)?/i
   );
   fields.tax_amount = {
     value: taxMatch ? parseFloat(taxMatch[1].replace(',', '')) : null,
@@ -59,8 +62,8 @@ const parseInvoiceFields = (text, ocrConfidence) => {
   };
 
   const supplierMatch = text.match(
-    /(?:from|supplier|vendor|company|issued\s*by)[:.\s]+([A-Z][^\n]{2,50})/i
-  );
+    /(?:(?:from|supplier|vendor|fournisseur|société|company|raison\s*sociale|issued\s*by)[\s.:]+)([A-ZÀ-Ü][^\n]{2,60})/i
+  ) || text.match(/^([A-ZÀ-Ü][A-Za-zÀ-ü\s&,.-]{5,50})\n/m);
   fields.supplier_name = {
     value: supplierMatch ? supplierMatch[1].trim() : null,
     confidence: supplierMatch ? Math.min(ocrConfidence, 75) : 20,
@@ -161,6 +164,7 @@ const processInvoice = async (invoiceId, filePath, fileType) => {
   }
 };
 
+
 const getExtractedFields = async (invoiceId) => {
   const { rows } = await pool.query(
     `SELECT * FROM extracted_fields WHERE invoice_id = $1 ORDER BY field_name`,
@@ -169,23 +173,31 @@ const getExtractedFields = async (invoiceId) => {
   return rows;
 };
 
-const updateExtractedField = async (invoiceId, fieldName, newValue, userId) => {
-  const { rows } = await pool.query(
-    `UPDATE extracted_fields 
-     SET field_value = $1, 
-         manually_corrected = true,
-         corrected_by = $2,
-         needs_review = false,
-         updated_at = NOW()
-     WHERE invoice_id = $3 AND field_name = $4
-     RETURNING *`,
-    [newValue, userId, invoiceId, fieldName]
-  );
-  return rows[0];
+const updateExtractedFields = async (invoiceId, fieldsObj, userId) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const queries = Object.entries(fieldsObj).map(([fieldName, value]) => {
+      return client.query(
+        `UPDATE extracted_fields 
+         SET field_value = $1, manually_corrected = true, corrected_by = $2, needs_review = false
+         WHERE invoice_id = $3 AND field_name = $4`,
+        [value, userId, invoiceId, fieldName]
+      );
+    });
+    const results = await Promise.all(queries);
+    await client.query('COMMIT');
+    return results;
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 };
 
 module.exports = {
   processInvoice,
   getExtractedFields,
-  updateExtractedField,
+  updateExtractedFields,
 };
