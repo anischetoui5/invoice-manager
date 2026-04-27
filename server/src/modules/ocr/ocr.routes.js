@@ -5,16 +5,12 @@ const {
   triggerOCR,
   getExtractedFields,
   updateField,
-  approveInvoice,
-  rejectInvoice,
-} = require('./ocr.controller');
+} = require('./ocr.controller.js');
 
 router.use(authenticate);
 
 router.post('/invoices/:invoiceId/ocr', triggerOCR);
 router.get('/invoices/:invoiceId/fields', getExtractedFields);
 router.patch('/invoices/:invoiceId/fields/:fieldName', updateField);
-router.post('/invoices/:invoiceId/approve', approveInvoice);
-router.post('/invoices/:invoiceId/reject', rejectInvoice);
 
 module.exports = router;

@@ -7,18 +7,22 @@ const {
   searchInvoices,
   updateInvoiceStatus,
   getStatusHistory,
-  deleteDraftInvoice,
   updateInvoice,
-} = require('./invoices.controller');
+  deleteInvoice,
+} = require('./invoices.controller.js');
+const ocrController = require('../ocr/ocr.controller.js');
 
 router.use(authenticate);
 
-router.post('/',                        createInvoice);
-router.get('/',                         searchInvoices);
-router.get('/:invoice_id',              getInvoice);
-router.put('/:invoice_id',              updateInvoice);
-router.patch('/:invoice_id/status',     updateInvoiceStatus);
-router.get('/:invoice_id/history',      getStatusHistory);
-router.delete('/:invoice_id',           deleteDraftInvoice);
+router.post('/',                                    createInvoice);
+router.get('/',                                     searchInvoices);
+router.get('/:invoice_id',                          getInvoice);
+router.put('/:invoice_id',                          updateInvoice);
+router.patch('/:invoice_id/status',                 updateInvoiceStatus);
+router.get('/:invoice_id/history',                  getStatusHistory);
+router.delete('/:invoice_id',                       deleteInvoice);
+router.get('/:invoice_id/fields',                   ocrController.getExtractedFields);
+router.patch('/:invoice_id/fields/:fieldName',      ocrController.updateField);
+router.post('/:invoice_id/ocr',                     ocrController.triggerOCR);
 
 module.exports = router;

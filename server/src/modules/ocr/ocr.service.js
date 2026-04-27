@@ -4,12 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('../../config/db');
 
-/**
- * Preprocess image for better OCR accuracy
- * - Convert to grayscale
- * - Increase contrast
- * - Remove noise
- */
 const preprocessImage = async (inputPath, outputPath) => {
   await sharp(inputPath)
     .grayscale()
@@ -19,9 +13,6 @@ const preprocessImage = async (inputPath, outputPath) => {
   return outputPath;
 };
 
-/**
- * Extract text from image using Tesseract
- */
 const extractTextFromImage = async (imagePath) => {
   const { data } = await Tesseract.recognize(imagePath, 'eng', {
     logger: () => {},
@@ -32,14 +23,9 @@ const extractTextFromImage = async (imagePath) => {
   };
 };
 
-/**
- * Parse key invoice fields from raw OCR text
- * Returns each field with a confidence score
- */
 const parseInvoiceFields = (text, ocrConfidence) => {
   const fields = {};
 
-  // Invoice number
   const invoiceNumberMatch = text.match(
     /(?:invoice\s*(?:no|number|#)?[:.\s]*|inv[-\s]?)(\w+[-/]?\w+)/i
   );
@@ -48,7 +34,6 @@ const parseInvoiceFields = (text, ocrConfidence) => {
     confidence: invoiceNumberMatch ? Math.min(ocrConfidence, 90) : 20,
   };
 
-  // Date
   const dateMatch = text.match(
     /(?:date[:.\s]*)?(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i
   );
@@ -57,7 +42,6 @@ const parseInvoiceFields = (text, ocrConfidence) => {
     confidence: dateMatch ? Math.min(ocrConfidence, 85) : 20,
   };
 
-  // Total amount
   const totalMatch = text.match(
     /(?:total\s*(?:amount|due|price)?[:.\s]*(?:EUR|USD|TND|€|\$|DT)?)\s*([\d,]+\.?\d{0,2})/i
   );
@@ -66,7 +50,6 @@ const parseInvoiceFields = (text, ocrConfidence) => {
     confidence: totalMatch ? Math.min(ocrConfidence, 88) : 20,
   };
 
-  // Tax amount
   const taxMatch = text.match(
     /(?:tax|tva|vat)[\s:]*(?:EUR|USD|TND|€|\$|DT)?\s*([\d,]+\.?\d{0,2})/i
   );
@@ -75,7 +58,6 @@ const parseInvoiceFields = (text, ocrConfidence) => {
     confidence: taxMatch ? Math.min(ocrConfidence, 80) : 20,
   };
 
-  // Supplier name
   const supplierMatch = text.match(
     /(?:from|supplier|vendor|company|issued\s*by)[:.\s]+([A-Z][^\n]{2,50})/i
   );
@@ -87,15 +69,10 @@ const parseInvoiceFields = (text, ocrConfidence) => {
   return fields;
 };
 
-/**
- * Main OCR processing function
- * Called after invoice upload
- */
 const processInvoice = async (invoiceId, filePath, fileType) => {
   let processedImagePath = null;
 
   try {
-    // Update status to processing
     await pool.query(
       `UPDATE invoices SET ocr_status = 'processing' WHERE id = $1`,
       [invoiceId]
@@ -103,7 +80,6 @@ const processInvoice = async (invoiceId, filePath, fileType) => {
 
     let imagePath = filePath;
 
-    // If PDF, convert first page to image
     if (fileType === 'application/pdf' || filePath.endsWith('.pdf')) {
       const pdfPoppler = require('pdf-poppler');
       const outputDir = path.dirname(filePath);
@@ -118,18 +94,13 @@ const processInvoice = async (invoiceId, filePath, fileType) => {
       processedImagePath = imagePath;
     }
 
-    // Preprocess image
     const preprocessedPath = filePath.replace(/(\.[^.]+)$/, '_processed$1');
     await preprocessImage(imagePath, preprocessedPath);
     processedImagePath = preprocessedPath;
 
-    // Run OCR
     const { text, confidence } = await extractTextFromImage(preprocessedPath);
-
-    // Parse fields
     const fields = parseInvoiceFields(text, confidence);
 
-    // Save extracted fields to DB
     for (const [fieldName, fieldData] of Object.entries(fields)) {
       if (fieldData.value !== null) {
         await pool.query(
@@ -149,7 +120,6 @@ const processInvoice = async (invoiceId, filePath, fileType) => {
       }
     }
 
-    // Calculate average confidence
     const allConfidences = Object.values(fields)
       .filter((f) => f.value !== null)
       .map((f) => f.confidence);
@@ -159,25 +129,16 @@ const processInvoice = async (invoiceId, filePath, fileType) => {
         ? allConfidences.reduce((a, b) => a + b, 0) / allConfidences.length
         : 0;
 
-    const hasLowConfidence = Object.values(fields).some(
-      (f) => f.value !== null && f.confidence < 70
+    // ✅ Only update OCR fields — never touch current_status
+    // The invoice status flow is handled by the validation workflow
+    await pool.query(
+      `UPDATE invoices 
+       SET ocr_status = 'completed', 
+           ocr_confidence = $1
+       WHERE id = $2`,
+      [avgConfidence, invoiceId]
     );
 
-    // ✅ Fixed: use current_status instead of status
-        await pool.query(
-        `UPDATE invoices 
-        SET ocr_status = 'completed', 
-            ocr_confidence = $1,
-            current_status = $2
-        WHERE id = $3`,
-        [
-            avgConfidence,
-            hasLowConfidence ? 'pending_review' : 'approved',
-            invoiceId,
-        ]
-        );
-
-    // Cleanup temp files
     if (processedImagePath && fs.existsSync(processedImagePath)) {
       fs.unlinkSync(processedImagePath);
     }
@@ -186,7 +147,6 @@ const processInvoice = async (invoiceId, filePath, fileType) => {
     return { success: true, fields, confidence: avgConfidence };
 
   } catch (err) {
-    // Mark as failed
     await pool.query(
       `UPDATE invoices SET ocr_status = 'failed' WHERE id = $1`,
       [invoiceId]
@@ -196,13 +156,11 @@ const processInvoice = async (invoiceId, filePath, fileType) => {
       fs.unlinkSync(processedImagePath);
     }
 
+    console.error('OCR error:', err.message);
     throw err;
   }
 };
 
-/**
- * Get extracted fields for an invoice
- */
 const getExtractedFields = async (invoiceId) => {
   const { rows } = await pool.query(
     `SELECT * FROM extracted_fields WHERE invoice_id = $1 ORDER BY field_name`,
@@ -211,16 +169,14 @@ const getExtractedFields = async (invoiceId) => {
   return rows;
 };
 
-/**
- * Update a field manually (accountant correction)
- */
 const updateExtractedField = async (invoiceId, fieldName, newValue, userId) => {
   const { rows } = await pool.query(
     `UPDATE extracted_fields 
      SET field_value = $1, 
          manually_corrected = true,
          corrected_by = $2,
-         needs_review = false
+         needs_review = false,
+         updated_at = NOW()
      WHERE invoice_id = $3 AND field_name = $4
      RETURNING *`,
     [newValue, userId, invoiceId, fieldName]

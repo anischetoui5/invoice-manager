@@ -85,17 +85,6 @@ async function getStatusHistory(req, res) {
   }
 }
 
-async function deleteDraftInvoice(req, res) {
-  try {
-    const { workspace_id, invoice_id } = req.params;
-    await invoicesService.deleteDraftInvoice(invoice_id, workspace_id);
-    res.status(200).json({ message: 'Draft invoice deleted successfully' });
-  } catch (err) {
-    console.error('deleteDraftInvoice error:', err.message);
-    res.status(400).json({ error: err.message });
-  }
-}
-
 async function getAllInvoices(req, res) {
   try {
     const { status, vendor_name, page, limit } = req.query;
@@ -121,13 +110,24 @@ async function updateInvoice(req, res) {
   }
 }
 
+async function deleteInvoice(req, res) {
+  try {
+    const { workspace_id, invoice_id } = req.params;
+    await invoicesService.deleteInvoice(invoice_id, workspace_id, req.user.userId);
+    res.status(200).json({ message: 'Invoice deleted successfully' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+
 module.exports = {
   createInvoice,
   getInvoice,
   searchInvoices,
   updateInvoiceStatus,
   getStatusHistory,
-  deleteDraftInvoice,
   getAllInvoices,
   updateInvoice,
+  deleteInvoice,
 };

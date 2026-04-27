@@ -141,18 +141,6 @@ async function getStatusHistory(invoice_id) {
   return result.rows;
 }
 
-async function deleteDraftInvoice(invoice_id, workspace_id) {
-  const check = await db.query(
-    `SELECT current_status FROM invoices WHERE id = $1 AND workspace_id = $2`,
-    [invoice_id, workspace_id]
-  );
-  if (check.rows.length === 0) throw new Error('Invoice not found');
-  if (check.rows[0].current_status !== 'draft') {
-    throw new Error('Only draft invoices can be deleted');
-  }
-  await db.query(`DELETE FROM invoices WHERE id = $1`, [invoice_id]);
-}
-
 async function getAllInvoices({ status, vendor_name, page = 1, limit = 20 }) {
   const conditions = [];
   const values = [];
@@ -211,13 +199,60 @@ async function updateInvoice(invoice_id, workspace_id, { invoice_number, vendor_
   return result.rows[0];
 }
 
+async function deleteInvoice(invoice_id, workspace_id, userId) {
+  // Check invoice exists and is draft
+  const check = await db.query(
+    `SELECT i.*, m.role_id, r.name as role
+     FROM invoices i
+     JOIN memberships m ON m.workspace_id = i.workspace_id AND m.user_id = $3
+     JOIN roles r ON r.id = m.role_id
+     WHERE i.id = $1 AND i.workspace_id = $2`,
+    [invoice_id, workspace_id, userId]
+  );
+
+  if (!check.rows.length) throw new Error('Invoice not found');
+
+  const invoice = check.rows[0];
+
+  if (invoice.current_status !== 'draft') {
+    throw new Error('Only draft invoices can be deleted');
+  }
+
+  if (!['Director', 'Employee'].includes(invoice.role)) {
+    throw new Error('Only Directors and Employees can delete invoices');
+  }
+
+  // Employee can only delete their own invoices
+  if (invoice.role === 'Employee' && invoice.created_by !== userId) {
+    throw new Error('You can only delete your own invoices');
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Delete in order to respect foreign keys
+    await client.query(`DELETE FROM extracted_fields WHERE invoice_id = $1`, [invoice_id]);
+    await client.query(`DELETE FROM status_history WHERE invoice_id = $1`, [invoice_id]);
+    await client.query(`DELETE FROM documents WHERE invoice_id = $1`, [invoice_id]);
+    await client.query(`DELETE FROM invoices WHERE id = $1`, [invoice_id]);
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   createInvoice,
   getInvoiceById,
   updateInvoiceStatus,
   getStatusHistory,
-  deleteDraftInvoice,
   searchInvoices,
   getAllInvoices,
   updateInvoice,
+  deleteInvoice,
 };
