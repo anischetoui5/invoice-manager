@@ -145,6 +145,7 @@ CREATE TABLE extracted_fields (
     manually_corrected boolean DEFAULT false,
     created_at timestamp DEFAULT now(),
     updated_at timestamp DEFAULT now(),
+    corrected_by UUID REFERENCES users(id) ON DELETE SET NULL;
     UNIQUE(invoice_id, field_name)
 );
 

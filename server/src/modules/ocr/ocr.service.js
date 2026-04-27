@@ -180,7 +180,11 @@ const updateExtractedFields = async (invoiceId, fieldsObj, userId) => {
     const queries = Object.entries(fieldsObj).map(([fieldName, value]) => {
       return client.query(
         `UPDATE extracted_fields 
-         SET field_value = $1, manually_corrected = true, corrected_by = $2, needs_review = false
+         SET field_value = $1, 
+             manually_corrected = true, 
+             corrected_by = $2, 
+             needs_review = false,
+             updated_at = NOW()
          WHERE invoice_id = $3 AND field_name = $4`,
         [value, userId, invoiceId, fieldName]
       );

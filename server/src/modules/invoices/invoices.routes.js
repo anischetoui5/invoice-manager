@@ -24,7 +24,7 @@ router.get('/:invoice_id/history', getStatusHistory);
 
 // ── Director / Accountant and above ──────────────────────────
 router.put('/:invoice_id',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant'),
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
   updateInvoice
 );
 router.patch('/:invoice_id/status',
