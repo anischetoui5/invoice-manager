@@ -143,7 +143,7 @@ export function InvoiceDetail() {
   const canApproveReject = role === 'Accountant' && status === 'pending_review';
 
   // Accountant and Director can edit OCR fields
-  const canEditOCR = (role === 'Accountant' || role === 'Director') && fields.length > 0;
+  const canEditOCR = (role === 'Accountant' || role === 'Director' || role === 'Employee') && fields.length > 0;
 
   // Employee and Accountant can edit basic fields on draft
   const canEditBasic = status === 'draft' &&
