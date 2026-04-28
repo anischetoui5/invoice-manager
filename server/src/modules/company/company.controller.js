@@ -12,7 +12,7 @@ async function getCompany(req, res) {
 async function updateCompany(req, res) {
   try {
     const company = await companyService.updateCompany(
-      req.user.userId,
+      req.user.id,
       req.params.workspaceId,
       req.body
     );
@@ -34,7 +34,7 @@ async function getMembers(req, res) {
 async function removeMember(req, res) {
   try {
     await companyService.removeMember(
-      req.user.userId,
+      req.user.id,
       req.params.workspaceId,
       req.params.memberId
     );
@@ -47,7 +47,7 @@ async function removeMember(req, res) {
 async function getInvitations(req, res) {
   try {
     const invitations = await companyService.getInvitations(
-      req.user.userId,
+      req.user.id,
       req.params.workspaceId
     );
     res.status(200).json({ invitations });

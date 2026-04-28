@@ -12,7 +12,7 @@ async function getAllUsers(req, res) {
 
 async function getMe(req, res) {
   try {
-    const user = await usersService.getMe(req.user.userId);
+    const user = await usersService.getMe(req.user.id);
     res.status(200).json({ user });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -25,7 +25,7 @@ async function updateMe(req, res) {
     if (!name && !email) {
       return res.status(400).json({ error: 'Nothing to update' });
     }
-    const user = await usersService.updateMe(req.user.userId, { name, email });
+    const user = await usersService.updateMe(req.user.id, { name, email });
     res.status(200).json({ message: 'Profile updated', user });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -38,7 +38,7 @@ async function updatePassword(req, res) {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Both current and new password are required' });
     }
-    await usersService.updatePassword(req.user.userId, { currentPassword, newPassword });
+    await usersService.updatePassword(req.user.id, { currentPassword, newPassword });
     res.status(200).json({ message: 'Password updated successfully' });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -47,7 +47,7 @@ async function updatePassword(req, res) {
 
 async function getWorkspaceMembers(req, res) {
   try {
-    const members = await usersService.getWorkspaceMembers(req.user.userId, req.params.workspaceId);
+    const members = await usersService.getWorkspaceMembers(req.user.id, req.params.workspace_id);
     res.status(200).json({ members });
   } catch (err) {
     res.status(403).json({ error: err.message });
@@ -57,7 +57,7 @@ async function getWorkspaceMembers(req, res) {
 async function updateMemberRole(req, res) {
   try {
     const member = await usersService.updateMemberRole(
-      req.user.userId, req.params.workspaceId, req.params.userId, req.body.roleName
+      req.user.id, req.params.workspaceId, req.params.userId, req.body.roleName
     );
     res.status(200).json({ message: 'Role updated', member });
   } catch (err) {
@@ -67,7 +67,7 @@ async function updateMemberRole(req, res) {
 
 async function removeMember(req, res) {
   try {
-    await usersService.removeMember(req.user.userId, req.params.workspaceId, req.params.userId);
+    await usersService.removeMember(req.user.id, req.params.workspaceId, req.params.userId);
     res.status(200).json({ message: 'Member removed successfully' });
   } catch (err) {
     res.status(403).json({ error: err.message });

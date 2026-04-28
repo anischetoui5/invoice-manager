@@ -206,6 +206,108 @@ async function deleteInvoice(invoice_id, workspace_id, userId) {
   }
 }
 
+async function getDashboardStats(workspaceId, userId, role) {
+  const r = role?.toLowerCase();
+
+  if (r === 'personal' || r === 'normal') {
+    const result = await pool.query(
+      `SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE current_status = 'pending_review') as pending,
+        COUNT(*) FILTER (WHERE current_status = 'approved') as approved,
+        COUNT(*) FILTER (WHERE current_status = 'rejected') as rejected,
+        COALESCE(SUM(amount) FILTER (WHERE current_status = 'approved'), 0) as total_amount
+       FROM invoices
+       WHERE workspace_id = $1 AND created_by = $2`,
+      [workspaceId, userId]
+    );
+    return result.rows[0];
+  }
+
+  if (r === 'employee') {
+    const result = await pool.query(
+      `SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE current_status = 'pending_review') as pending,
+        COUNT(*) FILTER (WHERE current_status = 'approved') as approved,
+        COUNT(*) FILTER (WHERE current_status = 'rejected') as rejected,
+        COALESCE(SUM(amount) FILTER (WHERE current_status = 'approved'), 0) as total_amount
+       FROM invoices
+       WHERE workspace_id = $1 AND created_by = $2`,
+      [workspaceId, userId]
+    );
+    return result.rows[0];
+  }
+
+  if (r === 'accountant') {
+    const result = await pool.query(
+      `SELECT
+        COUNT(*) FILTER (WHERE current_status = 'pending_review') as pending_validation,
+        COUNT(*) FILTER (WHERE current_status = 'approved') as approved,
+        COUNT(*) FILTER (WHERE current_status = 'rejected') as rejected,
+        COUNT(*) FILTER (WHERE current_status = 'approved' AND created_at >= date_trunc('day', NOW())) as validated_today
+       FROM invoices
+       WHERE workspace_id = $1`,
+      [workspaceId]
+    );
+    return result.rows[0];
+  }
+
+  if (r === 'director') {
+    const invoiceStats = await pool.query(
+      `SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE current_status = 'approved') as approved,
+        COUNT(*) FILTER (WHERE current_status = 'rejected') as rejected,
+        COUNT(*) FILTER (WHERE current_status = 'pending_review') as pending,
+        COALESCE(SUM(amount) FILTER (WHERE current_status = 'approved'), 0) as total_amount,
+        CASE WHEN COUNT(*) > 0
+          THEN ROUND(COUNT(*) FILTER (WHERE current_status = 'approved') * 100.0 / COUNT(*), 1)
+          ELSE 0
+        END as approval_rate
+       FROM invoices
+       WHERE workspace_id = $1`,
+      [workspaceId]
+    );
+
+    const memberStats = await pool.query(
+      `SELECT COUNT(*) as total_members FROM memberships WHERE workspace_id = $1`,
+      [workspaceId]
+    );
+
+    return {
+      ...invoiceStats.rows[0],
+      total_members: memberStats.rows[0].total_members,
+    };
+  }
+
+  if (r === 'admin') {
+    const users     = await pool.query(`SELECT COUNT(*) as total_users FROM users`);
+    const companies = await pool.query(`SELECT COUNT(*) as total_companies FROM companies`);
+    const invoices  = await pool.query(`SELECT COUNT(*) as total_invoices FROM invoices`);
+    const roleStats = await pool.query(
+      `SELECT r.name as role, COUNT(*) as count
+       FROM memberships m
+       JOIN roles r ON r.id = m.role_id
+       GROUP BY r.name`
+    );
+
+    const roleCounts = roleStats.rows.reduce((acc, row) => {
+      acc[row.role.toLowerCase()] = parseInt(row.count);
+      return acc;
+    }, {});
+
+    return {
+      total_users:     users.rows[0].total_users,
+      total_companies: companies.rows[0].total_companies,
+      total_invoices:  invoices.rows[0].total_invoices,
+      role_counts:     roleCounts,
+    };
+  }
+
+  return {};
+}
+
 async function getAllInvoices({
   status, vendor_name, workspace_name, company_name,
   invoice_date_from, invoice_date_to,
@@ -295,4 +397,5 @@ module.exports = {
   getAllInvoices,
   updateInvoice,
   deleteInvoice,
+  getDashboardStats,
 };

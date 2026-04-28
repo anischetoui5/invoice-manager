@@ -234,11 +234,11 @@ export function InvoiceDetail() {
   const canApproveReject = role === 'Accountant' && status === 'pending_review';
 
   const canEditOCR = status === 'draft' &&
-    (role === 'Director' || role === 'Employee') &&
+    (role === 'Director' || role === 'Employee' || role === 'Personal') &&
     fields.length > 0;
 
   const canEditBasic = status === 'draft' &&
-    (role === 'Employee' || role === 'Director');
+    (role === 'Employee' || role === 'Director' || role === 'Personal');
 
   const canDelete = role === 'Director' &&
     !['approved', 'paid', 'archived'].includes(status);

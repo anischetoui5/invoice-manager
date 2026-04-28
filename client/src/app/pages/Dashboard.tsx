@@ -16,10 +16,15 @@ interface DashboardProps {
 }
 
 export function Dashboard({ userRole }: DashboardProps) {
-  const { currentWorkspace, currentUser } = useOutletContext<{
+  const { currentWorkspace, currentUser, workspaces } = useOutletContext<{
     currentWorkspace: Workspace;
     currentUser: User;
+    workspaces: Workspace[];
   }>();
+
+  const hasCompanyRole = workspaces?.some(w => 
+    w.type === 'company' && ['Employee', 'Director'].includes(w.role)
+  );
 
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -29,7 +34,7 @@ export function Dashboard({ userRole }: DashboardProps) {
 
   setStats(null); // ← clear stale stats immediately
 
-  api.get(`/workspaces/${currentWorkspace.id}/stats`, {
+  api.get(`/workspaces/${currentWorkspace.id}/invoices/dashboard-stats`, {
     params: { role: currentWorkspace.role },
     headers: { 'Cache-Control': 'no-cache' },
   })
@@ -138,7 +143,7 @@ useEffect(() => {
           </Card>
 
           <div className="space-y-6">
-            <JoinCompany userRole="normal" />
+            {!hasCompanyRole && <JoinCompany userRole="normal" />}
             <Card className="p-6">
               <div className="mb-4">
                 <h3 className="font-semibold text-foreground">Quick Actions</h3>
@@ -448,7 +453,7 @@ useEffect(() => {
         </div>
 
         <div className="mt-6">
-          <JoinCompany userRole={userRole} />
+          {!hasCompanyRole && <JoinCompany userRole={userRole} />}
         </div>
       </>
     );

@@ -6,7 +6,7 @@ async function createInvitationRequest(req, res) {
     if (!code || !role) {
       return res.status(400).json({ error: 'Code and role are required' });
     }
-    await invitationsService.createInvitationRequest(req.user.userId, code, role);
+    await invitationsService.createInvitationRequest(req.user.id, code, role);
     res.status(201).json({ message: 'Join request sent. Waiting for director approval.' });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -17,7 +17,7 @@ async function getPendingInvitations(req, res) {
   try {
     const invitations = await invitationsService.getPendingInvitations(
       req.params.workspaceId,
-      req.user.userId
+      req.user.id
     );
     res.status(200).json({ invitations });
   } catch (err) {
@@ -32,7 +32,7 @@ async function handleInvitation(req, res) {
       return res.status(400).json({ error: 'Action must be accept or reject' });
     }
     await invitationsService.handleInvitation(
-      req.user.userId,
+      req.user.id,
       req.params.invitationId,
       action,
       contractStart,

@@ -65,7 +65,7 @@ const updateExtractedFields = async (req, res) => {
   }
 
   try {
-    await ocrService.updateExtractedFields(invoice_id, fields, req.user.userId);
+    await ocrService.updateExtractedFields(invoice_id, fields, req.user.id);
     res.status(200).json({ message: 'Fields updated successfully' });
   } catch (err) {
     res.status(400).json({ error: err.message });

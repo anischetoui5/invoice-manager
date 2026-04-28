@@ -21,7 +21,7 @@ router.post('/:workspace_id/invite',
   generateInviteCode
 );
 router.get('/:workspace_id/stats',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Normal'),
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'),
   getWorkspaceStats
 );
 

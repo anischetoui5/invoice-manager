@@ -1,17 +1,17 @@
-const db = require('../../config/db');
+const pool = require('../../config/db');
 const fs = require('fs');
 const path = require('path');
 
 async function attachDocument({ invoice_id, file_name, mime_type, file_size, storage_path, uploaded_by, is_primary = true }) {
   // If this is marked primary, demote any existing primary document first
   if (is_primary) {
-    await db.query(
+    await pool.query(
       `UPDATE documents SET is_primary = FALSE WHERE invoice_id = $1`,
       [invoice_id]
     );
   }
 
-  const result = await db.query(
+  const result = await pool.query(
     `INSERT INTO documents (invoice_id, file_name, mime_type, file_size, storage_path, is_primary, uploaded_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
@@ -22,7 +22,7 @@ async function attachDocument({ invoice_id, file_name, mime_type, file_size, sto
 }
 
 async function getDocumentsByInvoice(invoice_id) {
-  const result = await db.query(
+  const result = await pool.query(
     `SELECT d.*, u.name AS uploaded_by_name
      FROM documents d
      LEFT JOIN users u ON u.id = d.uploaded_by
@@ -34,7 +34,7 @@ async function getDocumentsByInvoice(invoice_id) {
 }
 
 async function getDocumentById(document_id) {
-  const result = await db.query(
+  const result = await pool.query(
     `SELECT * FROM documents WHERE id = $1`,
     [document_id]
   );
@@ -50,7 +50,7 @@ async function deleteDocument(document_id) {
     fs.unlinkSync(doc.storage_path);
   }
 
-  await db.query(`DELETE FROM documents WHERE id = $1`, [document_id]);
+  await pool.query(`DELETE FROM documents WHERE id = $1`, [document_id]);
 }
 
 /*
@@ -71,7 +71,7 @@ async function getInvoiceFullDetails(invoice_id) {
     WHERE i.id = $1
   `;
   
-  const result = await db.query(query, [invoice_id]);
+  const result = await pool.query(query, [invoice_id]);
   return result.rows[0];
 }
 */

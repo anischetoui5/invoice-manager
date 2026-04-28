@@ -15,7 +15,7 @@ const getMySubscription = async (req, res) => {
   try {
     const workspaceId = req.headers['x-workspace-id'] || null;
     const subscription = await subscriptionService.getMySubscription(
-      req.user.userId,
+      req.user.id,
       workspaceId
     );
     res.status(200).json({ subscription });
@@ -34,7 +34,7 @@ const previewPersonalUpgrade = async (req, res) => {
     if (!planId) return res.status(400).json({ error: 'planId is required' });
 
     const preview = await subscriptionService.getPersonalUpgradePreview(
-      req.user.userId,
+      req.user.id,
       parseInt(planId)
     );
     res.status(200).json(preview);
@@ -48,7 +48,7 @@ const upgradePlan = async (req, res) => {
     const workspaceId = req.headers['x-workspace-id'] || null;
     const { planId } = req.body;
     const result = await subscriptionService.upgradePlan(
-      req.user.userId,
+      req.user.id,
       workspaceId,
       planId
     );
