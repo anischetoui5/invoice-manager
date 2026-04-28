@@ -1,6 +1,7 @@
+// workspace.routes.js
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../../middlewares/auth.middleware');
+const { authenticate, authorizeInWorkspace } = require('../../middlewares/auth.middleware');
 const {
   createWorkspace,
   getMyWorkspaces,
@@ -10,9 +11,18 @@ const {
 
 router.use(authenticate);
 
+// any authenticated user can create a workspace or view their own
 router.post('/', createWorkspace);
 router.get('/my', getMyWorkspaces);
-router.post('/:id/invite', generateInviteCode);
-router.get('/:id/stats', getWorkspaceStats); 
+
+// must be a workspace member to access these
+router.post('/:workspace_id/invite',
+  authorizeInWorkspace('Admin', 'Director'),
+  generateInviteCode
+);
+router.get('/:workspace_id/stats',
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Normal'),
+  getWorkspaceStats
+);
 
 module.exports = router;

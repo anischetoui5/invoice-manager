@@ -1,30 +1,38 @@
+// users.routes.js
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../../middlewares/auth.middleware');
+const { authenticate, authorizeInWorkspace, authorizeAdmin } = require('../../middlewares/auth.middleware');
 const {
-  getWorkspaceMembers,
-  updateMemberRole,
-  removeMember,
-  getMe,
-  updateMe,
-  updatePassword,
-  getUserById, 
-  adminUpdateUser,
-  deleteUser
+  getMe, updateMe, updatePassword,
+  getWorkspaceMembers, updateMemberRole, removeMember,
+  getAllUsers, getUserById, adminUpdateUser, deleteUser,
 } = require('./users.controller');
-const usersController = require('./users.controller');
 
 router.use(authenticate);
 
-router.get('/me', getMe);
-router.put('/me', updateMe);
+// ── Personal profile ──────────────────────────────────────────
+router.get('/me',          getMe);
+router.put('/me',          updateMe);
 router.put('/me/password', updatePassword);
-router.get('/workspace/:workspaceId/members', getWorkspaceMembers);
-router.get('/', usersController.getAllUsers);
-router.get('/:userId', getUserById);
-router.put('/:userId', adminUpdateUser);
-router.delete('/:userId', deleteUser);
-router.patch('/workspace/:workspaceId/members/:userId/role', updateMemberRole);
-router.delete('/workspace/:workspaceId/members/:userId', removeMember);
+
+// ── Workspace-scoped ──────────────────────────────────────────
+router.get('/workspace/:workspace_id/members',
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Normal'),
+  getWorkspaceMembers
+);
+router.patch('/workspace/:workspace_id/members/:userId/role',
+  authorizeInWorkspace('Admin', 'Director'),
+  updateMemberRole
+);
+router.delete('/workspace/:workspace_id/members/:userId',
+  authorizeInWorkspace('Admin', 'Director'),
+  removeMember
+);
+
+// ── Admin only ────────────────────────────────────────────────
+router.get('/',           authorizeAdmin, getAllUsers);
+router.get('/:userId',    authorizeAdmin, getUserById);
+router.put('/:userId',    authorizeAdmin, adminUpdateUser);
+router.delete('/:userId', authorizeAdmin, deleteUser);
 
 module.exports = router;

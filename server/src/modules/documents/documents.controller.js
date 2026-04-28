@@ -10,9 +10,8 @@ async function uploadDocument(req, res) {
     }
 
     const { invoice_id, workspace_id } = req.params;
-    const uploaded_by = req.user.userId; // fixed: was req.user.id
+    const uploaded_by = req.user.id; // ← .id
 
-    // Verify invoice belongs to this workspace
     await invoicesService.getInvoiceById(invoice_id, workspace_id);
 
     const document = await documentsService.attachDocument({
@@ -68,11 +67,17 @@ async function downloadDocument(req, res) {
 async function deleteDocument(req, res) {
   try {
     const { document_id } = req.params;
-    await documentsService.deleteDocument(document_id);
+    const userId = req.user.id;  // ← pass user info for ownership check
+    const role = req.role;       // ← from authorizeInWorkspace
+
+    await documentsService.deleteDocument(document_id, userId, role);
     res.status(200).json({ message: 'Document deleted successfully' });
   } catch (err) {
     console.error('deleteDocument error:', err.message);
-    res.status(400).json({ error: err.message });
+    const status = err.message.includes('not found') ? 404
+      : err.message.includes('permission') ? 403
+      : 400;
+    res.status(status).json({ error: err.message });
   }
 }
 

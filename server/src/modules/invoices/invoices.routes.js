@@ -24,7 +24,7 @@ router.get('/:invoice_id/history', getStatusHistory);
 
 // ── Director / Accountant and above ──────────────────────────
 router.put('/:invoice_id',
-  authorizeInWorkspace('Admin', 'Director', 'Employee'),
+  authorizeInWorkspace('Admin', 'Director', 'Employee', 'Personal'),
   updateInvoice
 );
 router.patch('/:invoice_id/status',
@@ -34,21 +34,21 @@ router.patch('/:invoice_id/status',
 
 // ── Director and above only ───────────────────────────────────
 router.delete('/:invoice_id',
-  authorizeInWorkspace('Admin', 'Director', 'Employee'),
+  authorizeInWorkspace('Admin', 'Director', 'Employee', 'Personal'),
   deleteInvoice
 );
 
 // ── OCR ───────────────────────────────────────────────────────
 router.get('/:invoice_id/fields',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'),
   ocrController.getExtractedFields
 );
 router.patch('/:invoice_id/fields',
-  authorizeInWorkspace('Admin', 'Director', 'Employee'),
+  authorizeInWorkspace('Admin', 'Director', 'Employee', 'Personal'),
   ocrController.updateExtractedFields
 );
 router.post('/:invoice_id/ocr',
-  authorizeInWorkspace('Admin', 'Director', 'Employee'),
+  authorizeInWorkspace('Admin', 'Director', 'Employee', 'Personal'),
   ocrController.triggerOCR
 );
 

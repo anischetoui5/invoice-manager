@@ -2,16 +2,13 @@ const express = require('express');
 const router = express.Router({ mergeParams: true });
 const multer = require('multer');
 const path = require('path');
-const { authenticate } = require('../../middlewares/auth.middleware');
+const { authenticate, authorizeInWorkspace } = require('../../middlewares/auth.middleware');
 const {
   uploadDocument,
   getDocuments,
   downloadDocument,
   deleteDocument,
 } = require('./documents.controller');
-
-
-// const documentsController = require('./documents.controller');
 
 // ── Multer configuration ──────────────────────────────────────
 const ALLOWED_MIME_TYPES = [
@@ -20,12 +17,10 @@ const ALLOWED_MIME_TYPES = [
   'image/png',
   'image/tiff',
 ];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
+  destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => {
     const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     cb(null, `${unique}${path.extname(file.originalname)}`);
@@ -40,13 +35,8 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: MAX_FILE_SIZE },
-});
+const upload = multer({ storage, fileFilter, limits: { fileSize: MAX_FILE_SIZE } });
 
-// Multer error handler
 function handleMulterError(err, req, res, next) {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
@@ -54,28 +44,29 @@ function handleMulterError(err, req, res, next) {
     }
     return res.status(400).json({ error: err.message });
   }
-  if (err) {
-    return res.status(400).json({ error: err.message });
-  }
+  if (err) return res.status(400).json({ error: err.message });
   next();
 }
 
 // ── Routes ────────────────────────────────────────────────────
 router.use(authenticate);
+router.use(authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Normal'));
 
-// POST   /api/workspaces/:workspace_id/invoices/:invoice_id/documents         — upload file
-router.post('/', upload.single('file'), handleMulterError, uploadDocument);
-
-// GET    /api/workspaces/:workspace_id/invoices/:invoice_id/documents         — list documents
-router.get('/', getDocuments);
-
-// GET    /api/workspaces/:workspace_id/invoices/:invoice_id/documents/:document_id/download
+// all members can view and download documents
+router.get('/',                     getDocuments);
 router.get('/:document_id/download', downloadDocument);
 
-// DELETE /api/workspaces/:workspace_id/invoices/:invoice_id/documents/:document_id
-router.delete('/:document_id', deleteDocument);
+// all members can upload (they upload to their own invoices)
+router.post('/',
+  upload.single('file'),
+  handleMulterError,
+  uploadDocument
+);
 
-// Get invoice : full details
-// router.get('/invoice-detail/:invoice_id', documentsController.getInvoiceDetail);
+// only Director and above can delete documents
+router.delete('/:document_id',
+  authorizeInWorkspace('Admin', 'Director', 'Employee', 'Normal'),
+  deleteDocument
+);
 
 module.exports = router;
