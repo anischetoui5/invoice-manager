@@ -1,11 +1,21 @@
+// subscription.routes.js
 const express = require('express');
 const router = express.Router();
-const { getPlans, getMySubscription, previewPersonalUpgrade, upgradePlan } = require('./subscription.controller');
 const { authenticate } = require('../../middlewares/auth.middleware');
+const {
+  getPlans,
+  getMySubscription,
+  previewPersonalUpgrade,
+  upgradePlan,
+} = require('./subscription.controller');
 
+// public
 router.get('/plans', getPlans);
-router.get('/my', authenticate, getMySubscription);
-router.get('/preview-upgrade', authenticate, previewPersonalUpgrade);
-router.patch('/upgrade', authenticate, upgradePlan);
+
+// authenticated
+router.use(authenticate);
+router.get('/my', getMySubscription);
+router.get('/preview-upgrade', previewPersonalUpgrade);
+router.patch('/upgrade', upgradePlan);
 
 module.exports = router;

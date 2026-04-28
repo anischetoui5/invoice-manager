@@ -1,3 +1,4 @@
+// Subscription.tsx
 import { useState, useEffect } from 'react';
 import { Check, CreditCard, Users, FileText, Zap, TrendingUp, X, Lock } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
@@ -40,7 +41,6 @@ interface PaymentModal {
   credit: number;
 }
 
-// Simple card number formatter
 const formatCardNumber = (value: string) => {
   return value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
 };
@@ -62,7 +62,6 @@ export function Subscription() {
     credit: 0,
   });
 
-  // Card form state
   const [cardData, setCardData] = useState({
     cardName: '',
     cardNumber: '',
@@ -70,8 +69,9 @@ export function Subscription() {
     cvc: '',
   });
 
-  const { currentSubscription: realSubscription } = useOutletContext<{
+  const { currentSubscription: realSubscription, currentWorkspace } = useOutletContext<{
     currentSubscription: SubscriptionType;
+    currentWorkspace: { id: string };
   }>();
 
   const currentSubscription = realSubscription || {
@@ -110,15 +110,11 @@ export function Subscription() {
       ? (currentSubscription.userCount / currentSubscription.userLimit) * 100
       : 0;
 
-  // Called when user clicks Upgrade — preview charge before payment
   const handleUpgradeClick = async (plan: Plan) => {
     try {
-      // Pre-calculate what they'll be charged (dry run)
-      const workspaceId = localStorage.getItem('activeWorkspaceId');
-      const response = await api.post('/subscriptions/preview-upgrade', {
-        planId: plan.id,
-      }, {
-        headers: workspaceId ? { 'x-workspace-id': workspaceId } : {},
+      const response = await api.get('/subscriptions/preview-upgrade', {
+        params: { planId: plan.id },
+        headers: { 'x-workspace-id': currentWorkspace?.id },
       });
 
       setPaymentModal({
@@ -128,7 +124,6 @@ export function Subscription() {
         credit: response.data.credit,
       });
     } catch (err: any) {
-      // If no preview endpoint yet, just show full price
       setPaymentModal({
         isOpen: true,
         plan,
@@ -138,7 +133,6 @@ export function Subscription() {
     }
   };
 
-  // Validate card fields
   const validateCard = () => {
     const cleanCard = cardData.cardNumber.replace(/\s/g, '');
     if (!cardData.cardName.trim()) {
@@ -160,23 +154,18 @@ export function Subscription() {
     return true;
   };
 
-  // Called when user submits payment form
   const handlePaymentSubmit = async () => {
     if (!validateCard() || !paymentModal.plan) return;
 
     setIsProcessing(true);
 
     try {
-      // Simulate payment processing delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      const workspaceId = localStorage.getItem('activeWorkspaceId');
       const response = await api.patch(
         '/subscriptions/upgrade',
         { planId: paymentModal.plan.id },
-        {
-          headers: workspaceId ? { 'x-workspace-id': workspaceId } : {},
-        }
+        { headers: { 'x-workspace-id': currentWorkspace?.id } }
       );
 
       const { amountCharged, credit } = response.data;
@@ -367,8 +356,6 @@ export function Subscription() {
       {paymentModal.isOpen && paymentModal.plan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
-            
-            {/* Close button */}
             <button
               onClick={() => setPaymentModal({ isOpen: false, plan: null, amountCharged: 0, credit: 0 })}
               className="absolute right-4 top-4 text-slate-400 hover:text-slate-600"
@@ -376,7 +363,6 @@ export function Subscription() {
               <X className="h-5 w-5" />
             </button>
 
-            {/* Header */}
             <div className="mb-6">
               <h2 className="text-xl font-bold text-slate-800">Complete Your Upgrade</h2>
               <p className="mt-1 text-sm text-slate-500">
@@ -384,7 +370,6 @@ export function Subscription() {
               </p>
             </div>
 
-            {/* Order Summary */}
             <div className="mb-6 rounded-lg bg-slate-50 p-4">
               <h3 className="mb-3 text-sm font-semibold text-slate-700">Order Summary</h3>
               <div className="space-y-2 text-sm">
@@ -407,7 +392,6 @@ export function Subscription() {
               </div>
             </div>
 
-            {/* Card Form */}
             <div className="space-y-4">
               <div>
                 <Label htmlFor="cardName">Cardholder Name</Label>
@@ -469,7 +453,6 @@ export function Subscription() {
               </div>
             </div>
 
-            {/* Security note */}
             <div className="mt-4 flex items-center gap-2 rounded-lg bg-green-50 p-3">
               <Lock className="h-4 w-4 text-green-600" />
               <p className="text-xs text-green-700">
@@ -477,7 +460,6 @@ export function Subscription() {
               </p>
             </div>
 
-            {/* Submit */}
             <Button
               className="mt-6 w-full"
               onClick={handlePaymentSubmit}

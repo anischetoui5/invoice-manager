@@ -29,8 +29,6 @@ const extractTextFromImage = async (imagePath) => {
 const parseInvoiceFields = (text, ocrConfidence) => {
   const fields = {};
 
-  console.log('OCR RAW TEXT:', text); // temporary debug
-
   // Invoice number — US-001, INV-001, #12345
   const invoiceNumberMatch = text.match(
     /(?:invoice\s*#|invoice\s*no|invoice\s*number|inv\s*#)[\s:]*([A-Z0-9][-A-Z0-9/]*)/i
@@ -204,8 +202,22 @@ const updateExtractedFields = async (invoiceId, fieldsObj, userId) => {
   }
 };
 
+async function getInvoiceWithDocument(invoice_id) {
+  const result = await pool.query(
+    `SELECT i.*, d.storage_path, d.mime_type
+     FROM invoices i
+     LEFT JOIN documents d ON d.invoice_id = i.id
+     WHERE i.id = $1
+     ORDER BY d.created_at DESC
+     LIMIT 1`,
+    [invoice_id]
+  );
+  return result.rows[0] || null;
+}
+
 module.exports = {
   processInvoice,
   getExtractedFields,
   updateExtractedFields,
+  getInvoiceWithDocument,
 };

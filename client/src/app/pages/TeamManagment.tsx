@@ -99,7 +99,7 @@ export function TeamManagement() {
         body.contractEnd   = dates.end;
       }
 
-      await api.patch(`/invitations/${invitationId}`, body);
+      await api.patch(`/invitations/workspace/${currentWorkspace.id}/invitations/${invitationId}`, body);
       toast.success(`Request ${action}ed successfully`);
       setInvitations(prev => prev.filter(i => i.id !== invitationId));
       if (action === 'accept') fetchData();

@@ -19,11 +19,30 @@ const getPlansByType = async (planType) => {
  * - Company:  matched by company_id (workspace_id)
  */
 const getMySubscription = async (userId, workspaceId) => {
-  // If workspaceId provided → fetch company subscription for that workspace
-  // Otherwise → fetch personal subscription for this user
   const { rows } = workspaceId
     ? await pool.query(
-        `SELECT s.*, sp.name as plan_name, sp.price, sp.max_invoices, sp.max_users, sp.ocr_accuracy
+        `SELECT 
+           s.*, 
+           sp.name as plan_name, 
+           sp.price, 
+           sp.max_invoices, 
+           sp.max_users, 
+           sp.ocr_accuracy,
+           -- simpler: use workspace_id directly from companies
+           (
+             SELECT COUNT(*) FROM invoices i
+             WHERE i.workspace_id = (
+               SELECT workspace_id FROM companies WHERE id = s.company_id
+             )
+             AND i.created_at >= s.billing_start
+           ) AS invoice_used,
+           -- count members directly from workspace
+           (
+             SELECT COUNT(*) FROM memberships m
+             WHERE m.workspace_id = (
+               SELECT workspace_id FROM companies WHERE id = s.company_id
+             )
+           ) AS user_count
          FROM subscriptions s
          JOIN subscription_plans sp ON sp.id = s.plan_id
          JOIN companies c ON c.id = s.company_id
@@ -32,7 +51,19 @@ const getMySubscription = async (userId, workspaceId) => {
         [workspaceId]
       )
     : await pool.query(
-        `SELECT s.*, sp.name as plan_name, sp.price, sp.max_invoices, sp.max_users, sp.ocr_accuracy
+        `SELECT 
+           s.*, 
+           sp.name as plan_name, 
+           sp.price, 
+           sp.max_invoices, 
+           sp.max_users, 
+           sp.ocr_accuracy,
+           (
+             SELECT COUNT(*) FROM invoices i
+             WHERE i.created_by = s.user_id
+             AND i.created_at >= s.billing_start
+           ) AS invoice_used,
+           1 AS user_count
          FROM subscriptions s
          JOIN subscription_plans sp ON sp.id = s.plan_id
          WHERE s.user_id = $1::uuid AND s.company_id IS NULL

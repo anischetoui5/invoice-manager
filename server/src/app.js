@@ -11,7 +11,6 @@ const documentsRoutes = require('./modules/documents/documents.routes');
 const subscriptionRoutes = require('./modules/subscription/subscription.routes');
 const companyRoutes = require('./modules/company/company.routes');
 const invitationsRoutes = require('./modules/invitations/invitations.routes');
-const ocrRoutes = require('./modules/ocr/ocr.routes');
 const { getAllInvoices } = require('./modules/invoices/invoices.controller');
 const { authenticate, authorizeAdmin } = require('./middlewares/auth.middleware');
 
@@ -47,8 +46,6 @@ app.get('/api/me', authenticate, (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-
-app.use('/api/ocr', ocrRoutes);
 
 
 module.exports = app;

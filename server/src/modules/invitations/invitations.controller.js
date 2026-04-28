@@ -1,3 +1,4 @@
+// invitations.controller.js
 const invitationsService = require('./invitations.service');
 
 async function createInvitationRequest(req, res) {
@@ -16,12 +17,12 @@ async function createInvitationRequest(req, res) {
 async function getPendingInvitations(req, res) {
   try {
     const invitations = await invitationsService.getPendingInvitations(
-      req.params.workspaceId,
+      req.params.workspace_id, // ← consistent param name
       req.user.id
     );
     res.status(200).json({ invitations });
   } catch (err) {
-    res.status(403).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 }
 

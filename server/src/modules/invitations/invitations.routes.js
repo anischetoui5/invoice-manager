@@ -1,6 +1,7 @@
+// invitations.routes.js
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../../middlewares/auth.middleware');
+const { authenticate, authorizeInWorkspace } = require('../../middlewares/auth.middleware');
 const {
   createInvitationRequest,
   getPendingInvitations,
@@ -9,13 +10,17 @@ const {
 
 router.use(authenticate);
 
-// POST /api/invitations/request — user sends join request
+// any authenticated user can send a join request
 router.post('/request', createInvitationRequest);
 
-// GET /api/invitations/workspace/:workspaceId — director views pending requests
-router.get('/workspace/:workspaceId', getPendingInvitations);
-
-// PATCH /api/invitations/:invitationId — director accepts or rejects
-router.patch('/:invitationId', handleInvitation);
+// Director and above only
+router.get('/workspace/:workspace_id',
+  authorizeInWorkspace('Admin', 'Director'),
+  getPendingInvitations
+);
+router.patch('/workspace/:workspace_id/invitations/:invitationId',
+  authorizeInWorkspace('Admin', 'Director'),
+  handleInvitation
+);
 
 module.exports = router;

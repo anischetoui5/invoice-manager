@@ -1,22 +1,38 @@
+// company.routes.js
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../../middlewares/auth.middleware');
+const { authenticate, authorizeInWorkspace, authorizeAdmin } = require('../../middlewares/auth.middleware');
 const {
-  getCompany,
-  updateCompany,
-  getMembers,
-  removeMember,
-  getInvitations,
-  getAllCompanies,
+  getCompany, updateCompany,
+  getMembers, removeMember,
+  getInvitations, getAllCompanies,
 } = require('./company.controller');
 
 router.use(authenticate);
 
-router.get('/:workspaceId', getCompany);
-router.put('/:workspaceId', updateCompany);
-router.get('/:workspaceId/members', getMembers);
-router.delete('/:workspaceId/members/:memberId', removeMember);
-router.get('/:workspaceId/invitations', getInvitations);
-router.get('/', getAllCompanies);
+// ── Admin only ────────────────────────────────────────────────
+router.get('/', authorizeAdmin, getAllCompanies);
+
+// ── Workspace-scoped ──────────────────────────────────────────
+router.get('/:workspace_id',
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Normal'),
+  getCompany
+);
+router.put('/:workspace_id',
+  authorizeInWorkspace('Admin', 'Director'),
+  updateCompany
+);
+router.get('/:workspace_id/members',
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Normal'),
+  getMembers
+);
+router.delete('/:workspace_id/members/:memberId',
+  authorizeInWorkspace('Admin', 'Director'),
+  removeMember
+);
+router.get('/:workspace_id/invitations',
+  authorizeInWorkspace('Admin', 'Director'),
+  getInvitations
+);
 
 module.exports = router;

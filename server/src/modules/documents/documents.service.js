@@ -42,8 +42,15 @@ async function getDocumentById(document_id) {
   return result.rows[0];
 }
 
-async function deleteDocument(document_id) {
+async function deleteDocument(document_id, userId, role) {
   const doc = await getDocumentById(document_id);
+
+  // Employee and Normal can only delete their own documents
+  if (role === 'Employee' || role === 'Normal') {
+    if (doc.uploaded_by !== userId) {
+      throw new Error('You do not have permission to delete this document');
+    }
+  }
 
   // Delete the physical file from disk
   if (fs.existsSync(doc.storage_path)) {
@@ -52,29 +59,6 @@ async function deleteDocument(document_id) {
 
   await pool.query(`DELETE FROM documents WHERE id = $1`, [document_id]);
 }
-
-/*
-async function getInvoiceFullDetails(invoice_id) {
-  const query = `
-    SELECT 
-      i.*,
-      u.name as employee_name,
-      d.storage_path as document_url,
-      d.mime_type,
-      o.extracted_text,
-      o.extracted_amount,
-      o.confidence
-    FROM invoices i
-    LEFT JOIN users u ON i.created_by = u.id
-    LEFT JOIN documents d ON i.id = d.invoice_id AND d.is_primary = TRUE
-    LEFT JOIN ocr_data o ON i.id = o.invoice_id
-    WHERE i.id = $1
-  `;
-  
-  const result = await pool.query(query, [invoice_id]);
-  return result.rows[0];
-}
-*/
 
 module.exports = {
   attachDocument,
