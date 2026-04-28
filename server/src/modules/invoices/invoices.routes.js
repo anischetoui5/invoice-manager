@@ -24,17 +24,17 @@ router.get('/:invoice_id/history', getStatusHistory);
 
 // ── Director / Accountant and above ──────────────────────────
 router.put('/:invoice_id',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
+  authorizeInWorkspace('Admin', 'Director', 'Employee'),
   updateInvoice
 );
 router.patch('/:invoice_id/status',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant'),
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
   updateInvoiceStatus
 );
 
 // ── Director and above only ───────────────────────────────────
 router.delete('/:invoice_id',
-  authorizeInWorkspace('Admin', 'Director'),
+  authorizeInWorkspace('Admin', 'Director', 'Employee'),
   deleteInvoice
 );
 

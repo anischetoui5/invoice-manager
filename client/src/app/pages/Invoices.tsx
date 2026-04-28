@@ -101,9 +101,14 @@ export function InvoiceList() {
   const role = currentWorkspace?.role;
 
   const canDelete = (invoice: Invoice) => {
-    if (invoice.current_status !== 'draft') return false;
-    if (role === 'Director') return true;
-    if (role === 'Employee' && invoice.created_by === currentUser?.id) return true;
+    if (role === 'Director' && !['approved', 'paid', 'archived'].includes(invoice.current_status)) {
+      return true;
+    }
+    if (role === 'Employee' && 
+        invoice.current_status === 'draft' && 
+        invoice.created_by === currentUser?.id) {
+      return true;
+    }
     return false;
   };
 

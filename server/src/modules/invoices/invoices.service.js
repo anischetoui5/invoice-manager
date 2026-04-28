@@ -158,9 +158,8 @@ async function updateInvoice(invoice_id, workspace_id, { invoice_number, vendor_
 }
 
 async function deleteInvoice(invoice_id, workspace_id, userId) {
-  // Check invoice exists and is draft
   const check = await pool.query(
-    `SELECT i.*, m.role_id, r.name as role
+    `SELECT i.*, r.name as role
      FROM invoices i
      JOIN memberships m ON m.workspace_id = i.workspace_id AND m.user_id = $3
      JOIN roles r ON r.id = m.role_id
@@ -172,29 +171,32 @@ async function deleteInvoice(invoice_id, workspace_id, userId) {
 
   const invoice = check.rows[0];
 
-  if (invoice.current_status !== 'draft') {
-    throw new Error('Only draft invoices can be deleted');
-  }
-
   if (!['Director', 'Employee'].includes(invoice.role)) {
     throw new Error('Only Directors and Employees can delete invoices');
   }
 
-  // Employee can only delete their own invoices
-  if (invoice.role === 'Employee' && invoice.created_by !== userId) {
-    throw new Error('You can only delete your own invoices');
+  // Director can delete anything not yet approved/paid/archived
+  if (invoice.role === 'Director' && ['approved', 'paid', 'archived'].includes(invoice.current_status)) {
+    throw new Error('Cannot delete an invoice that has already been approved');
+  }
+
+  // Employee can only delete their own draft invoices
+  if (invoice.role === 'Employee') {
+    if (invoice.current_status !== 'draft') {
+      throw new Error('Employees can only delete draft invoices');
+    }
+    if (invoice.created_by !== userId) {
+      throw new Error('You can only delete your own invoices');
+    }
   }
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-
-    // Delete in order to respect foreign keys
     await client.query(`DELETE FROM extracted_fields WHERE invoice_id = $1`, [invoice_id]);
     await client.query(`DELETE FROM status_history WHERE invoice_id = $1`, [invoice_id]);
     await client.query(`DELETE FROM documents WHERE invoice_id = $1`, [invoice_id]);
     await client.query(`DELETE FROM invoices WHERE id = $1`, [invoice_id]);
-
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');

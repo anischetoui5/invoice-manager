@@ -55,6 +55,34 @@ const FIELD_LABELS: Record<string, string> = {
   supplier_name:  'Supplier Name',
 };
 
+// Convert various date formats to YYYY-MM-DD for input[type=date]
+const parseToInputDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+
+  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+  const dmy = dateStr.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+
+  // MM/DD/YYYY
+  const mdy = dateStr.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (mdy) return `${mdy[3]}-${mdy[1].padStart(2, '0')}-${mdy[2].padStart(2, '0')}`;
+
+  // Try native Date parse as fallback
+  try {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split('T')[0];
+    }
+  } catch {
+    // ignore
+  }
+
+  return '';
+};
+
 export function InvoiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -72,6 +100,7 @@ export function InvoiceDetail() {
   const [notesError, setNotesError]     = useState(false);
   const [status, setStatus]             = useState('draft');
   const [isEditingBasic, setIsEditingBasic] = useState(false);
+  const [isPollingOCR, setIsPollingOCR] = useState(false);
   const [basicForm, setBasicForm] = useState({
     invoice_number: '',
     vendor_name: '',
@@ -79,6 +108,27 @@ export function InvoiceDetail() {
     invoice_date: '',
     due_date: '',
   });
+
+  // ── Fetch invoice + OCR fields ─────────────────────────────────────────────
+  const fetchFields = async (invoiceId: string, workspaceId: string) => {
+    try {
+      const { data: fieldsData } = await api.get(
+        `/workspaces/${workspaceId}/invoices/${invoiceId}/fields`
+      );
+      const fetchedFields = fieldsData.fields || [];
+      setFields(fetchedFields);
+
+      const initial: Record<string, string> = {};
+      fetchedFields.forEach((f: ExtractedField) => {
+        initial[f.field_name] = f.field_value;
+      });
+      setEditedFields(initial);
+      return initial;
+    } catch {
+      setFields([]);
+      return {};
+    }
+  };
 
   useEffect(() => {
     if (!id || !currentWorkspace?.id) return;
@@ -104,32 +154,17 @@ export function InvoiceDetail() {
         setBasicForm(form);
 
         // Fetch OCR fields
-        try {
-          const { data: fieldsData } = await api.get(
-            `/workspaces/${currentWorkspace.id}/invoices/${id}/fields`
-          );
-          const fetchedFields = fieldsData.fields || [];
-          setFields(fetchedFields);
+        const initial = await fetchFields(id, currentWorkspace.id);
 
-          const initial: Record<string, string> = {};
-          fetchedFields.forEach((f: ExtractedField) => {
-            initial[f.field_name] = f.field_value;
-          });
-          setEditedFields(initial);
-
-          // Auto-populate basic form from OCR if invoice fields are empty
-          if (fetchedFields.length > 0) {
-            setBasicForm(prev => ({
-              invoice_number: prev.invoice_number || initial['invoice_number'] || '',
-              vendor_name:    prev.vendor_name    || initial['supplier_name']  || '',
-              amount:         prev.amount         || initial['total_amount']   || '',
-              invoice_date:   prev.invoice_date   || initial['invoice_date']   || '',
-              due_date:       prev.due_date       || '',
-            }));
-          }
-
-        } catch {
-          setFields([]);
+        // Auto-populate basic form from OCR if invoice fields are empty
+        if (Object.keys(initial).length > 0) {
+          setBasicForm(prev => ({
+            invoice_number: prev.invoice_number || initial['invoice_number'] || '',
+            vendor_name:    prev.vendor_name    || initial['supplier_name']  || '',
+            amount:         prev.amount         || initial['total_amount']   || '',
+            invoice_date:   prev.invoice_date   || parseToInputDate(initial['invoice_date'] || '') || '',
+            due_date:       prev.due_date       || '',
+          }));
         }
 
       } catch {
@@ -142,6 +177,54 @@ export function InvoiceDetail() {
     fetchInvoice();
   }, [id, currentWorkspace?.id]);
 
+  // ── Poll OCR status when processing ───────────────────────────────────────
+  useEffect(() => {
+    if (!invoice || !id || !currentWorkspace?.id) return;
+    if (invoice.ocr_status !== 'processing') return;
+
+    setIsPollingOCR(true);
+
+    const interval = setInterval(async () => {
+      try {
+        const { data: invoiceData } = await api.get(
+          `/workspaces/${currentWorkspace.id}/invoices/${id}`
+        );
+        const inv = invoiceData.invoice;
+
+        if (inv.ocr_status !== 'processing') {
+          setInvoice(inv);
+          setStatus(inv.current_status);
+          setIsPollingOCR(false);
+          clearInterval(interval);
+
+          if (inv.ocr_status === 'completed') {
+            const initial = await fetchFields(id, currentWorkspace.id);
+
+            setBasicForm(prev => ({
+              invoice_number: prev.invoice_number || initial['invoice_number'] || '',
+              vendor_name:    prev.vendor_name    || initial['supplier_name']  || '',
+              amount:         prev.amount         || initial['total_amount']   || '',
+              invoice_date:   prev.invoice_date   || parseToInputDate(initial['invoice_date'] || '') || '',
+              due_date:       prev.due_date       || '',
+            }));
+
+            toast.success(`OCR completed — confidence: ${Number(inv.ocr_confidence).toFixed(1)}%`);
+          } else if (inv.ocr_status === 'failed') {
+            toast.error('OCR processing failed');
+          }
+        }
+      } catch {
+        clearInterval(interval);
+        setIsPollingOCR(false);
+      }
+    }, 3000);
+
+    return () => {
+      clearInterval(interval);
+      setIsPollingOCR(false);
+    };
+  }, [invoice?.ocr_status, id, currentWorkspace?.id]);
+
   // ── Role-based permissions ─────────────────────────────────────────────────
   const role = currentWorkspace?.role;
 
@@ -150,11 +233,15 @@ export function InvoiceDetail() {
 
   const canApproveReject = role === 'Accountant' && status === 'pending_review';
 
-  const canEditOCR = (role === 'Accountant' || role === 'Director' || role === 'Employee') &&
+  const canEditOCR = status === 'draft' &&
+    (role === 'Director' || role === 'Employee') &&
     fields.length > 0;
 
   const canEditBasic = status === 'draft' &&
-    (role === 'Employee' || role === 'Accountant' || role === 'Director');
+    (role === 'Employee' || role === 'Director');
+
+  const canDelete = role === 'Director' &&
+    !['approved', 'paid', 'archived'].includes(status);
 
   // ── Sync from OCR ──────────────────────────────────────────────────────────
   const handleSyncFromOCR = () => {
@@ -165,7 +252,7 @@ export function InvoiceDetail() {
       invoice_number: ocrMap['invoice_number'] || prev.invoice_number,
       vendor_name:    ocrMap['supplier_name']  || prev.vendor_name,
       amount:         ocrMap['total_amount']   || prev.amount,
-      invoice_date:   ocrMap['invoice_date']   || prev.invoice_date,
+      invoice_date:   parseToInputDate(ocrMap['invoice_date'] || '') || prev.invoice_date,
       due_date:       prev.due_date,
     }));
     setIsEditingBasic(true);
@@ -225,10 +312,7 @@ export function InvoiceDetail() {
       );
       toast.success('Fields updated successfully');
       setIsEditing(false);
-      const { data } = await api.get(
-        `/workspaces/${currentWorkspace.id}/invoices/${id}/fields`
-      );
-      setFields(data.fields || []);
+      await fetchFields(id!, currentWorkspace.id);
     } catch {
       toast.error('Failed to save fields');
     }
@@ -236,15 +320,29 @@ export function InvoiceDetail() {
 
   const handleSaveBasic = async () => {
     try {
-      const { data } = await api.put(
+      await api.put(
         `/workspaces/${currentWorkspace.id}/invoices/${id}`,
         basicForm
       );
-      setInvoice(prev => prev ? { ...prev, ...data.invoice } : prev);
+      const { data: fresh } = await api.get(
+        `/workspaces/${currentWorkspace.id}/invoices/${id}`
+      );
+      setInvoice(fresh.invoice);
       setIsEditingBasic(false);
       toast.success('Invoice updated successfully');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to update invoice');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) return;
+    try {
+      await api.delete(`/workspaces/${currentWorkspace.id}/invoices/${id}`);
+      toast.success('Invoice deleted successfully');
+      navigate('/dashboard/invoices');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to delete invoice');
     }
   };
 
@@ -280,11 +378,22 @@ export function InvoiceDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/invoices')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
+        {canDelete && (
+          <Button
+            size="sm"
+            className="transition-opacity hover:opacity-80"
+            style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}
+            onClick={handleDelete}
+          >
+            <XCircle className="mr-2 h-4 w-4" />
+            Delete Invoice
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
@@ -295,6 +404,16 @@ export function InvoiceDetail() {
           {badge.label}
         </span>
       </div>
+
+      {/* Locked banner */}
+      {['approved', 'paid', 'archived'].includes(status) && (
+        <div
+          className="rounded-lg px-4 py-3 text-sm font-medium"
+          style={{ backgroundColor: 'var(--info)', color: 'var(--info-foreground)' }}
+        >
+          This invoice has been {status} — no further edits are allowed.
+        </div>
+      )}
 
       {/* Workflow Stepper */}
       <WorkflowStepper status={status as any} />
@@ -324,7 +443,6 @@ export function InvoiceDetail() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Invoice Information</h2>
               <div className="flex gap-2">
-                {/* Sync from OCR button */}
                 {fields.length > 0 && canEditBasic && !isEditingBasic && (
                   <Button variant="outline" size="sm" onClick={handleSyncFromOCR}>
                     <RefreshCw className="mr-2 h-4 w-4" />
@@ -443,29 +561,24 @@ export function InvoiceDetail() {
               )}
             </div>
 
-            {invoice.ocr_status === 'processing' && (
+            {(invoice.ocr_status === 'processing' || isPollingOCR) ? (
               <div className="flex flex-col items-center gap-3 py-8 text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                 <p className="text-sm text-muted-foreground">OCR is processing your document...</p>
+                <p className="text-xs text-muted-foreground">This page will update automatically</p>
               </div>
-            )}
-
-            {invoice.ocr_status === 'failed' && (
+            ) : invoice.ocr_status === 'failed' ? (
               <div className="flex flex-col items-center gap-3 py-8 text-center">
                 <AlertCircle className="h-8 w-8 text-destructive" />
                 <p className="text-sm text-muted-foreground">OCR processing failed for this document.</p>
               </div>
-            )}
-
-            {(invoice.ocr_status === 'pending' || !invoice.ocr_status) && (
+            ) : (invoice.ocr_status === 'pending' || !invoice.ocr_status) ? (
               <div className="flex flex-col items-center gap-3 py-8 text-center">
                 <Clock className="h-8 w-8 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">OCR processing not yet available.</p>
                 <p className="text-xs text-muted-foreground">Data will appear here once processed.</p>
               </div>
-            )}
-
-            {fields.length > 0 && (
+            ) : fields.length > 0 ? (
               <div className="space-y-4">
                 {fields.map((field) => (
                   <div key={field.id} className="space-y-1">
@@ -501,9 +614,7 @@ export function InvoiceDetail() {
                   </div>
                 ))}
               </div>
-            )}
-
-            {fields.length === 0 && invoice.ocr_status === 'completed' && (
+            ) : (
               <div className="flex flex-col items-center gap-3 py-8 text-center">
                 <AlertCircle className="h-8 w-8 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
@@ -524,7 +635,7 @@ export function InvoiceDetail() {
               }}
               placeholder="Add notes about this invoice..."
               rows={4}
-              disabled={role === 'Director' && status !== 'draft'}
+              disabled={['approved', 'paid', 'archived'].includes(status)}
               className={`w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none ${
                 notesError ? 'border-red-500 focus:ring-red-500' : 'border-input'
               }`}
