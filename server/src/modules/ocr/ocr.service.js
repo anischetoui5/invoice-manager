@@ -39,45 +39,49 @@ const extractTextFromImage = async (imagePath) => {
 const parseInvoiceFields = (text, ocrConfidence) => {
   const fields = {};
 
-  // Invoice number
+  console.log('OCR RAW TEXT:', text); // temporary debug
+
+  // Invoice number — US-001, INV-001, #12345
   const invoiceNumberMatch = text.match(
-    /(?:invoice\s*(?:no|number|#)?[:.\s]*|inv[-\s]?)(\w+[-/]?\w+)/i
+    /(?:invoice\s*#|invoice\s*no|invoice\s*number|inv\s*#)[\s:]*([A-Z0-9][-A-Z0-9/]*)/i
   );
   fields.invoice_number = {
     value: invoiceNumberMatch ? invoiceNumberMatch[1].trim() : null,
     confidence: invoiceNumberMatch ? Math.min(ocrConfidence, 90) : 20,
   };
 
-  // Date
+  // Date — DD/MM/YYYY or MM/DD/YYYY
   const dateMatch = text.match(
-    /(?:date[:.\s]*)?(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/i
+    /(?:invoice\s*date|date)[\s:]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i
   );
   fields.invoice_date = {
     value: dateMatch ? dateMatch[1].trim() : null,
     confidence: dateMatch ? Math.min(ocrConfidence, 85) : 20,
   };
 
-  // Total amount
+  // Total amount — TOTAL $154.06
   const totalMatch = text.match(
-    /(?:total\s*(?:amount|due|price)?[:.\s]*(?:EUR|USD|TND|€|\$|DT)?)\s*([\d,]+\.?\d{0,2})/i
+    /\bTOTAL\b[\s$€£DT]*([0-9,]+\.?[0-9]{0,2})/i
   );
   fields.total_amount = {
-    value: totalMatch ? parseFloat(totalMatch[1].replace(',', '')) : null,
+    value: totalMatch ? parseFloat(totalMatch[1].replace(/,/g, '')) : null,
     confidence: totalMatch ? Math.min(ocrConfidence, 88) : 20,
   };
 
-  // Tax amount
+  // Tax — Sales Tax / VAT / TVA
   const taxMatch = text.match(
-    /(?:tax|tva|vat)[\s:]*(?:EUR|USD|TND|€|\$|DT)?\s*([\d,]+\.?\d{0,2})/i
+    /(?:sales\s*tax|tax|tva|vat)[^0-9$]*[$€£]?\s*([0-9,]+\.?[0-9]{0,2})/i
   );
   fields.tax_amount = {
-    value: taxMatch ? parseFloat(taxMatch[1].replace(',', '')) : null,
+    value: taxMatch ? parseFloat(taxMatch[1].replace(/,/g, '')) : null,
     confidence: taxMatch ? Math.min(ocrConfidence, 80) : 20,
   };
 
-  // Supplier name
+  // Supplier — first bold/capitalized company name
   const supplierMatch = text.match(
-    /(?:from|supplier|vendor|company|issued\s*by)[:.\s]+([A-Z][^\n]{2,50})/i
+    /(?:from|supplier|vendor|issued\s*by|company|bill\s*from)[\s:]*([A-Z][A-Za-z0-9\s&.,]+(?:Inc|LLC|Ltd|Corp|Co)?\.?)/i
+  ) || text.match(
+    /^([A-Z][A-Za-z0-9\s&.]+(?:Inc|LLC|Ltd|Corp|Co)\.?)/m
   );
   fields.supplier_name = {
     value: supplierMatch ? supplierMatch[1].trim() : null,
