@@ -44,11 +44,11 @@ router.get('/:invoice_id/fields',
   ocrController.getExtractedFields
 );
 router.patch('/:invoice_id/fields',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
+  authorizeInWorkspace('Admin', 'Director', 'Employee'),
   ocrController.updateExtractedFields
 );
 router.post('/:invoice_id/ocr',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
+  authorizeInWorkspace('Admin', 'Director', 'Employee'),
   ocrController.triggerOCR
 );
 
