@@ -50,11 +50,11 @@ function handleMulterError(err, req, res, next) {
 
 // ── Routes ────────────────────────────────────────────────────
 router.use(authenticate);
-router.use(authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Normal'));
+router.use(authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'));
 
 // all members can view and download documents
 router.get('/',                     getDocuments);
-router.get('/:document_id/download', downloadDocument);
+router.get('/:id/download', downloadDocument);
 
 // all members can upload (they upload to their own invoices)
 router.post('/',
@@ -64,8 +64,8 @@ router.post('/',
 );
 
 // only Director and above can delete documents
-router.delete('/:document_id',
-  authorizeInWorkspace('Admin', 'Director', 'Employee', 'Normal'),
+router.delete('/:id',
+  authorizeInWorkspace('Admin', 'Director', 'Employee', 'Personal'),
   deleteDocument
 );
 

@@ -104,7 +104,7 @@ export function InvoiceList() {
     if (role === 'Director' && !['approved', 'paid', 'archived'].includes(invoice.current_status)) {
       return true;
     }
-    if (role === 'Employee' && 
+    if ((role === 'Employee' || role === 'Personal') && 
         invoice.current_status === 'draft' && 
         invoice.created_by === currentUser?.id) {
       return true;

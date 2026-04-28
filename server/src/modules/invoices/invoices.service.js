@@ -171,8 +171,8 @@ async function deleteInvoice(invoice_id, workspace_id, userId) {
 
   const invoice = check.rows[0];
 
-  if (!['Director', 'Employee'].includes(invoice.role)) {
-    throw new Error('Only Directors and Employees can delete invoices');
+  if (!['Director', 'Employee', 'Personal'].includes(invoice.role)) {
+    throw new Error('Only Directors, Employees and Personal users can delete invoices');
   }
 
   // Director can delete anything not yet approved/paid/archived

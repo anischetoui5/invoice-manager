@@ -17,7 +17,7 @@ router.put('/me/password', updatePassword);
 
 // ── Workspace-scoped ──────────────────────────────────────────
 router.get('/workspace/:workspace_id/members',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Normal'),
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'),
   getWorkspaceMembers
 );
 router.patch('/workspace/:workspace_id/members/:userId/role',
