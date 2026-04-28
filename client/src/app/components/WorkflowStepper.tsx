@@ -18,8 +18,20 @@ export function WorkflowStepper({ status }: WorkflowStepperProps) {
       const stepIndex = statusOrder.indexOf(stepKey);
       return stepIndex <= 1 ? 'completed' : 'rejected';
     }
+
     const currentIndex = statusOrder.indexOf(status);
     const stepIndex = statusOrder.indexOf(stepKey);
+
+    // FIX: If the current status is 'approved', mark the approved step as completed
+    if (status === 'approved' && stepKey === 'approved') {
+      return 'completed';
+    }
+
+    // Also handles other terminal states like 'paid' if you add them later
+    if (status === 'paid' && (stepKey === 'approved' || stepKey === 'paid')) {
+      return 'completed';
+    }
+
     if (stepIndex < currentIndex) return 'completed';
     if (stepIndex === currentIndex) return 'current';
     return 'upcoming';
