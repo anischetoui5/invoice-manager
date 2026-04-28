@@ -2,14 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import {
   ArrowLeft, Edit2, Save, AlertCircle, Loader2,
-  CheckCircle2, XCircle, FileText, Clock,
+  CheckCircle2, XCircle, FileText, Clock, RefreshCw,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Textarea } from '../components/ui/textarea';
-import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 import api from '../../lib/api';
 import type { Workspace, User } from '../types';
@@ -73,8 +71,6 @@ export function InvoiceDetail() {
   const [notes, setNotes]               = useState('');
   const [notesError, setNotesError]     = useState(false);
   const [status, setStatus]             = useState('draft');
-
-  // Basic field editing (for when OCR hasn't run yet)
   const [isEditingBasic, setIsEditingBasic] = useState(false);
   const [basicForm, setBasicForm] = useState({
     invoice_number: '',
@@ -97,27 +93,42 @@ export function InvoiceDetail() {
         setInvoice(inv);
         setStatus(inv.current_status);
         setNotes(inv.notes || '');
-        setBasicForm({
+
+        const form = {
           invoice_number: inv.invoice_number ?? '',
           vendor_name:    inv.vendor_name ?? '',
           amount:         inv.amount ?? '',
           invoice_date:   inv.invoice_date?.split('T')[0] ?? '',
           due_date:       inv.due_date?.split('T')[0] ?? '',
-        });
+        };
+        setBasicForm(form);
 
         // Fetch OCR fields
         try {
           const { data: fieldsData } = await api.get(
             `/workspaces/${currentWorkspace.id}/invoices/${id}/fields`
           );
-          setFields(fieldsData.fields || []);
+          const fetchedFields = fieldsData.fields || [];
+          setFields(fetchedFields);
+
           const initial: Record<string, string> = {};
-          fieldsData.fields?.forEach((f: ExtractedField) => {
+          fetchedFields.forEach((f: ExtractedField) => {
             initial[f.field_name] = f.field_value;
           });
           setEditedFields(initial);
+
+          // Auto-populate basic form from OCR if invoice fields are empty
+          if (fetchedFields.length > 0) {
+            setBasicForm(prev => ({
+              invoice_number: prev.invoice_number || initial['invoice_number'] || '',
+              vendor_name:    prev.vendor_name    || initial['supplier_name']  || '',
+              amount:         prev.amount         || initial['total_amount']   || '',
+              invoice_date:   prev.invoice_date   || initial['invoice_date']   || '',
+              due_date:       prev.due_date       || '',
+            }));
+          }
+
         } catch {
-          // OCR fields not available yet — that's fine
           setFields([]);
         }
 
@@ -134,20 +145,32 @@ export function InvoiceDetail() {
   // ── Role-based permissions ─────────────────────────────────────────────────
   const role = currentWorkspace?.role;
 
-  // Employee: can submit draft for review
-  // Director: can also submit draft for review
   const canSubmitForReview = status === 'draft' &&
     (role === 'Employee' || role === 'Director');
 
-  // Accountant only: can approve or reject when pending_review
   const canApproveReject = role === 'Accountant' && status === 'pending_review';
 
-  // Accountant and Director can edit OCR fields
-  const canEditOCR = (role === 'Accountant' || role === 'Director') && fields.length > 0;
+  const canEditOCR = (role === 'Accountant' || role === 'Director' || role === 'Employee') &&
+    fields.length > 0;
 
-  // Employee and Accountant can edit basic fields on draft
   const canEditBasic = status === 'draft' &&
     (role === 'Employee' || role === 'Accountant' || role === 'Director');
+
+  // ── Sync from OCR ──────────────────────────────────────────────────────────
+  const handleSyncFromOCR = () => {
+    const ocrMap: Record<string, string> = {};
+    fields.forEach(f => { ocrMap[f.field_name] = f.field_value; });
+
+    setBasicForm(prev => ({
+      invoice_number: ocrMap['invoice_number'] || prev.invoice_number,
+      vendor_name:    ocrMap['supplier_name']  || prev.vendor_name,
+      amount:         ocrMap['total_amount']   || prev.amount,
+      invoice_date:   ocrMap['invoice_date']   || prev.invoice_date,
+      due_date:       prev.due_date,
+    }));
+    setIsEditingBasic(true);
+    toast.info('Invoice fields populated from OCR — review and save');
+  };
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSubmitForReview = async () => {
@@ -196,12 +219,10 @@ export function InvoiceDetail() {
 
   const handleSaveOCRFields = async () => {
     try {
-      for (const [fieldName, value] of Object.entries(editedFields)) {
-        await api.patch(
-          `/workspaces/${currentWorkspace.id}/invoices/${id}/fields/${fieldName}`,
-          { value }
-        );
-      }
+      await api.patch(
+        `/workspaces/${currentWorkspace.id}/invoices/${id}/fields`,
+        { fields: editedFields }
+      );
       toast.success('Fields updated successfully');
       setIsEditing(false);
       const { data } = await api.get(
@@ -302,23 +323,32 @@ export function InvoiceDetail() {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Invoice Information</h2>
-              {canEditBasic && !isEditingBasic && (
-                <Button variant="outline" size="sm" onClick={() => setIsEditingBasic(true)}>
-                  <Edit2 className="mr-2 h-4 w-4" />
-                  Edit
-                </Button>
-              )}
-              {isEditingBasic && (
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSaveBasic}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save
+              <div className="flex gap-2">
+                {/* Sync from OCR button */}
+                {fields.length > 0 && canEditBasic && !isEditingBasic && (
+                  <Button variant="outline" size="sm" onClick={handleSyncFromOCR}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Sync from OCR
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setIsEditingBasic(false)}>
-                    Cancel
+                )}
+                {canEditBasic && !isEditingBasic && (
+                  <Button variant="outline" size="sm" onClick={() => setIsEditingBasic(true)}>
+                    <Edit2 className="mr-2 h-4 w-4" />
+                    Edit
                   </Button>
-                </div>
-              )}
+                )}
+                {isEditingBasic && (
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleSaveBasic}>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setIsEditingBasic(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {isEditingBasic ? (
@@ -369,7 +399,9 @@ export function InvoiceDetail() {
                         style={{ width: `${invoice.ocr_confidence}%` }}
                       />
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{Number(invoice.ocr_confidence).toFixed(1)}%</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {Number(invoice.ocr_confidence).toFixed(1)}%
+                    </p>
                   </div>
                 )}
               </div>
@@ -398,10 +430,15 @@ export function InvoiceDetail() {
                     Edit
                   </Button>
                 ) : (
-                  <Button size="sm" onClick={handleSaveOCRFields}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleSaveOCRFields}>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
+                      Cancel
+                    </Button>
+                  </div>
                 )
               )}
             </div>
@@ -499,7 +536,7 @@ export function InvoiceDetail() {
             )}
           </Card>
 
-          {/* Submit for Review — Employee or Director on draft */}
+          {/* Submit for Review */}
           {canSubmitForReview && (
             <Card className="p-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">Actions</h2>
@@ -509,7 +546,7 @@ export function InvoiceDetail() {
             </Card>
           )}
 
-          {/* Approve / Reject — Accountant only on pending_review */}
+          {/* Approve / Reject */}
           {canApproveReject && (
             <Card className="p-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">Validation Actions</h2>

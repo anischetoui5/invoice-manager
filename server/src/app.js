@@ -11,8 +11,10 @@ const documentsRoutes = require('./modules/documents/documents.routes');
 const subscriptionRoutes = require('./modules/subscription/subscription.routes');
 const companyRoutes = require('./modules/company/company.routes');
 const invitationsRoutes = require('./modules/invitations/invitations.routes');
-const { authenticate } = require('./middlewares/auth.middleware');
 const ocrRoutes = require('./modules/ocr/ocr.routes');
+const { getAllInvoices } = require('./modules/invoices/invoices.controller');
+const { authenticate, authorizeAdmin } = require('./middlewares/auth.middleware');
+
 
 const app = express();
 
@@ -24,6 +26,9 @@ app.use(cors({
 app.use(morgan('dev'));
 app.use(express.json());
 
+app.get('/api/invoices', authenticate, authorizeAdmin, getAllInvoices);
+
+app.use('/api/workspaces/:workspace_id/invoices', invoicesRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/users', usersRoutes);
