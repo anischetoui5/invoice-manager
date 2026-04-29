@@ -13,8 +13,10 @@ import { InvoiceDetail } from './pages/InvoiceDetails';
 import { TeamManagement } from './pages/TeamManagment';
 import { Users } from './pages/Users';
 import { Companies } from './pages/Companies';
+import { Reports } from './pages/Reports';
 import type { User, Enterprise, Workspace, UserRole } from './types';
 import api from '../lib/api';
+
 
 
 function ProtectedLayout() {
@@ -171,6 +173,10 @@ export const router = createBrowserRouter([
       {
         path: 'team',
         element: <TeamManagement />,
+      },
+      {
+        path :'reports',
+        element: < Reports/>
       },
       {
         path: 'users',

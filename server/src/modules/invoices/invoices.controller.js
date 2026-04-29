@@ -139,9 +139,27 @@ async function getDashboardStats(req, res) {
   }
 }
 
+async function getReportsData(req, res) {
+  try {
+    const { workspace_id } = req.params;
+    const { period } = req.query;
+    const role = req.role;
+    const data = await invoicesService.getReportsData(
+      workspace_id,
+      req.user.id,
+      role,
+      period
+    );
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+
 module.exports = {
   createInvoice, getInvoice, searchInvoices,
   updateInvoiceStatus, getStatusHistory,
   updateInvoice, deleteInvoice, getAllInvoices,
-  getDashboardStats,
+  getDashboardStats, getReportsData,
 };

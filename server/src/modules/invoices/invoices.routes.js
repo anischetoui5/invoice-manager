@@ -11,6 +11,7 @@ const {
   updateInvoice,
   deleteInvoice,
   getDashboardStats,
+  getReportsData,
 } = require('./invoices.controller.js');
 const ocrController = require('../ocr/ocr.controller.js');
 
@@ -23,6 +24,10 @@ router.get('/',                   searchInvoices);
 router.get('/dashboard-stats',
   authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'),
   getDashboardStats
+);
+router.get('/reports',
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Personal'),
+  getReportsData
 );
 router.get('/:invoice_id',        getInvoice);
 router.get('/:invoice_id/history', getStatusHistory);
