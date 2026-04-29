@@ -60,6 +60,7 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 const FIELD_LABELS: Record<string, string> = {
   invoice_number: 'Invoice Number',
   invoice_date:   'Invoice Date',
+  due_date:       'Due Date',
   total_amount:   'Total Amount',
   tax_amount:     'Tax Amount',
   supplier_name:  'Supplier Name',
@@ -271,7 +272,7 @@ export function InvoiceDetail() {
       vendor_name:    ocrMap['supplier_name']  || prev.vendor_name,
       amount:         ocrMap['total_amount']   || prev.amount,
       invoice_date:   parseToInputDate(ocrMap['invoice_date'] || '') || prev.invoice_date,
-      due_date:       prev.due_date,
+      due_date:       parseToInputDate(ocrMap['due_date'] || '') || prev.due_date,
     }));
     setIsEditingBasic(true);
     toast.info('Invoice fields populated from OCR — review and save');
