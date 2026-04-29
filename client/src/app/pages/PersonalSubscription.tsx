@@ -65,14 +65,14 @@ export function PersonalSubscription() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const isRegistration =
-    searchParams.get('from') === 'registration' ||
-    searchParams.get('from') === 'onboarding';
+  const isRegistration = false;
 
-  const context = useOutletContext<PersonalContext>();
-  const currentPlan = isRegistration ? null : (context?.user?.planType || 'free');
-  const invoicesUsed = context?.usage?.invoicesUsed || 0;
-  const storageUsed  = context?.usage?.storageUsed  || 0;
+// with this
+  const { currentSubscription } = useOutletContext<{ currentSubscription: any }>();
+  const currentPlan  = isRegistration ? null : (currentSubscription?.plan ?? 'free');
+  const invoicesUsed = currentSubscription?.invoiceUsed ?? 0;
+  const invoiceLimit = currentSubscription?.invoiceLimit ?? 0;
+  const storageUsed  = 0;
 
   // ── State ──
   const [plans, setPlans]             = useState<PersonalPlan[]>([]);
@@ -226,67 +226,53 @@ export function PersonalSubscription() {
 
   // Find current plan data for usage bar limits
   const currentPlanData = plans.find(p => p.name.toLowerCase() === currentPlan?.toLowerCase());
-  const invoiceLimit    = currentPlanData?.max_invoices ?? 10;
-  const invoiceUsagePct = invoiceLimit === -1 ? 0 : Math.min((invoicesUsed / invoiceLimit) * 100, 100);
+  const invoiceUsagePct = invoiceLimit === 0 ? 0 : Math.min((invoicesUsed / invoiceLimit) * 100, 100);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="space-y-6">
+      {/* Header — matches other dashboard pages */}
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Personal Subscription</h1>
+        <p className="mt-1 text-muted-foreground">
+          Manage your personal plan and view usage
+        </p>
+      </div>
 
-        {/* ── Header ── */}
-        <div className="mb-8">
-          {!isRegistration && (
-            <Button variant="ghost" className="mb-4" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
-            </Button>
-          )}
-          <div className="text-center">
-            <div className="mb-3 flex justify-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
-                <Sparkles className="h-8 w-8 text-white" />
-              </div>
-            </div>
-            <h1 className="text-3xl font-bold text-foreground">
-              {isRegistration ? 'Final Step: Choose Your Plan' : 'Personal Subscription Plans'}
-            </h1>
-            <p className="mt-2 text-lg text-muted-foreground">
-              {isRegistration
-                ? 'Complete your registration by selecting a plan below.'
-                : 'Upgrade your account to unlock more features.'}
-            </p>
+      {/* Current usage — only show when logged in */}
+      {!isRegistration && currentSubscription && (
+        <Card className="p-6">
+          <div className="mb-4 flex items-center gap-3">
+            <h3 className="text-xl font-semibold">
+              Current Plan: {currentSubscription.plan}
+            </h3>
+            <Badge className="bg-green-100 text-green-700">
+              {currentSubscription.status ?? 'Active'}
+            </Badge>
           </div>
-        </div>
-
-        {/* ── Current usage (logged-in only) ── */}
-        {!isRegistration && currentPlan && (
-          <Card className="mb-8 p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <h3 className="text-xl font-semibold">
-                Current Plan: {currentPlanData?.name || currentPlan}
-              </h3>
-              <Badge className="bg-green-100 text-green-700">Active</Badge>
-            </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <div className="mb-2 flex justify-between text-sm font-medium">
-                  <span>Invoices Used</span>
-                  <span>{invoicesUsed} / {invoiceLimit === -1 ? '∞' : invoiceLimit}</span>
-                </div>
-                <Progress value={invoiceUsagePct} className="h-2" />
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <div className="mb-2 flex justify-between text-sm font-medium">
+                <span>Invoices Used</span>
+                <span>
+                  {invoicesUsed} / {invoiceLimit === -1 ? '∞' : invoiceLimit}
+                </span>
               </div>
-              <div>
-                <div className="mb-2 flex justify-between text-sm font-medium">
-                  <span>Storage Used</span>
-                  <span>{storageUsed} GB</span>
-                </div>
-                <Progress value={Math.min(storageUsed * 10, 100)} className="h-2" />
-              </div>
+              <Progress value={invoiceUsagePct} className="h-2" />
             </div>
-          </Card>
-        )}
+            <div>
+              <div className="mb-2 flex justify-between text-sm font-medium">
+                <span>Storage Used</span>
+                <span>{storageUsed} GB</span>
+              </div>
+              <Progress value={Math.min(storageUsed * 10, 100)} className="h-2" />
+            </div>
+          </div>
+        </Card>
+      )}
 
-        {/* ── Plan Cards ── */}
+      {/* Plan Cards */}
+      <div>
+        <h2 className="mb-4 text-lg font-semibold">Available Plans</h2>
         <div className="grid gap-6 lg:grid-cols-4">
           {plans.map((plan) => {
             const isCurrentUserPlan =

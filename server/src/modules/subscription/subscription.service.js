@@ -28,15 +28,13 @@ const getMySubscription = async (userId, workspaceId) => {
            sp.max_invoices, 
            sp.max_users, 
            sp.ocr_accuracy,
-           -- simpler: use workspace_id directly from companies
            (
              SELECT COUNT(*) FROM invoices i
              WHERE i.workspace_id = (
                SELECT workspace_id FROM companies WHERE id = s.company_id
              )
-             AND i.created_at >= s.billing_start
+             AND i.created_at >= (s.current_period_end - INTERVAL '30 days') -- ← billing period
            ) AS invoice_used,
-           -- count members directly from workspace
            (
              SELECT COUNT(*) FROM memberships m
              WHERE m.workspace_id = (
@@ -61,7 +59,7 @@ const getMySubscription = async (userId, workspaceId) => {
            (
              SELECT COUNT(*) FROM invoices i
              WHERE i.created_by = s.user_id
-             AND i.created_at >= s.billing_start
+             AND i.created_at >= (s.current_period_end - INTERVAL '30 days') -- ← billing period
            ) AS invoice_used,
            1 AS user_count
          FROM subscriptions s

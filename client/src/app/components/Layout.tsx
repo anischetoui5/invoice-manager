@@ -36,11 +36,13 @@ export function Layout({
   useEffect(() => {
     const fetchSubscription = async () => {
       try {
+        const isCompany = currentWorkspace?.type === 'company';
         const { data } = await api.get('/subscriptions/my', {
-          headers: { 'x-workspace-id': currentWorkspace?.id },
+          headers: isCompany ? { 'x-workspace-id': currentWorkspace.id } : {},
         });
         const sub = data.subscription;
-        console.log('invoice_used raw:', sub.invoice_used, typeof sub.invoice_used);
+        console.log('full sub object:', sub);
+        console.log('workspace type:', currentWorkspace?.type);
         setCurrentSubscription(sub ? {
           ...sub,
           plan: sub.plan_name,
@@ -48,7 +50,7 @@ export function Layout({
           startDate: sub.billing_start,
           invoiceUsed: parseInt(sub.invoice_used) || 0,
           invoiceLimit: sub.max_invoices ?? 0,
-          userCount: parseInt(sub.user_count) ?? 0,
+          userCount: parseInt(sub.user_count) || 0,
           userLimit: sub.max_users ?? 0,
         } : null);
       } catch (err) {

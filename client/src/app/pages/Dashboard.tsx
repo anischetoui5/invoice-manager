@@ -155,7 +155,7 @@ useEffect(() => {
                     Upload Invoice
                   </Button>
                 </Link>
-                <Link to="/personal-subscription">
+                <Link to="personal-subscription">
                   <Button className="w-full justify-start" variant="outline" size="lg">
                     <CreditCard className="mr-2 h-5 w-5" />
                     Upgrade Plan

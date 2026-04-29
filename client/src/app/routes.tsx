@@ -137,10 +137,6 @@ export const router = createBrowserRouter([
     element: <Register />,
   },
   {
-    path: '/personal-subscription',
-    element: <PersonalSubscription />,
-  },
-  {
     path: '/dashboard',
     element: <ProtectedLayout />,
     children: [
@@ -155,6 +151,10 @@ export const router = createBrowserRouter([
       {
         path: 'subscription',
         element: <Subscription />,
+      },
+      {
+        path: 'personal-subscription',
+        element: <PersonalSubscription />,
       },
       {
         path: 'upload',
