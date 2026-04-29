@@ -403,7 +403,9 @@ export function Reports() {
         <Card className="p-6">
           <h3 className="mb-6 font-semibold text-foreground">Top Vendors</h3>
           {topVendors.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No vendor data available.</p>
+            <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+                No vendor data available
+            </div>
           ) : (
             <div className="space-y-3">
               {topVendors.map((vendor: any, index: number) => (
