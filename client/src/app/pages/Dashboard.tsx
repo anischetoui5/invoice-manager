@@ -108,7 +108,7 @@ useEffect(() => {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
                 <p className="mt-2 text-3xl font-bold text-foreground">
-                  ${totalAmount.toLocaleString()}
+                  ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
@@ -152,7 +152,7 @@ useEffect(() => {
               </Link>
             )}
           </div>
-          <Progress value={usagePct} className="h-2" />
+          <Progress value={usagePct} className="h-3 mt-3" />
           {nearLimit && (
             <p className="text-xs text-orange-600 mt-2">
               You've used {Math.round(usagePct)}% of your invoice limit. Consider upgrading.
@@ -161,8 +161,7 @@ useEffect(() => {
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Invoices card */}
-          <Card className="p-6">
+          <Card className={`p-6 ${!isPersonalOnly && !isAccountant ? 'lg:col-span-2' : ''}`}>
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold text-foreground">My Invoices</h3>
               <Link to="/dashboard/invoices" className="text-sm font-medium text-blue-600 hover:text-blue-700">
@@ -209,31 +208,8 @@ useEffect(() => {
               )}
             </div>
           </Card>
-
-          {/* Quick actions */}
-          <div className="space-y-6">
-            {isPersonalOnly && <JoinCompany userRole="normal" />}
-            {isAccountant && <JoinCompany userRole="accountant" lockedRole />}
-            <Card className="p-6">
-              <div className="mb-4">
-                <h3 className="font-semibold text-foreground">Quick Actions</h3>
-              </div>
-              <div className="space-y-3">
-                <Link to="/dashboard/upload">
-                  <Button className="w-full justify-start" variant="outline" size="lg">
-                    <Upload className="mr-2 h-5 w-5" />
-                    Upload Invoice
-                  </Button>
-                </Link>
-                <Link to="/dashboard/personal-subscription">
-                  <Button className="w-full justify-start" variant="outline" size="lg">
-                    <CreditCard className="mr-2 h-5 w-5" />
-                    Upgrade Plan
-                  </Button>
-                </Link>
-              </div>
-            </Card>
-          </div>
+          {isPersonalOnly && <JoinCompany userRole="normal" />}
+          {isAccountant && <JoinCompany userRole="accountant" lockedRole />}
         </div>
       </>
     );
@@ -389,7 +365,7 @@ useEffect(() => {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-muted-foreground">Total Amount</span>
                 <span className="text-xl font-bold text-foreground">
-                  ${totalAmount.toLocaleString()}
+                  ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
