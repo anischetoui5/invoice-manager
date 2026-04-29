@@ -127,7 +127,7 @@ async function getAllInvoices(req, res) {
 async function getDashboardStats(req, res) {
   try {
     const { workspace_id } = req.params;
-    const { role } = req.query;
+    const role = req.role;
     const stats = await invoicesService.getDashboardStats(
       workspace_id,
       req.user.id,

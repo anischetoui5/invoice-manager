@@ -41,8 +41,6 @@ export function Layout({
           headers: isCompany ? { 'x-workspace-id': currentWorkspace.id } : {},
         });
         const sub = data.subscription;
-        console.log('full sub object:', sub);
-        console.log('workspace type:', currentWorkspace?.type);
         setCurrentSubscription(sub ? {
           ...sub,
           plan: sub.plan_name,

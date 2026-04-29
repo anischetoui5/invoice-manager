@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { Progress } from '../components/ui/progress';
 import type { UserRole, Workspace, User } from '../types';
 import { JoinCompany } from '../components/JoinCompany';
 import { useState, useEffect } from 'react';
@@ -16,17 +17,18 @@ interface DashboardProps {
 }
 
 export function Dashboard({ userRole }: DashboardProps) {
-  const { currentWorkspace, currentUser, workspaces } = useOutletContext<{
+  const { currentWorkspace, currentUser, workspaces, currentSubscription } = useOutletContext<{
     currentWorkspace: Workspace;
     currentUser: User;
     workspaces: Workspace[];
+    currentSubscription: any;
   }>();
 
   const hasCompanyRole = workspaces?.some(w =>
     w.type === 'company' && ['Employee', 'Director', 'Accountant'].includes(w.role)
   );
   const isAccountant = workspaces?.some(w => w.role === 'Accountant');
-  const isPersonalOnly = !hasCompanyRole && currentWorkspace?.type === 'personal';
+  const isPersonalOnly = !hasCompanyRole && !isAccountant && currentWorkspace?.type === 'personal';
 
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -34,7 +36,7 @@ export function Dashboard({ userRole }: DashboardProps) {
   useEffect(() => {
   if (!currentWorkspace?.id) return;
 
-  setStats(null); // ← clear stale stats immediately
+  setStats(null);
 
   api.get(`/workspaces/${currentWorkspace.id}/invoices/dashboard-stats`, {
     params: { role: currentWorkspace.role },
@@ -63,15 +65,24 @@ useEffect(() => {
   // ── Normal/Personal ────────────────────────────────────────────────────────
   const renderNormalUserDashboard = () => {
     const totalInvoices = Number(stats?.total ?? 0);
-    const pendingCount = Number(stats?.pending ?? 0);
+    const pending       = Number(stats?.pending ?? 0);
+    const processed     = Number(stats?.processed ?? 0);
+    const failed        = Number(stats?.failed ?? 0);
+    const totalAmount   = Number(stats?.total_amount ?? 0);
+
+    const invoiceLimit  = currentSubscription?.invoiceLimit ?? 0;
+    const invoiceUsed   = currentSubscription?.invoiceUsed ?? 0;
+    const usagePct      = invoiceLimit > 0 ? Math.min((invoiceUsed / invoiceLimit) * 100, 100) : 0;
+    const nearLimit     = invoiceLimit > 0 && (invoiceUsed / invoiceLimit) >= 0.8;
 
     return (
       <>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Stats */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Personal Invoices</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
                 <p className="mt-2 text-3xl font-bold text-foreground">{totalInvoices}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
@@ -83,8 +94,8 @@ useEffect(() => {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending OCR</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{pendingCount}</p>
+                <p className="text-sm font-medium text-muted-foreground">OCR Processing</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{pending}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
                 <Clock className="h-6 w-6 text-yellow-600" />
@@ -95,9 +106,27 @@ useEffect(() => {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">
+                  ${totalAmount.toLocaleString()}
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
-                <p className="mt-2 text-2xl font-bold text-foreground">Basic</p>
-                <p className="text-xs text-muted-foreground">Free</p>
+                <p className="mt-2 text-2xl font-bold text-foreground">
+                  {currentSubscription?.plan ?? '—'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  ${currentSubscription?.price ?? 0}/mo
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
                 <CreditCard className="h-6 w-6 text-purple-600" />
@@ -106,15 +135,41 @@ useEffect(() => {
           </Card>
         </div>
 
+        {/* Plan usage */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-semibold text-foreground">Plan Usage</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {invoiceUsed} of {invoiceLimit === -1 ? '∞' : invoiceLimit} invoices used this month
+              </p>
+            </div>
+            {nearLimit && (
+              <Link to="/dashboard/personal-subscription">
+                <Button size="sm" variant="outline" className="text-orange-600 border-orange-300 hover:bg-orange-50">
+                  Upgrade Plan
+                </Button>
+              </Link>
+            )}
+          </div>
+          <Progress value={usagePct} className="h-2" />
+          {nearLimit && (
+            <p className="text-xs text-orange-600 mt-2">
+              You've used {Math.round(usagePct)}% of your invoice limit. Consider upgrading.
+            </p>
+          )}
+        </Card>
+
         <div className="grid gap-6 lg:grid-cols-2">
+          {/* Invoices card */}
           <Card className="p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold text-foreground">Personal Invoices</h3>
+              <h3 className="font-semibold text-foreground">My Invoices</h3>
               <Link to="/dashboard/invoices" className="text-sm font-medium text-blue-600 hover:text-blue-700">
                 View all
               </Link>
             </div>
-            <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="flex flex-col items-center justify-center py-8 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 mb-4">
                 <Upload className="h-8 w-8 text-blue-600" />
               </div>
@@ -130,9 +185,20 @@ useEffect(() => {
                 </>
               ) : (
                 <>
-                  <p className="text-muted-foreground mb-4">
-                    You have {totalInvoices} invoice{totalInvoices !== 1 ? 's' : ''}.
-                  </p>
+                  <div className="grid grid-cols-3 gap-4 w-full mb-4">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-yellow-600">{pending}</p>
+                      <p className="text-xs text-muted-foreground">Processing</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-green-600">{processed}</p>
+                      <p className="text-xs text-muted-foreground">Processed</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-red-600">{failed}</p>
+                      <p className="text-xs text-muted-foreground">Failed</p>
+                    </div>
+                  </div>
                   <Link to="/dashboard/invoices">
                     <Button>
                       <FileText className="mr-2 h-4 w-4" />
@@ -144,6 +210,7 @@ useEffect(() => {
             </div>
           </Card>
 
+          {/* Quick actions */}
           <div className="space-y-6">
             {isPersonalOnly && <JoinCompany userRole="normal" />}
             {isAccountant && <JoinCompany userRole="accountant" lockedRole />}
@@ -158,7 +225,7 @@ useEffect(() => {
                     Upload Invoice
                   </Button>
                 </Link>
-                <Link to="personal-subscription">
+                <Link to="/dashboard/personal-subscription">
                   <Button className="w-full justify-start" variant="outline" size="lg">
                     <CreditCard className="mr-2 h-5 w-5" />
                     Upgrade Plan

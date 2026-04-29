@@ -213,12 +213,12 @@ async function getDashboardStats(workspaceId, userId, role) {
     const result = await pool.query(
       `SELECT
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE current_status = 'pending_review') as pending,
-        COUNT(*) FILTER (WHERE current_status = 'approved') as approved,
-        COUNT(*) FILTER (WHERE current_status = 'rejected') as rejected,
-        COALESCE(SUM(amount) FILTER (WHERE current_status = 'approved'), 0) as total_amount
-       FROM invoices
-       WHERE workspace_id = $1 AND created_by = $2`,
+        COUNT(*) FILTER (WHERE ocr_status = 'processing') as pending,
+        COUNT(*) FILTER (WHERE ocr_status = 'completed') as processed,
+        COUNT(*) FILTER (WHERE ocr_status = 'failed') as failed,
+        COALESCE(SUM(amount), 0) as total_amount
+      FROM invoices
+      WHERE workspace_id = $1 AND created_by = $2`,
       [workspaceId, userId]
     );
     return result.rows[0];

@@ -20,7 +20,10 @@ router.use(authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', '
 // ── All members ───────────────────────────────────────────────
 router.post('/',                  createInvoice);
 router.get('/',                   searchInvoices);
-router.get('/dashboard-stats', getDashboardStats);
+router.get('/dashboard-stats',
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'),
+  getDashboardStats
+);
 router.get('/:invoice_id',        getInvoice);
 router.get('/:invoice_id/history', getStatusHistory);
 
