@@ -55,9 +55,34 @@ async function getDocuments(req, res) {
 
 async function downloadDocument(req, res) {
   try {
-    const { document_id } = req.params;
-    const doc = await documentsService.getDocumentById(document_id);
-    res.download(doc.storage_path, doc.file_name);
+    const docId = req.params.id || req.params.document_id;
+    const doc = await documentsService.getDocumentById(docId);
+
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // Build absolute path
+    const absolutePath = path.join(__dirname, '../../../', doc.storage_path);
+
+    const fs = require('fs');
+    if (!fs.existsSync(absolutePath)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+
+    // Set correct content type
+    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${doc.file_name}"`);
+
+    // Stream the file
+    const stream = fs.createReadStream(absolutePath);
+    stream.pipe(res);
+
+    stream.on('error', (err) => {
+      console.error('Stream error:', err.message);
+      res.status(500).json({ error: 'Failed to stream file' });
+    });
+
   } catch (err) {
     console.error('downloadDocument error:', err.message);
     res.status(404).json({ error: err.message });
