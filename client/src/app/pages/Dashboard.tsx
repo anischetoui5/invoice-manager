@@ -22,9 +22,11 @@ export function Dashboard({ userRole }: DashboardProps) {
     workspaces: Workspace[];
   }>();
 
-  const hasCompanyRole = workspaces?.some(w => 
-    w.type === 'company' && ['Employee', 'Director'].includes(w.role)
+  const hasCompanyRole = workspaces?.some(w =>
+    w.type === 'company' && ['Employee', 'Director', 'Accountant'].includes(w.role)
   );
+  const isAccountant = workspaces?.some(w => w.role === 'Accountant');
+  const isPersonalOnly = !hasCompanyRole && currentWorkspace?.type === 'personal';
 
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -143,7 +145,8 @@ useEffect(() => {
           </Card>
 
           <div className="space-y-6">
-            {!hasCompanyRole && <JoinCompany userRole="normal" />}
+            {isPersonalOnly && <JoinCompany userRole="normal" />}
+            {isAccountant && <JoinCompany userRole="accountant" lockedRole />}
             <Card className="p-6">
               <div className="mb-4">
                 <h3 className="font-semibold text-foreground">Quick Actions</h3>
@@ -453,7 +456,7 @@ useEffect(() => {
         </div>
 
         <div className="mt-6">
-          {!hasCompanyRole && <JoinCompany userRole={userRole} />}
+          <JoinCompany userRole="accountant" lockedRole />
         </div>
       </>
     );

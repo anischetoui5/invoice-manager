@@ -238,7 +238,12 @@ export function Settings() {
     weeklyReport: false,
   });
 
-  const isAdmin = currentUser.role === 'admin';
+  const isAdmin = currentUser.role.toLowerCase() === 'admin';
+  const hasCompanyRole = workspaces?.some(w =>
+    w.type === 'company' && ['Employee', 'Director', 'Accountant'].includes(w.role)
+  );
+  const isAccountant = workspaces?.some(w => w.role === 'Accountant');
+  const isPersonalOnly = !isAdmin && !hasCompanyRole && !isAccountant && currentWorkspace?.type === 'personal';
 
   // ── Profile ──────────────────────────────────────────────────────────────
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -303,20 +308,20 @@ export function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        {isAdmin ? (
-          <TabsList className="bg-background grid w-full grid-cols-3">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          </TabsList>
-        ) : (
-          <TabsList className="bg-background grid w-full grid-cols-4">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="company">Company</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          </TabsList>
-        )}
+      {isAdmin ? (
+        <TabsList className="bg-background grid w-full grid-cols-3">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+        </TabsList>
+      ) : (
+        <TabsList className="bg-background grid w-full grid-cols-4">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="company">Company</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+        </TabsList>
+      )}
 
         {/* ── Profile tab ── */}
         <TabsContent value="profile" className="space-y-6">
@@ -361,12 +366,18 @@ export function Settings() {
         {/* ── Company tab ── */}
         {!isAdmin && (
           <TabsContent value="company" className="space-y-6">
-            {!workspaces.some(w => 
-              w.type === 'company' && ['Employee', 'Director','Admin'].includes(w.role)
-            ) && (
+
+            {/* Personal only user — both role choices */}
+            {isPersonalOnly && (
               <JoinCompany userRole={currentUser.role} />
             )}
 
+            {/* Accountant — always show, locked to accountant */}
+            {isAccountant && (
+              <JoinCompany userRole="accountant" lockedRole />
+            )}
+
+            {/* Company cards */}
             {companyWorkspaces.length === 0 ? (
               <Card className="p-6">
                 <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -389,6 +400,7 @@ export function Settings() {
                 />
               ))
             )}
+
           </TabsContent>
         )}
 

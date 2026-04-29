@@ -1,3 +1,4 @@
+// JoinCompany.tsx
 import { useState, useEffect } from 'react';
 import { Building2, AlertCircle } from 'lucide-react';
 import { Card } from './ui/card';
@@ -12,17 +13,20 @@ import api from '../../lib/api';
 type JoinRole = 'employee' | 'accountant';
 
 interface JoinCompanyProps {
-  userRole: UserRole;
+  userRole: UserRole | string;
+  lockedRole?: boolean; // ← new prop
 }
 
-export function JoinCompany({ userRole }: JoinCompanyProps) {
+export function JoinCompany({ userRole, lockedRole = false }: JoinCompanyProps) {
   const [companyCode, setCompanyCode] = useState('');
   const [role, setRole] = useState<JoinRole>('employee');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (userRole === 'accountant' || userRole === 'employee') {
-      setRole(userRole);
+    if (userRole === 'accountant' || userRole === 'Accountant') {
+      setRole('accountant');
+    } else if (userRole === 'employee' || userRole === 'Employee') {
+      setRole('employee');
     }
   }, [userRole]);
 
@@ -44,7 +48,8 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
     }
   };
 
-  const isNormalUser = userRole === 'normal';
+  // show role selector only for normal users who aren't locked into a role
+  const showRoleSelector = !lockedRole && (userRole === 'normal' || userRole === 'Personal');
 
   return (
     <Card className="p-6">
@@ -59,7 +64,7 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
       </div>
 
       <form onSubmit={handleJoinCompany} className="space-y-4">
-        {isNormalUser ? (
+        {showRoleSelector ? (
           <div className="space-y-2">
             <Label>Join as</Label>
             <RadioGroup value={role} onValueChange={v => setRole(v as JoinRole)}>
@@ -81,8 +86,10 @@ export function JoinCompany({ userRole }: JoinCompanyProps) {
           </div>
         ) : (
           <div className="rounded-lg border bg-muted p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</p>
-            <p className="mt-0.5 font-medium capitalize text-foreground">{userRole}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Joining as
+            </p>
+            <p className="mt-0.5 font-medium capitalize text-foreground">{role}</p>
           </div>
         )}
 
