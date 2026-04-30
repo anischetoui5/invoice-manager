@@ -451,14 +451,14 @@ export function Reports() {
           </div>
 
           {/* Progress bars */}
-          <div className="space-y-4">
+          <div className="flex flex-col justify-between h-full space-y-auto">
             {[
               { label: 'Approved',       value: approved, color: 'bg-green-500',  text: 'text-green-600' },
               { label: 'Pending Review', value: pending,  color: 'bg-yellow-500', text: 'text-yellow-600' },
               { label: 'Rejected',       value: rejected, color: 'bg-red-500',    text: 'text-red-600' },
             ].map(({ label, value, color, text }) => (
-              <div key={label}>
-                <div className="flex items-center justify-between mb-1">
+              <div key={label} className="flex-1 flex flex-col justify-center py-3 border-b last:border-b-0">
+                <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-muted-foreground">{label}</span>
                   <span className={`text-sm font-bold ${text}`}>{value}</span>
                 </div>
