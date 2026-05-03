@@ -3,7 +3,7 @@ import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import {
   ArrowLeft, Edit2, Save, AlertCircle, Loader2,
   CheckCircle2, XCircle, FileText, Clock, RefreshCw,
-  ChevronLeft, ChevronRight, ExternalLink,
+  ChevronLeft, ChevronRight, ExternalLink, History,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -46,6 +46,14 @@ interface Document {
   file_size: number;
   is_primary: boolean;
   created_at: string;
+}
+
+interface StatusHistoryEntry {
+  id: string;
+  status: string;
+  changed_by_name: string;
+  changed_at: string;
+  comment: string | null;
 }
 
 const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
@@ -108,6 +116,7 @@ export function InvoiceDetail() {
   const [isEditingBasic, setIsEditingBasic] = useState(false);
   const [isPollingOCR, setIsPollingOCR]     = useState(false);
   const [zoomOpen, setZoomOpen]             = useState(false);
+  const [history, setHistory]               = useState<StatusHistoryEntry[]>([]);
   const [basicForm, setBasicForm] = useState({
     invoice_number: '', vendor_name: '', amount: '', invoice_date: '', due_date: '',
   });
@@ -156,6 +165,15 @@ export function InvoiceDetail() {
     await loadDocumentUrl(documents[index], id, currentWorkspace.id);
   };
 
+  const fetchHistory = async (invoiceId: string, workspaceId: string) => {
+    try {
+      const { data } = await api.get(`/workspaces/${workspaceId}/invoices/${invoiceId}/history`);
+      setHistory(data.history || []);
+    } catch {
+      setHistory([]);
+    }
+  };
+
   const fetchFields = async (invoiceId: string, workspaceId: string) => {
     try {
       const { data: fieldsData } = await api.get(
@@ -196,6 +214,7 @@ export function InvoiceDetail() {
         const [initial] = await Promise.all([
           fetchFields(id, currentWorkspace.id),
           fetchDocuments(id, currentWorkspace.id),
+          fetchHistory(id, currentWorkspace.id),
         ]);
 
         if (Object.keys(initial).length > 0) {
@@ -815,6 +834,46 @@ export function InvoiceDetail() {
               </div>
             </Card>
           )}
+
+          {/* Status History */}
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <History className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-semibold text-foreground">Status History</h2>
+            </div>
+            {history.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <Clock className="h-8 w-8 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">No status changes recorded yet.</p>
+              </div>
+            ) : (
+              <ol className="relative border-l border-border ml-3 space-y-4">
+                {history.map((entry) => {
+                  const cfg = STATUS_CONFIG[entry.status] ?? { color: 'bg-gray-100 text-gray-700', label: entry.status };
+                  return (
+                    <li key={entry.id} className="ml-4">
+                      <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border-2 border-background bg-primary" />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cfg.color}`}>
+                          {cfg.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          by {entry.changed_by_name ?? '—'}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {new Date(entry.changed_at).toLocaleString()}
+                        </span>
+                      </div>
+                      {entry.comment && (
+                        <p className="mt-1 text-xs text-muted-foreground italic">"{entry.comment}"</p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </Card>
+
         </div>
       </div>
     </div>

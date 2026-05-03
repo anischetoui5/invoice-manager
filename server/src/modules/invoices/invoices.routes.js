@@ -8,6 +8,7 @@ const {
   searchInvoices,
   updateInvoiceStatus,
   getStatusHistory,
+  getWorkspaceHistory,
   updateInvoice,
   deleteInvoice,
   getDashboardStats,
@@ -28,6 +29,10 @@ router.get('/dashboard-stats',
 router.get('/reports',
   authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Personal'),
   getReportsData
+);
+router.get('/workspace-history',
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'),
+  getWorkspaceHistory
 );
 router.get('/:invoice_id',        getInvoice);
 router.get('/:invoice_id/history', getStatusHistory);

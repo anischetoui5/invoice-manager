@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const { createNotification } = require('../notifications/notifications.service');
 
 async function createInvoice({ workspace_id, created_by, invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes }) {
   const client = await pool.connect();
@@ -109,6 +110,13 @@ async function updateInvoiceStatus(invoice_id, status, changed_by, comment = nul
     );
     if (statusCheck.rows.length === 0) throw new Error(`Invalid status: ${status}`);
 
+    const invoiceRes = await client.query(
+      `SELECT invoice_number, vendor_name, created_by, workspace_id FROM invoices WHERE id = $1`,
+      [invoice_id]
+    );
+    const invoice = invoiceRes.rows[0];
+    const label = invoice?.invoice_number || 'Invoice';
+
     await client.query(
       `UPDATE invoices SET current_status = $1 WHERE id = $2`,
       [status, invoice_id]
@@ -119,6 +127,46 @@ async function updateInvoiceStatus(invoice_id, status, changed_by, comment = nul
        VALUES ($1, $2, $3, $4)`,
       [invoice_id, status, changed_by, comment]
     );
+
+    // Notifications
+    const actionUrl = `/dashboard/invoices/${invoice_id}`;
+    if (invoice) {
+      if (status === 'pending_review') {
+        // Notify all directors and accountants in the workspace
+        const reviewers = await client.query(
+          `SELECT m.user_id FROM memberships m
+           JOIN roles r ON r.id = m.role_id
+           WHERE m.workspace_id = $1 AND r.name IN ('Director', 'Accountant')`,
+          [invoice.workspace_id]
+        );
+        for (const row of reviewers.rows) {
+          if (row.user_id !== changed_by) {
+            await createNotification(client, {
+              user_id: row.user_id,
+              type: 'info',
+              title: 'Invoice Awaiting Review',
+              message: `${label}${invoice.vendor_name ? ` (${invoice.vendor_name})` : ''} has been submitted for review.`,
+              action_url: actionUrl,
+            });
+          }
+        }
+      } else if (['approved', 'rejected', 'paid'].includes(status) && invoice.created_by !== changed_by) {
+        const typeMap = { approved: 'success', rejected: 'error', paid: 'success' };
+        const titleMap = { approved: 'Invoice Approved', rejected: 'Invoice Rejected', paid: 'Invoice Marked as Paid' };
+        const msgMap = {
+          approved: `${label} has been approved.`,
+          rejected: `${label} has been rejected.${comment ? ` Reason: ${comment}` : ''}`,
+          paid: `${label} has been marked as paid.`,
+        };
+        await createNotification(client, {
+          user_id: invoice.created_by,
+          type: typeMap[status],
+          title: titleMap[status],
+          message: msgMap[status],
+          action_url: actionUrl,
+        });
+      }
+    }
 
     await client.query('COMMIT');
   } catch (err) {
@@ -502,11 +550,55 @@ async function getReportsData(workspaceId, userId, role, period = '30d') {
   };
 }
 
+async function getWorkspaceHistory(workspace_id, { page = 1, limit = 30, status } = {}) {
+  const offset = (page - 1) * limit;
+  const conditions = ['i.workspace_id = $1'];
+  const params = [workspace_id];
+
+  if (status) {
+    params.push(status);
+    conditions.push(`sh.status = $${params.length}`);
+  }
+
+  const where = conditions.join(' AND ');
+
+  const [rows, count] = await Promise.all([
+    pool.query(
+      `SELECT sh.id, sh.status, sh.changed_at, sh.comment,
+              u.name  AS changed_by_name,
+              i.id    AS invoice_id,
+              i.invoice_number,
+              i.vendor_name
+       FROM status_history sh
+       JOIN invoices i ON i.id = sh.invoice_id
+       LEFT JOIN users u ON u.id = sh.changed_by
+       WHERE ${where}
+       ORDER BY sh.changed_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    ),
+    pool.query(
+      `SELECT COUNT(*) FROM status_history sh
+       JOIN invoices i ON i.id = sh.invoice_id
+       WHERE ${where}`,
+      params
+    ),
+  ]);
+
+  return {
+    history: rows.rows,
+    total: parseInt(count.rows[0].count),
+    page,
+    limit,
+  };
+}
+
 module.exports = {
   createInvoice,
   getInvoiceById,
   updateInvoiceStatus,
   getStatusHistory,
+  getWorkspaceHistory,
   searchInvoices,
   getAllInvoices,
   updateInvoice,

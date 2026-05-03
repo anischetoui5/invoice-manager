@@ -212,6 +212,19 @@ CREATE TABLE subscriptions (
     user_id uuid REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS notifications (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type varchar(20) NOT NULL DEFAULT 'info'
+        CHECK (type IN ('info', 'success', 'warning', 'error')),
+    title varchar(255) NOT NULL,
+    message text NOT NULL,
+    action_url varchar(255),
+    is_read boolean NOT NULL DEFAULT FALSE,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, is_read);
+
 -- =========================
 -- SEED DATA
 -- =========================

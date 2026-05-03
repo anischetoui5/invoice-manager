@@ -157,9 +157,25 @@ async function getReportsData(req, res) {
 }
 
 
+async function getWorkspaceHistory(req, res) {
+  try {
+    const { workspace_id } = req.params;
+    const { page, limit, status } = req.query;
+    const data = await invoicesService.getWorkspaceHistory(workspace_id, {
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 30,
+      status,
+    });
+    res.status(200).json(data);
+  } catch (err) {
+    console.error('getWorkspaceHistory error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   createInvoice, getInvoice, searchInvoices,
-  updateInvoiceStatus, getStatusHistory,
+  updateInvoiceStatus, getStatusHistory, getWorkspaceHistory,
   updateInvoice, deleteInvoice, getAllInvoices,
   getDashboardStats, getReportsData,
 };

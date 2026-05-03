@@ -1,5 +1,5 @@
 // Layout.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { TopBar } from './Topbar';
@@ -33,6 +33,25 @@ export function Layout({
   const [currentSubscription, setCurrentSubscription] = useState(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const { data } = await api.get('/notifications');
+      setNotifications(data.notifications ?? []);
+    } catch {
+      // silently ignore — user may not be authenticated yet
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    pollingRef.current = setInterval(fetchNotifications, 30_000);
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [fetchNotifications]);
+
   useEffect(() => {
     const fetchSubscription = async () => {
       try {
@@ -59,14 +78,18 @@ export function Layout({
     if (currentWorkspace?.id) fetchSubscription();
   }, [currentWorkspace?.id]);
 
-  const handleMarkAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  const handleMarkAsRead = async (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    try {
+      await api.patch(`/notifications/${id}/read`);
+    } catch { /* ignore */ }
   };
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await api.patch('/notifications/read-all');
+    } catch { /* ignore */ }
   };
 
   const handleLogout = () => {

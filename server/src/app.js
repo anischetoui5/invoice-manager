@@ -11,6 +11,7 @@ const documentsRoutes = require('./modules/documents/documents.routes');
 const subscriptionRoutes = require('./modules/subscription/subscription.routes');
 const companyRoutes = require('./modules/company/company.routes');
 const invitationsRoutes = require('./modules/invitations/invitations.routes');
+const notificationsRoutes = require('./modules/notifications/notifications.routes');
 const { getAllInvoices } = require('./modules/invoices/invoices.controller');
 const { authenticate, authorizeAdmin } = require('./middlewares/auth.middleware');
 
@@ -38,6 +39,7 @@ app.use('/api/workspaces/:workspace_id/invoices/:invoice_id/documents', document
 
 app.use('/api/company', companyRoutes);
 app.use('/api/invitations', invitationsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 app.get('/api/me', authenticate, (req, res) => {
   res.json({ message: 'You are authenticated', user: req.user });

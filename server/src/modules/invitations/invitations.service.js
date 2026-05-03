@@ -1,6 +1,6 @@
 const pool = require('../../config/db');
-
 const crypto = require('crypto');
+const { createNotification } = require('../notifications/notifications.service');
 
 async function createInvitationRequest(userId, companyCode, requestedRole) {
   const roleName = requestedRole === 'accountant' ? 'Accountant' : 'Employee';
@@ -45,6 +45,10 @@ async function createInvitationRequest(userId, companyCode, requestedRole) {
   );
   const directorId = directorResult.rows[0]?.user_id;
 
+  // Get requesting user's name
+  const userResult = await pool.query(`SELECT name FROM users WHERE id = $1`, [userId]);
+  const userName = userResult.rows[0]?.name ?? 'Someone';
+
   // Create pending invitation
   const uniqueCode = crypto.randomBytes(8).toString('hex');
   const result = await pool.query(
@@ -54,6 +58,17 @@ async function createInvitationRequest(userId, companyCode, requestedRole) {
      RETURNING *`,
     [workspace_id, uniqueCode, role_id, directorId, userId, role_id]
   );
+
+  // Notify the director
+  if (directorId) {
+    await createNotification(pool, {
+      user_id: directorId,
+      type: 'info',
+      title: 'New Join Request',
+      message: `${userName} wants to join as ${roleName}. Review their request.`,
+      action_url: '/dashboard/team',
+    });
+  }
 
   return result.rows[0];
 }
@@ -143,6 +158,22 @@ async function handleInvitation(requesterId, invitationId, action, contractStart
         [invitationId]
       );
     }
+
+    // Notify the employee/accountant of the decision
+    const companyResult = await client.query(
+      `SELECT c.name FROM companies c WHERE c.workspace_id = $1`, [inv.workspace_id]
+    );
+    const companyName = companyResult.rows[0]?.name ?? 'the company';
+
+    await createNotification(client, {
+      user_id: inv.user_id,
+      type: action === 'accept' ? 'success' : 'error',
+      title: action === 'accept' ? 'Join Request Accepted' : 'Join Request Rejected',
+      message: action === 'accept'
+        ? `Your request to join ${companyName} has been accepted. Welcome aboard!`
+        : `Your request to join ${companyName} has been rejected.`,
+      action_url: action === 'accept' ? '/dashboard' : null,
+    });
 
     await client.query('COMMIT');
   } catch (err) {
