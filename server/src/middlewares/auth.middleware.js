@@ -19,10 +19,10 @@ async function authenticate(req, res, next) {
   }
 }
 
-function authorizeInWorkspace(...allowedRoles) {          // ← not async
+function authorizeInWorkspace(...allowedRoles) {
   return async (req, res, next) => {
-    const workspaceId = req.params.workspace_id           // ← URL param first
-                     || req.headers['x-workspace-id'];    // ← header fallback
+    const workspaceId = req.params.workspace_id
+                     || req.headers['x-workspace-id'];
 
     if (!workspaceId) {
       return res.status(400).json({ error: 'Workspace ID is required' });
@@ -34,7 +34,7 @@ function authorizeInWorkspace(...allowedRoles) {          // ← not async
          FROM memberships m
          JOIN roles r ON r.id = m.role_id
          WHERE m.user_id = $1 AND m.workspace_id = $2`,
-        [req.user.id, workspaceId]                        // ← req.user.id
+        [req.user.id, workspaceId]
       );
 
       if (result.rows.length === 0) {

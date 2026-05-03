@@ -13,6 +13,85 @@ import { JoinCompany } from '../components/JoinCompany';
 import type { User, Enterprise, Workspace } from '../types';
 import api from '../../lib/api';
 
+// ── Notification options per role ──────────────────────────────────────────
+
+type NotificationKey =
+  | 'emailInvoiceUploaded'
+  | 'emailInvoiceValidated'
+  | 'emailInvoiceRejected'
+  | 'pendingReviewReminder'
+  | 'newJoinRequest'
+  | 'weeklyReport'
+  | 'pushNotifications'
+  | 'ocrCompleted'
+  | 'ocrFailed';
+
+const ALL_NOTIFICATIONS: {
+  key: NotificationKey;
+  label: string;
+  desc: string;
+  roles: string[];
+}[] = [
+  {
+    key: 'emailInvoiceUploaded',
+    label: 'Invoice uploaded',
+    desc: 'When a new invoice is submitted',
+    roles: ['Personal', 'Employee', 'Accountant', 'Director', 'Admin'],
+  },
+  {
+    key: 'ocrCompleted',
+    label: 'OCR completed',
+    desc: 'When your invoice has been scanned and data extracted',
+    roles: ['Personal'],
+  },
+  {
+    key: 'ocrFailed',
+    label: 'OCR failed',
+    desc: 'When OCR processing fails on your invoice',
+    roles: ['Personal'],
+  },
+  {
+    key: 'emailInvoiceValidated',
+    label: 'Invoice approved',
+    desc: 'When your invoice is approved',
+    roles: ['Employee', 'Director', 'Admin'],
+  },
+  {
+    key: 'emailInvoiceRejected',
+    label: 'Invoice rejected',
+    desc: 'When your invoice is rejected',
+    roles: ['Employee', 'Director', 'Admin'],
+  },
+  {
+    key: 'pendingReviewReminder',
+    label: 'Pending review reminder',
+    desc: 'Daily reminder when invoices are waiting for your review',
+    roles: ['Accountant', 'Director'],
+  },
+  {
+    key: 'newJoinRequest',
+    label: 'New join request',
+    desc: 'When someone requests to join your workspace',
+    roles: ['Director', 'Admin'],
+  },
+  {
+    key: 'weeklyReport',
+    label: 'Weekly report',
+    desc: 'Summary email every Monday',
+    roles: ['Accountant', 'Director', 'Admin'],
+  },
+  {
+    key: 'pushNotifications',
+    label: 'Push notifications',
+    desc: 'Browser push notifications for real-time updates',
+    roles: ['Personal', 'Employee', 'Accountant', 'Director', 'Admin'],
+  },
+];
+
+function getNotificationOptions(role: string | undefined, isAdmin: boolean) {
+  const r = isAdmin ? 'Admin' : (role ?? 'Personal');
+  return ALL_NOTIFICATIONS.filter(n => n.roles.includes(r));
+}
 
 // ── CompanyCard ────────────────────────────────────────────────────────────────
 function CompanyCard({ workspace, isActive, currentUser }: {
@@ -211,7 +290,6 @@ function CompanyCard({ workspace, isActive, currentUser }: {
   );
 }
 
-
 // ── Settings ───────────────────────────────────────────────────────────────────
 export function Settings() {
   const { currentUser, enterprises, currentWorkspace, workspaces } = useOutletContext<{
@@ -230,12 +308,16 @@ export function Settings() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
-  const [notifications, setNotifications] = useState({
-    emailInvoiceUploaded: true,
+  const [notifications, setNotifications] = useState<Record<NotificationKey, boolean>>({
+    emailInvoiceUploaded:  true,
     emailInvoiceValidated: true,
-    emailInvoiceRejected: true,
-    pushNotifications: true,
-    weeklyReport: false,
+    emailInvoiceRejected:  true,
+    pendingReviewReminder: true,
+    newJoinRequest:        true,
+    weeklyReport:          false,
+    pushNotifications:     true,
+    ocrCompleted:          true,
+    ocrFailed:             true,
   });
 
   const isAdmin = currentUser.role.toLowerCase() === 'admin';
@@ -308,20 +390,20 @@ export function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-      {isAdmin ? (
-        <TabsList className="bg-background grid w-full grid-cols-3">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-        </TabsList>
-      ) : (
-        <TabsList className="bg-background grid w-full grid-cols-4">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="company">Company</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-        </TabsList>
-      )}
+        {isAdmin ? (
+          <TabsList className="bg-background grid w-full grid-cols-3">
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          </TabsList>
+        ) : (
+          <TabsList className="bg-background grid w-full grid-cols-4">
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="company">Company</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          </TabsList>
+        )}
 
         {/* ── Profile tab ── */}
         <TabsContent value="profile" className="space-y-6">
@@ -366,18 +448,12 @@ export function Settings() {
         {/* ── Company tab ── */}
         {!isAdmin && (
           <TabsContent value="company" className="space-y-6">
-
-            {/* Personal only user — both role choices */}
             {isPersonalOnly && (
               <JoinCompany userRole={currentUser.role} />
             )}
-
-            {/* Accountant — always show, locked to accountant */}
             {isAccountant && (
               <JoinCompany userRole="accountant" lockedRole />
             )}
-
-            {/* Company cards */}
             {companyWorkspaces.length === 0 ? (
               <Card className="p-6">
                 <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -400,7 +476,6 @@ export function Settings() {
                 />
               ))
             )}
-
           </TabsContent>
         )}
 
@@ -421,21 +496,27 @@ export function Settings() {
                 <Label htmlFor="currentPassword">Current Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input id="currentPassword" type="password" placeholder="Enter current password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="pl-10" required />
+                  <Input id="currentPassword" type="password" placeholder="Enter current password"
+                    value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="pl-10" required />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="newPassword">New Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input id="newPassword" type="password" placeholder="At least 8 characters" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="pl-10" required />
+                  <Input id="newPassword" type="password" placeholder="At least 8 characters"
+                    value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                    className="pl-10" required />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input id="confirmPassword" type="password" placeholder="Repeat new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="pl-10" required />
+                  <Input id="confirmPassword" type="password" placeholder="Repeat new password"
+                    value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10" required />
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={savingPassword}>
@@ -455,25 +536,21 @@ export function Settings() {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">Notification Preferences</h3>
-                <p className="text-sm text-muted-foreground">Choose what you want to be notified about</p>
+                <p className="text-sm text-muted-foreground">
+                  Choose what you want to be notified about
+                </p>
               </div>
             </div>
             <div className="space-y-4">
-              {[
-                { key: 'emailInvoiceUploaded', label: 'Invoice uploaded', desc: 'When a new invoice is submitted' },
-                { key: 'emailInvoiceValidated', label: 'Invoice validated', desc: 'When an invoice passes validation' },
-                { key: 'emailInvoiceRejected', label: 'Invoice rejected', desc: 'When an invoice is rejected' },
-                { key: 'pushNotifications', label: 'Push notifications', desc: 'Browser push notifications' },
-                { key: 'weeklyReport', label: 'Weekly report', desc: 'Summary email every Monday' },
-              ].map(({ key, label, desc }) => (
+              {getNotificationOptions(currentWorkspace?.role, isAdmin).map(({ key, label, desc }) => (
                 <div key={key} className="flex items-center justify-between rounded-lg border p-4">
                   <div>
                     <p className="text-sm font-medium text-foreground">{label}</p>
                     <p className="text-xs text-muted-foreground">{desc}</p>
                   </div>
                   <Switch
-                    checked={notifications[key as keyof typeof notifications]}
-                    onCheckedChange={(val) => setNotifications({ ...notifications, [key]: val })}
+                    checked={notifications[key]}
+                    onCheckedChange={(val) => setNotifications(prev => ({ ...prev, [key]: val }))}
                   />
                 </div>
               ))}

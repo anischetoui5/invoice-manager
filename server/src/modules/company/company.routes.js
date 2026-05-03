@@ -4,8 +4,8 @@ const router = express.Router();
 const { authenticate, authorizeInWorkspace, authorizeAdmin } = require('../../middlewares/auth.middleware');
 const {
   getCompany, updateCompany,
-  getMembers, removeMember,
-  getInvitations, getAllCompanies,
+  getMembers, getInvitations, 
+  getAllCompanies,
 } = require('./company.controller');
 
 router.use(authenticate);
@@ -25,10 +25,6 @@ router.put('/:workspace_id',
 router.get('/:workspace_id/members',
   authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Normal'),
   getMembers
-);
-router.delete('/:workspace_id/members/:memberId',
-  authorizeInWorkspace('Admin', 'Director'),
-  removeMember
 );
 router.get('/:workspace_id/invitations',
   authorizeInWorkspace('Admin', 'Director'),

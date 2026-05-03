@@ -112,7 +112,9 @@ export function TeamManagement() {
 
   const handleRemoveMember = async (userId: string, name: string) => {
     try {
-      await api.delete(`/users/workspace/${currentWorkspace.id}/members/${userId}`);
+      await api.delete(`/users/workspace/${currentWorkspace.id}/members/${userId}`, {
+        headers: { 'x-workspace-id': currentWorkspace.id },
+      });
       setMembers(prev => prev.filter(m => m.id !== userId));
       toast.success(`${name} removed from workspace`);
     } catch (err: any) {

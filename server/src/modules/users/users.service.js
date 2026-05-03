@@ -113,21 +113,17 @@ async function updateMemberRole(requesterId, workspaceId, targetUserId, roleName
 }
 
 async function removeMember(requesterId, workspaceId, targetUserId) {
-  const requesterCheck = await pool.query(
-    `SELECT r.name as role FROM memberships m
-     JOIN roles r ON r.id = m.role_id
-     WHERE m.user_id = $1 AND m.workspace_id = $2`,
-    [requesterId, workspaceId]
-  );
-  if (!requesterCheck.rows.length || requesterCheck.rows[0].role !== 'Director') {
-    throw new Error('Only Directors can remove members');
+  // role check handled by authorizeInWorkspace middleware
+  if (requesterId === targetUserId) {
+    throw new Error('You cannot remove yourself from the workspace');
   }
-  if (requesterId === targetUserId) throw new Error('You cannot remove yourself from the workspace');
 
-  await pool.query(
-    `DELETE FROM memberships WHERE user_id = $1 AND workspace_id = $2`,
+  const result = await pool.query(
+    `DELETE FROM memberships WHERE user_id = $1 AND workspace_id = $2 RETURNING *`,
     [targetUserId, workspaceId]
   );
+
+  if (!result.rows.length) throw new Error('Member not found');
 }
 
 async function getUserById(userId) {

@@ -593,7 +593,7 @@ export function Reports() {
       </div>
 
       {/* Summary cards — row 1 */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
         <SummaryCard
           label="Total Invoices"
           value={total}
@@ -630,10 +630,6 @@ export function Reports() {
           iconBg="bg-orange-100" iconColor="text-orange-600"
           periodLabel={periodLabel}
         />
-      </div>
-
-      {/* Summary cards — row 2 (OCR + processing time, previously missing) */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
           label="OCR Success Rate"
           value={`${ocrSuccessRate}%`}
@@ -654,6 +650,11 @@ export function Reports() {
             periodLabel={periodLabel}
           />
         )}
+      </div>
+
+      {/* Summary cards — row 2 (OCR + processing time, previously missing) */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        
       </div>
 
       {/* Charts row 1 */}

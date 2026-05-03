@@ -32,19 +32,6 @@ async function getMembers(req, res) {
   }
 }
 
-async function removeMember(req, res) {
-  try {
-    await companyService.removeMember(
-      req.user.id,              // ← already correct
-      req.params.workspace_id,  // ← param name
-      req.params.memberId
-    );
-    res.status(200).json({ message: 'Member removed successfully' });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-}
-
 async function getInvitations(req, res) {
   try {
     const invitations = await companyService.getInvitations(
@@ -68,5 +55,5 @@ async function getAllCompanies(req, res) {
 
 module.exports = {
   getCompany, updateCompany, getMembers,
-  removeMember, getInvitations, getAllCompanies,
+  getInvitations, getAllCompanies,
 };

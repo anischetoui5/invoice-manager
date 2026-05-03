@@ -54,35 +54,6 @@ async function getMembers(workspaceId) {
   return result.rows;
 }
 
-async function removeMember(userId, workspaceId, targetUserId) {
-  // Only Directors can remove members
-  const memberCheck = await pool.query(
-    `SELECT r.name as role FROM memberships m
-     JOIN roles r ON r.id = m.role_id
-     WHERE m.user_id = $1 AND m.workspace_id = $2`,
-    [userId, workspaceId]
-  );
-
-  if (!memberCheck.rows.length || memberCheck.rows[0].role !== 'Director') {
-    throw new Error('Only Directors can remove members');
-  }
-
-  // Directors cannot remove themselves
-  if (userId === targetUserId) {
-    throw new Error('Directors cannot remove themselves');
-  }
-
-  const result = await pool.query(
-    `DELETE FROM memberships
-     WHERE user_id = $1 AND workspace_id = $2
-     RETURNING *`,
-    [targetUserId, workspaceId]
-  );
-
-  if (!result.rows.length) throw new Error('Member not found');
-  return result.rows[0];
-}
-
 async function getInvitations(userId, workspaceId) {
   const memberCheck = await pool.query(
     `SELECT r.name as role FROM memberships m
@@ -123,4 +94,4 @@ async function getAllCompanies() {
   return result.rows;
 }
 
-module.exports = { getCompany, updateCompany, getMembers, removeMember, getInvitations, getAllCompanies };
+module.exports = { getCompany, updateCompany, getMembers, getInvitations, getAllCompanies };
