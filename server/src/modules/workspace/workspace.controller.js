@@ -34,9 +34,9 @@ async function generateInviteCode(req, res) {
 
 async function getWorkspaceStats(req, res) {
   try {
-    const workspaceId = req.params.workspace_id; // ← consistent param name
-    const userId = req.user.id;                  // ← .id
-    const role = req.role;                       // ← from authorizeInWorkspace
+    const workspaceId = req.params.workspace_id;
+    const userId = req.user.id;
+    const role = req.role;
 
     const stats = await workspaceService.getWorkspaceStats(workspaceId, userId, role);
     res.json({ stats });

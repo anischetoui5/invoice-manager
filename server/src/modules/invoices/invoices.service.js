@@ -438,30 +438,28 @@ async function getAllInvoices({
 
 async function getReportsData(workspaceId, userId, role, period = '30d') {
   const periodMap = {
-    '30d':  `NOW() - INTERVAL '30 days'`,
-    '90d':  `NOW() - INTERVAL '90 days'`,
-    '180d': `NOW() - INTERVAL '180 days'`,
-    '1y':   `NOW() - INTERVAL '1 year'`,
+    '30d':  '30 days',
+    '90d':  '90 days',
+    '180d': '180 days',
+    '1y':   '1 year',
   };
-  const since = periodMap[period] || periodMap['30d'];
+  const interval = periodMap[period] || '30 days';
   const r = role?.toLowerCase();
   const isPersonal = r === 'personal' || r === 'normal';
 
-  // ── Personal reports ──────────────────────────────────────────────────────
+  // ── Personal ──────────────────────────────────────────────────────────────
   if (isPersonal) {
     const summary = await pool.query(`
       SELECT
-        COUNT(*)                                                   AS total,
-        COALESCE(SUM(amount), 0)                                   AS total_amount,
-        COALESCE(AVG(amount), 0)                                   AS avg_amount,
-        COUNT(*) FILTER (WHERE ocr_status = 'completed')           AS processed,
-        COUNT(*) FILTER (WHERE ocr_status = 'failed')              AS failed,
-        COUNT(*) FILTER (WHERE ocr_status = 'processing')          AS pending
+        COUNT(*)                                            AS total,
+        COALESCE(SUM(amount), 0)                            AS total_amount,
+        COALESCE(AVG(amount), 0)                            AS avg_amount,
+        COUNT(*) FILTER (WHERE ocr_status = 'processing')   AS pending
       FROM invoices i
-      WHERE i.created_at >= ${since}
-        AND i.workspace_id = $1
-        AND i.created_by = $2
-    `, [workspaceId, userId]);
+      WHERE i.created_at >= NOW() - $1::interval
+        AND i.workspace_id = $2
+        AND i.created_by = $3
+    `, [interval, workspaceId, userId]);
 
     const monthly = await pool.query(`
       SELECT
@@ -470,12 +468,12 @@ async function getReportsData(workspaceId, userId, role, period = '30d') {
         COUNT(*)                                             AS count,
         COALESCE(SUM(amount), 0)                             AS amount
       FROM invoices i
-      WHERE i.created_at >= NOW() - INTERVAL '6 months'
-        AND i.workspace_id = $1
-        AND i.created_by = $2
+      WHERE i.created_at >= NOW() - $1::interval
+        AND i.workspace_id = $2
+        AND i.created_by = $3
       GROUP BY DATE_TRUNC('month', i.created_at)
       ORDER BY month_date ASC
-    `, [workspaceId, userId]);
+    `, [interval, workspaceId, userId]);
 
     return {
       summary: summary.rows[0],
@@ -483,22 +481,23 @@ async function getReportsData(workspaceId, userId, role, period = '30d') {
       status_distribution: [],
       top_vendors: [],
       total_members: 0,
+      employee_leaderboard: [],
     };
   }
 
-  // ── Company reports (Director / Accountant) ───────────────────────────────
+  // ── Company ───────────────────────────────────────────────────────────────
   const summary = await pool.query(`
     SELECT
-      COUNT(*)                                                        AS total,
-      COUNT(*) FILTER (WHERE current_status = 'approved')            AS approved,
-      COUNT(*) FILTER (WHERE current_status = 'rejected')            AS rejected,
-      COUNT(*) FILTER (WHERE current_status = 'pending_review')      AS pending,
-      COALESCE(SUM(amount) FILTER (WHERE current_status = 'approved'), 0) AS total_amount,
-      COALESCE(AVG(amount) FILTER (WHERE current_status = 'approved'), 0) AS avg_amount
+      COUNT(*)                                                              AS total,
+      COUNT(*) FILTER (WHERE current_status = 'approved')                  AS approved,
+      COUNT(*) FILTER (WHERE current_status = 'rejected')                  AS rejected,
+      COUNT(*) FILTER (WHERE current_status = 'pending_review')            AS pending,
+      COALESCE(SUM(amount) FILTER (WHERE current_status = 'approved'), 0)  AS total_amount,
+      COALESCE(AVG(amount) FILTER (WHERE current_status = 'approved'), 0)  AS avg_amount
     FROM invoices i
-    WHERE i.created_at >= ${since}
-      AND i.workspace_id = $1
-  `, [workspaceId]);
+    WHERE i.created_at >= NOW() - $1::interval
+      AND i.workspace_id = $2
+  `, [interval, workspaceId]);
 
   const monthly = await pool.query(`
     SELECT
@@ -507,19 +506,19 @@ async function getReportsData(workspaceId, userId, role, period = '30d') {
       COUNT(*)                                             AS count,
       COALESCE(SUM(amount) FILTER (WHERE current_status = 'approved'), 0) AS amount
     FROM invoices i
-    WHERE i.created_at >= NOW() - INTERVAL '6 months'
-      AND i.workspace_id = $1
+    WHERE i.created_at >= NOW() - $1::interval
+      AND i.workspace_id = $2
     GROUP BY DATE_TRUNC('month', i.created_at)
     ORDER BY month_date ASC
-  `, [workspaceId]);
+  `, [interval, workspaceId]);
 
   const statusDist = await pool.query(`
     SELECT current_status AS status, COUNT(*) AS count
     FROM invoices i
-    WHERE i.created_at >= ${since}
-      AND i.workspace_id = $1
+    WHERE i.created_at >= NOW() - $1::interval
+      AND i.workspace_id = $2
     GROUP BY current_status
-  `, [workspaceId]);
+  `, [interval, workspaceId]);
 
   const topVendors = await pool.query(`
     SELECT
@@ -527,13 +526,13 @@ async function getReportsData(workspaceId, userId, role, period = '30d') {
       COUNT(*)                         AS count,
       COALESCE(SUM(amount), 0)         AS total_amount
     FROM invoices i
-    WHERE i.created_at >= ${since}
-      AND i.workspace_id = $1
+    WHERE i.created_at >= NOW() - $1::interval
+      AND i.workspace_id = $2
       AND vendor_name IS NOT NULL
     GROUP BY vendor_name
     ORDER BY total_amount DESC
     LIMIT 5
-  `, [workspaceId]);
+  `, [interval, workspaceId]);
 
   const members = await pool.query(`
     SELECT COUNT(*) AS total_members
@@ -541,12 +540,27 @@ async function getReportsData(workspaceId, userId, role, period = '30d') {
     WHERE workspace_id = $1
   `, [workspaceId]);
 
+  const employeeLeaderboard = await pool.query(`
+    SELECT
+      u.name,
+      COUNT(*)                   AS count,
+      COALESCE(SUM(i.amount), 0) AS total_amount
+    FROM invoices i
+    JOIN users u ON u.id = i.created_by
+    WHERE i.created_at >= NOW() - $1::interval
+      AND i.workspace_id = $2
+    GROUP BY u.id, u.name
+    ORDER BY count DESC
+    LIMIT 8
+  `, [interval, workspaceId]);
+
   return {
     summary: summary.rows[0],
     monthly_trend: monthly.rows,
     status_distribution: statusDist.rows,
     top_vendors: topVendors.rows,
     total_members: members.rows[0].total_members,
+    employee_leaderboard: employeeLeaderboard.rows,
   };
 }
 

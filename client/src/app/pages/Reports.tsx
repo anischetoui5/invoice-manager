@@ -8,7 +8,6 @@ import {
 import {
   Download, TrendingUp, DollarSign, FileText, Users,
   Loader2, CheckCircle2, XCircle, Clock, TrendingDown, Minus,
-  AlertTriangle, Cpu,
 } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -296,40 +295,6 @@ function EmployeeLeaderboard({ employees }: { employees: any[] }) {
   );
 }
 
-/** Top rejection reasons list */
-function RejectionReasons({ reasons }: { reasons: any[] }) {
-  if (!reasons || reasons.length === 0) {
-    return (
-      <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
-        No rejection data available
-      </div>
-    );
-  }
-  const total = reasons.reduce((s: number, r: any) => s + Number(r.count), 0);
-
-  return (
-    <div className="space-y-3">
-      {reasons.slice(0, 6).map((r: any, i: number) => {
-        const pct = total > 0 ? Math.round((Number(r.count) / total) * 100) : 0;
-        return (
-          <div key={i} className="space-y-1">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-foreground truncate pr-2">{r.reason ?? 'Unspecified'}</p>
-              <span className="shrink-0 text-xs font-semibold text-red-600">{r.count} ({pct}%)</span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-muted">
-              <div
-                className="h-1.5 rounded-full bg-red-400 transition-all duration-500"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function Reports() {
@@ -356,7 +321,9 @@ export function Reports() {
       params: { period },
       headers: { 'x-workspace-id': currentWorkspace.id },
     })
-      .then(({ data: d }) => setData(d))
+      .then(({ data: d }) => {
+        setData(d);
+      })
       .catch(() => {})
       .finally(() => {
         setIsLoading(false);
@@ -380,8 +347,7 @@ export function Reports() {
   const monthlyTrend = data?.monthly_trend ?? [];
   const statusDist   = data?.status_distribution ?? [];
   const topVendors   = data?.top_vendors ?? [];
-  const employees    = data?.employee_leaderboard ?? [];
-  const rejReasons   = data?.top_rejection_reasons ?? [];
+  const employees    = data?.employee_leaderboard ?? [];;
   const totalMembers = Number(data?.total_members ?? 0);
   const changes      = data?.mom_changes ?? {}; // month-over-month deltas
 
@@ -390,17 +356,8 @@ export function Reports() {
   const rejected     = Number(summary.rejected ?? 0);
   const pending      = Number(summary.pending ?? 0);
   const totalAmount  = Number(summary.total_amount ?? 0);
-  const approvedAmount = Number(summary.approved_amount ?? totalAmount); // prefer separate field
   const avgAmount    = Number(summary.avg_amount ?? 0);
-  const processed    = Number(summary.processed ?? 0);
-  const failed       = Number(summary.failed ?? 0);
   const approvalRate = total > 0 ? Math.round((approved / total) * 100) : 0;
-  const ocrSuccessRate = (processed + failed) > 0
-    ? Math.round((processed / (processed + failed)) * 100)
-    : 0;
-  const avgProcessingTime = data?.avg_processing_hours != null
-    ? `${Number(data.avg_processing_hours).toFixed(1)}h`
-    : null;
 
   const pieData = statusDist.map((s: any) => ({
     name:  STATUS_LABELS[s.status] ?? s.status,
@@ -485,7 +442,7 @@ export function Reports() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <SummaryCard
             label="Total Invoices"
             value={total}
@@ -502,15 +459,6 @@ export function Reports() {
             icon={<DollarSign className="h-6 w-6" />}
             iconBg="bg-green-100" iconColor="text-green-600"
             trend={changes.total_amount}
-            periodLabel={periodLabel}
-          />
-          <SummaryCard
-            label="OCR Success Rate"
-            value={`${ocrSuccessRate}%`}
-            sub={`${processed} processed · ${failed} failed`}
-            icon={<CheckCircle2 className="h-6 w-6" />}
-            iconBg="bg-purple-100" iconColor="text-purple-600"
-            trend={changes.ocr_success_rate}
             periodLabel={periodLabel}
           />
           <SummaryCard
@@ -593,7 +541,7 @@ export function Reports() {
       </div>
 
       {/* Summary cards — row 1 */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
           label="Total Invoices"
           value={total}
@@ -606,8 +554,8 @@ export function Reports() {
         {/* Fixed label: only show approved amount */}
         <SummaryCard
           label="Approved Amount"
-          value={`$${fmt(approvedAmount)}`}
-          sub={`Avg $${fmt(avgAmount)} per invoice · all statuses $${fmt(totalAmount)}`}
+          value={`$${fmt(totalAmount)}`}
+          sub={`Avg $${fmt(avgAmount)} per invoice`}
           icon={<DollarSign className="h-6 w-6" />}
           iconBg="bg-green-100" iconColor="text-green-600"
           trend={changes.approved_amount}
@@ -630,31 +578,6 @@ export function Reports() {
           iconBg="bg-orange-100" iconColor="text-orange-600"
           periodLabel={periodLabel}
         />
-        <SummaryCard
-          label="OCR Success Rate"
-          value={`${ocrSuccessRate}%`}
-          sub={`${processed} processed · ${failed} failed`}
-          icon={<Cpu className="h-6 w-6" />}
-          iconBg="bg-sky-100" iconColor="text-sky-600"
-          trend={changes.ocr_success_rate}
-          periodLabel={periodLabel}
-        />
-        {avgProcessingTime && (
-          <SummaryCard
-            label="Avg Processing Time"
-            value={avgProcessingTime}
-            sub="Upload → approved"
-            icon={<Clock className="h-6 w-6" />}
-            iconBg="bg-indigo-100" iconColor="text-indigo-600"
-            trend={changes.avg_processing_hours != null ? -changes.avg_processing_hours : null} // lower is better → invert sign
-            periodLabel={periodLabel}
-          />
-        )}
-      </div>
-
-      {/* Summary cards — row 2 (OCR + processing time, previously missing) */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        
       </div>
 
       {/* Charts row 1 */}
@@ -717,7 +640,7 @@ export function Reports() {
       </div>
 
       {/* Charts row 2 */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         <Card className="p-6">
           <h3 className="mb-6 font-semibold text-foreground">Invoice Count Trend</h3>
           {!hasLineData ? (
@@ -744,18 +667,6 @@ export function Reports() {
           <h3 className="mb-6 font-semibold text-foreground">Top Vendors</h3>
           <VendorsBarChart vendors={topVendors} />
         </Card>
-      </div>
-
-      {/* Row 3: Rejection reasons + Employee leaderboard */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="p-6">
-          <div className="mb-6 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-            <h3 className="font-semibold text-foreground">Top Rejection Reasons</h3>
-          </div>
-          <RejectionReasons reasons={rejReasons} />
-        </Card>
-
         <Card className="p-6">
           <div className="mb-6 flex items-center gap-2">
             <Users className="h-4 w-4 text-blue-500" />
@@ -810,7 +721,7 @@ export function Reports() {
           <div className="space-y-4 rounded-lg border p-4">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Approved Amount</p>
-              <p className="mt-1 text-xl font-bold text-foreground">${fmt(approvedAmount)}</p>
+              <p className="mt-1 text-xl font-bold text-foreground">${fmt(totalAmount)}</p>
             </div>
             <div className="h-px bg-border" />
             <div>
@@ -818,15 +729,6 @@ export function Reports() {
               <p className="mt-1 text-xl font-bold text-foreground">${fmt(avgAmount)}</p>
             </div>
             <div className="h-px bg-border" />
-            {avgProcessingTime && (
-              <>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Avg Processing Time</p>
-                  <p className="mt-1 text-xl font-bold text-foreground">{avgProcessingTime}</p>
-                </div>
-                <div className="h-px bg-border" />
-              </>
-            )}
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Team Members</p>
               <p className="mt-1 text-xl font-bold text-foreground">{totalMembers}</p>
