@@ -706,8 +706,8 @@ function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit
           </div>
         </Card>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="p-6">
+        <div className="grid gap-6 lg:grid-cols-4">
+          <Card className="p-6 lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold text-foreground">Invoice Status Breakdown</h3>
               <Link to="/dashboard/reports" className="text-sm font-medium text-blue-600 hover:text-blue-700">

@@ -1,7 +1,7 @@
 const pool = require('../../config/db');
 const { logActivity } = require('../activity/activity.service');
-
-async function getCompany(workspaceId) {
+ 
+async function getCompany(workspaceId, requestingUserId) {
   const result = await pool.query(
     `SELECT c.*, w.name as workspace_name, w.type
      FROM companies c
@@ -10,22 +10,60 @@ async function getCompany(workspaceId) {
     [workspaceId]
   );
   if (!result.rows.length) throw new Error('Company not found');
-  return result.rows[0];
+  const company = result.rows[0];
+ 
+  // Check if requesting user is a Director — if so, include subscription info
+  if (requestingUserId) {
+    const roleCheck = await pool.query(
+      `SELECT r.name as role FROM memberships m
+       JOIN roles r ON r.id = m.role_id
+       WHERE m.user_id = $1 AND m.workspace_id = $2`,
+      [requestingUserId, workspaceId]
+    );
+    const role = roleCheck.rows[0]?.role;
+ 
+    if (role === 'Director') {
+      const subResult = await pool.query(
+        `SELECT s.status, s.trial_ends_at, s.current_period_end, s.credits,
+                sp.name as plan_name, sp.price, sp.max_invoices, sp.max_users
+         FROM subscriptions s
+         JOIN subscription_plans sp ON sp.id = s.plan_id
+         WHERE s.company_id = $1
+         ORDER BY s.created_at DESC
+         LIMIT 1`,
+        [company.id]
+      );
+      company.subscription = subResult.rows[0] ?? null;
+    }
+ 
+    // For any member, include their own contract dates
+    if (role && role !== 'Director') {
+      const contractResult = await pool.query(
+        `SELECT contract_start, contract_end FROM memberships
+         WHERE user_id = $1 AND workspace_id = $2`,
+        [requestingUserId, workspaceId]
+      );
+      company.myContract = contractResult.rows[0] ?? null;
+    }
+ 
+    company.myRole = role;
+  }
+ 
+  return company;
 }
-
+ 
 async function updateCompany(userId, workspaceId, { name, email, phone, address }) {
-  // Only Directors can update company info
   const memberCheck = await pool.query(
     `SELECT r.name as role FROM memberships m
      JOIN roles r ON r.id = m.role_id
      WHERE m.user_id = $1 AND m.workspace_id = $2`,
     [userId, workspaceId]
   );
-
+ 
   if (!memberCheck.rows.length || memberCheck.rows[0].role !== 'Director') {
     throw new Error('Only Directors can update company information');
   }
-
+ 
   const result = await pool.query(
     `UPDATE companies
      SET name = COALESCE($1, name),
@@ -37,10 +75,10 @@ async function updateCompany(userId, workspaceId, { name, email, phone, address 
      RETURNING *`,
     [name, email, phone, address, workspaceId]
   );
-
+ 
   if (!result.rows.length) throw new Error('Company not found');
   const company = result.rows[0];
-
+ 
   await logActivity(pool, {
     workspace_id: workspaceId,
     user_id: userId,
@@ -49,13 +87,14 @@ async function updateCompany(userId, workspaceId, { name, email, phone, address 
     entity_id: company.id,
     metadata: { company_name: company.name },
   });
-
+ 
   return company;
 }
-
+ 
 async function getMembers(workspaceId) {
   const result = await pool.query(
-    `SELECT u.id, u.name, u.email, r.name as role, m.joined_at
+    `SELECT u.id, u.name, u.email, r.name as role, m.joined_at,
+            m.contract_start, m.contract_end
      FROM memberships m
      JOIN users u ON u.id = m.user_id
      JOIN roles r ON r.id = m.role_id
@@ -65,7 +104,7 @@ async function getMembers(workspaceId) {
   );
   return result.rows;
 }
-
+ 
 async function getInvitations(userId, workspaceId) {
   const memberCheck = await pool.query(
     `SELECT r.name as role FROM memberships m
@@ -73,11 +112,11 @@ async function getInvitations(userId, workspaceId) {
      WHERE m.user_id = $1 AND m.workspace_id = $2`,
     [userId, workspaceId]
   );
-
+ 
   if (!memberCheck.rows.length || memberCheck.rows[0].role !== 'Director') {
     throw new Error('Only Directors can view invitations');
   }
-
+ 
   const result = await pool.query(
     `SELECT i.*, r.name as role_name
      FROM invitations i
@@ -88,7 +127,7 @@ async function getInvitations(userId, workspaceId) {
   );
   return result.rows;
 }
-
+ 
 async function getAllCompanies() {
   const result = await pool.query(
     `SELECT 
@@ -105,5 +144,6 @@ async function getAllCompanies() {
   );
   return result.rows;
 }
-
+ 
 module.exports = { getCompany, updateCompany, getMembers, getInvitations, getAllCompanies };
+ 

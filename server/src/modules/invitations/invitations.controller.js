@@ -1,6 +1,6 @@
-// invitations.controller.js
 const invitationsService = require('./invitations.service');
 
+// POST /invitations/request  — join request (existing)
 async function createInvitationRequest(req, res) {
   try {
     const { code, role } = req.body;
@@ -14,10 +14,11 @@ async function createInvitationRequest(req, res) {
   }
 }
 
+// GET /invitations/workspace/:workspace_id  — list pending (existing)
 async function getPendingInvitations(req, res) {
   try {
     const invitations = await invitationsService.getPendingInvitations(
-      req.params.workspace_id, // ← consistent param name
+      req.params.workspace_id,
       req.user.id
     );
     res.status(200).json({ invitations });
@@ -26,6 +27,7 @@ async function getPendingInvitations(req, res) {
   }
 }
 
+// PATCH /invitations/workspace/:workspace_id/invitations/:invitationId  — accept/reject (existing)
 async function handleInvitation(req, res) {
   try {
     const { action, contractStart, contractEnd } = req.body;
@@ -45,4 +47,37 @@ async function handleInvitation(req, res) {
   }
 }
 
-module.exports = { createInvitationRequest, getPendingInvitations, handleInvitation };
+// POST /invitations/leave  — leave request (new)
+async function createLeaveRequest(req, res) {
+  try {
+    const { workspaceId } = req.body;
+    if (!workspaceId) {
+      return res.status(400).json({ error: 'workspaceId is required' });
+    }
+    await invitationsService.createLeaveRequest(req.user.id, workspaceId);
+    res.status(201).json({ message: 'Leave request submitted. Waiting for director approval.' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+// GET /invitations/leave-status/:workspace_id  — pending leave check (new)
+async function leaveStatus(req, res) {
+  try {
+    const pending = await invitationsService.getMyLeaveRequest(
+      req.user.id,
+      req.params.workspace_id
+    );
+    res.status(200).json({ pending });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+module.exports = {
+  createInvitationRequest,
+  getPendingInvitations,
+  handleInvitation,
+  createLeaveRequest,
+  leaveStatus,
+};
