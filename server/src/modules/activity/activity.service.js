@@ -14,7 +14,6 @@ async function getWorkspaceActivity(workspace_id, { page = 1, limit = 30, role, 
   const params = [workspace_id];
 
   const r = role?.toLowerCase();
-  console.log('getWorkspaceActivity r:', r, 'userId:', userId);
 
   if (r === 'personal' || r === 'normal') {
     // Personal users only see their own actions
@@ -44,7 +43,6 @@ async function getWorkspaceActivity(workspace_id, { page = 1, limit = 30, role, 
   }
 
   const where = conditions.join(' AND ');
-  console.log('where:', where, 'params:', params);
 
   const [rows, count] = await Promise.all([
     pool.query(
