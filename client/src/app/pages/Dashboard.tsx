@@ -62,6 +62,75 @@ useEffect(() => {
   }
 }, [userRole]);
 
+
+const ACTION_CONFIG: Record<string, { label: string; color: string }> = {
+  'invoice.created':        { label: 'Invoice created',        color: 'bg-blue-100 text-blue-700' },
+  'invoice.status_changed': { label: 'Status changed',         color: 'bg-yellow-100 text-yellow-700' },
+  'invoice.deleted':        { label: 'Invoice deleted',        color: 'bg-red-100 text-red-700' },
+  'invoice.updated':        { label: 'Invoice updated',        color: 'bg-purple-100 text-purple-700' },
+  'member.joined':          { label: 'Member joined',          color: 'bg-green-100 text-green-700' },
+  'member.left':            { label: 'Member removed',         color: 'bg-red-100 text-red-700' },
+  'invitation.accepted':    { label: 'Invitation accepted',    color: 'bg-green-100 text-green-700' },
+  'invitation.rejected':    { label: 'Invitation rejected',    color: 'bg-red-100 text-red-700' },
+  'company.updated':        { label: 'Company updated',        color: 'bg-blue-100 text-blue-700' },
+};
+
+function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit?: number }) {
+  const [activity, setActivity] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    api.get(`/workspaces/${workspaceId}/activity`, {
+      params: { limit },
+      headers: { 'x-workspace-id': workspaceId },
+    })
+      .then(({ data }) => setActivity(data.activity ?? []))
+      .catch(() => setActivity([]))
+      .finally(() => setIsLoading(false));
+  }, [workspaceId, limit]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-32 items-center justify-center">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (activity.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">No activity yet.</p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {activity.map((item: any) => {
+        const cfg = ACTION_CONFIG[item.action] ?? { label: item.action, color: 'bg-gray-100 text-gray-700' };
+        return (
+          <div key={item.id} className="flex items-start gap-3">
+            <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${cfg.color}`}>
+              {cfg.label}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-foreground truncate">
+                {item.user_name ?? '—'}
+                {item.metadata?.vendor_name && (
+                  <span className="text-muted-foreground"> · {item.metadata.vendor_name}</span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(item.created_at).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
   // ── Normal/Personal ────────────────────────────────────────────────────────
   const renderNormalUserDashboard = () => {
     const totalInvoices = Number(stats?.total ?? 0);
@@ -471,7 +540,7 @@ useEffect(() => {
             <div className="mb-4">
               <h3 className="font-semibold text-foreground">Recent Activity</h3>
             </div>
-            <p className="text-sm text-muted-foreground">No activity yet.</p>
+            <RecentActivity workspaceId={currentWorkspace.id} limit={5} />
           </Card>
 
           <Card className="p-6">
@@ -638,7 +707,7 @@ useEffect(() => {
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="p-6 lg:col-span-2">
+          <Card className="p-6">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold text-foreground">Invoice Status Breakdown</h3>
               <Link to="/dashboard/reports" className="text-sm font-medium text-blue-600 hover:text-blue-700">
@@ -669,6 +738,16 @@ useEffect(() => {
                 ))}
               </div>
             )}
+          </Card>
+
+          <Card className="p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-semibold text-foreground">Recent Activity</h3>
+              <Link to="/dashboard/history" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+                View all
+              </Link>
+            </div>
+            <RecentActivity workspaceId={currentWorkspace.id} limit={4} />
           </Card>
 
           <Card className="p-6">
@@ -797,11 +876,16 @@ useEffect(() => {
           </Card>
 
           <Card className="p-6">
-            <div className="mb-6">
-              <h3 className="font-semibold text-foreground">Recent Activity</h3>
-              <p className="text-sm text-muted-foreground mt-1">Platform-wide activity log</p>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-foreground">Recent Activity</h3>
+                <p className="text-sm text-muted-foreground mt-1">Platform-wide activity log</p>
+              </div>
+              <Link to="/dashboard/history" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+                View all
+              </Link>
             </div>
-            <p className="text-sm text-muted-foreground">No activity yet.</p>
+            <RecentActivity workspaceId={currentWorkspace.id} limit={5} />
           </Card>
 
           <Card className="lg:col-span-2 p-6">

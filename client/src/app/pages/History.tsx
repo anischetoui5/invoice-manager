@@ -123,7 +123,7 @@ export function History() {
     try {
       const params: Record<string, string | number> = { page, limit: LIMIT };
       if (entityFilter) params.entity_type = entityFilter;
-      const { data } = await api.get(`/workspaces/${currentWorkspace.id}/activity`, { params });
+      const { data } = await api.get(`/workspaces/${currentWorkspace.id}/activity`, { params, headers: { 'x-workspace-id': currentWorkspace.id }, });
       setEntries(data.activity || []);
       setTotal(data.total || 0);
     } catch {

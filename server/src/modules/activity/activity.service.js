@@ -13,13 +13,30 @@ async function getWorkspaceActivity(workspace_id, { page = 1, limit = 30, role, 
   const conditions = ['a.workspace_id = $1'];
   const params = [workspace_id];
 
-  // Employees only see their own invoice actions + member/company events
-  if (role === 'Employee') {
+  const r = role?.toLowerCase();
+  console.log('getWorkspaceActivity r:', r, 'userId:', userId);
+
+  if (r === 'personal' || r === 'normal') {
+    // Personal users only see their own actions
+    params.push(userId);
+    conditions.push(`a.user_id = $${params.length}`);
+
+  } else if (r === 'employee') {
     params.push(userId);
     conditions.push(
-      `(a.entity_type != 'invoice' OR a.user_id = $${params.length} OR a.metadata->>'created_by' = $${params.length}::text)`
+      `(
+        a.user_id = $${params.length}
+        OR (a.entity_type = 'company')
+        OR (a.entity_type = 'member' AND a.entity_id = $${params.length}::uuid)
+      )`
     );
+
+  } else if (r === 'accountant') {
+    // Accountants only see actions they performed
+    params.push(userId);
+    conditions.push(`a.user_id = $${params.length}`);
   }
+  // Director and Admin see everything — no extra filter needed
 
   if (entity_type) {
     params.push(entity_type);
@@ -27,6 +44,7 @@ async function getWorkspaceActivity(workspace_id, { page = 1, limit = 30, role, 
   }
 
   const where = conditions.join(' AND ');
+  console.log('where:', where, 'params:', params);
 
   const [rows, count] = await Promise.all([
     pool.query(
