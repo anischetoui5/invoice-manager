@@ -181,6 +181,7 @@ CREATE TABLE invitations (
     user_id uuid REFERENCES users(id) ON DELETE CASCADE,
     requested_role_id uuid REFERENCES roles(id),
     rejected_at timestamp
+    type varchar(20) DEFAULT 'join_request' CHECK (type IN ('join_request', 'leave_request'));
 );
 
 -- SUBSCRIPTION PLANS
