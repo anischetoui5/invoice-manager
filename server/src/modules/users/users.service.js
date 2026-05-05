@@ -1,5 +1,6 @@
 const pool = require('../../config/db');
 const bcrypt = require('bcryptjs');
+const { logActivity } = require('../activity/activity.service');
 
 async function getAllUsers() {
   const result = await pool.query(
@@ -118,12 +119,32 @@ async function removeMember(requesterId, workspaceId, targetUserId) {
     throw new Error('You cannot remove yourself from the workspace');
   }
 
+  const memberInfo = await pool.query(
+    `SELECT u.name, r.name as role FROM memberships m
+     JOIN users u ON u.id = m.user_id
+     JOIN roles r ON r.id = m.role_id
+     WHERE m.user_id = $1 AND m.workspace_id = $2`,
+    [targetUserId, workspaceId]
+  );
+
   const result = await pool.query(
     `DELETE FROM memberships WHERE user_id = $1 AND workspace_id = $2 RETURNING *`,
     [targetUserId, workspaceId]
   );
 
   if (!result.rows.length) throw new Error('Member not found');
+
+  const member = memberInfo.rows[0];
+  if (member) {
+    await logActivity(pool, {
+      workspace_id: workspaceId,
+      user_id: requesterId,
+      action: 'member.left',
+      entity_type: 'member',
+      entity_id: targetUserId,
+      metadata: { user_name: member.name, role: member.role },
+    });
+  }
 }
 
 async function getUserById(userId) {

@@ -1,5 +1,6 @@
 const pool = require('../../config/db');
 const { createNotification } = require('../notifications/notifications.service');
+const { logActivity } = require('../activity/activity.service');
 
 async function createInvoice({ workspace_id, created_by, invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes }) {
   const client = await pool.connect();
@@ -21,6 +22,15 @@ async function createInvoice({ workspace_id, created_by, invoice_number, vendor_
        VALUES ($1, 'draft', $2, 'Invoice created')`,
       [invoice.id, created_by]
     );
+
+    await logActivity(client, {
+      workspace_id,
+      user_id: created_by,
+      action: 'invoice.created',
+      entity_type: 'invoice',
+      entity_id: invoice.id,
+      metadata: { invoice_number: invoice.invoice_number, vendor_name: invoice.vendor_name, created_by },
+    });
 
     await client.query('COMMIT');
     return invoice;
@@ -166,6 +176,15 @@ async function updateInvoiceStatus(invoice_id, status, changed_by, comment = nul
           action_url: actionUrl,
         });
       }
+
+      await logActivity(client, {
+        workspace_id: invoice.workspace_id,
+        user_id: changed_by,
+        action: 'invoice.status_changed',
+        entity_type: 'invoice',
+        entity_id: invoice_id,
+        metadata: { invoice_number: invoice.invoice_number, vendor_name: invoice.vendor_name, status, comment, created_by: invoice.created_by },
+      });
     }
 
     await client.query('COMMIT');
@@ -245,6 +264,16 @@ async function deleteInvoice(invoice_id, workspace_id, userId) {
     await client.query(`DELETE FROM status_history WHERE invoice_id = $1`, [invoice_id]);
     await client.query(`DELETE FROM documents WHERE invoice_id = $1`, [invoice_id]);
     await client.query(`DELETE FROM invoices WHERE id = $1`, [invoice_id]);
+
+    await logActivity(client, {
+      workspace_id,
+      user_id: userId,
+      action: 'invoice.deleted',
+      entity_type: 'invoice',
+      entity_id: invoice_id,
+      metadata: { invoice_number: invoice.invoice_number, vendor_name: invoice.vendor_name },
+    });
+
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');

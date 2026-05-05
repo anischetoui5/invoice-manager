@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const { logActivity } = require('../activity/activity.service');
 
 async function getCompany(workspaceId) {
   const result = await pool.query(
@@ -38,7 +39,18 @@ async function updateCompany(userId, workspaceId, { name, email, phone, address 
   );
 
   if (!result.rows.length) throw new Error('Company not found');
-  return result.rows[0];
+  const company = result.rows[0];
+
+  await logActivity(pool, {
+    workspace_id: workspaceId,
+    user_id: userId,
+    action: 'company.updated',
+    entity_type: 'company',
+    entity_id: company.id,
+    metadata: { company_name: company.name },
+  });
+
+  return company;
 }
 
 async function getMembers(workspaceId) {

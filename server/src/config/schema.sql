@@ -225,6 +225,18 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, is_read);
 
+CREATE TABLE IF NOT EXISTS activity_log (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workspace_id uuid REFERENCES workspaces(id) ON DELETE CASCADE,
+    user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    action varchar(100) NOT NULL,
+    entity_type varchar(50),
+    entity_id uuid,
+    metadata jsonb DEFAULT '{}',
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_activity_log_workspace ON activity_log(workspace_id, created_at DESC);
+
 -- =========================
 -- SEED DATA
 -- =========================

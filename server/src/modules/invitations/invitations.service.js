@@ -1,6 +1,7 @@
 const pool = require('../../config/db');
 const crypto = require('crypto');
 const { createNotification } = require('../notifications/notifications.service');
+const { logActivity } = require('../activity/activity.service');
 
 async function createInvitationRequest(userId, companyCode, requestedRole) {
   const roleName = requestedRole === 'accountant' ? 'Accountant' : 'Employee';
@@ -173,6 +174,23 @@ async function handleInvitation(requesterId, invitationId, action, contractStart
         ? `Your request to join ${companyName} has been accepted. Welcome aboard!`
         : `Your request to join ${companyName} has been rejected.`,
       action_url: action === 'accept' ? '/dashboard' : null,
+    });
+
+    // Get user name for activity log
+    const userResult = await client.query(`SELECT name FROM users WHERE id = $1`, [inv.user_id]);
+    const userName = userResult.rows[0]?.name ?? 'Unknown';
+
+    // Get role name
+    const roleResult = await client.query(`SELECT name FROM roles WHERE id = $1`, [inv.requested_role_id]);
+    const roleName = roleResult.rows[0]?.name ?? 'Member';
+
+    await logActivity(client, {
+      workspace_id: inv.workspace_id,
+      user_id: requesterId,
+      action: action === 'accept' ? 'member.joined' : 'invitation.rejected',
+      entity_type: 'member',
+      entity_id: inv.user_id,
+      metadata: { user_name: userName, role: roleName, company_name: companyName },
     });
 
     await client.query('COMMIT');
