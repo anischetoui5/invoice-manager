@@ -114,7 +114,7 @@ function SubscriptionBadge({ status }: { status: Subscription['status'] }) {
   );
 }
 
-// ── CompanyCard (accordion) ────────────────────────────────────────────────
+// ── CompanyCard ────────────────────────────────────────────────────────────
 
 function CompanyCard({
   workspace, isActive, currentUser,
@@ -123,7 +123,7 @@ function CompanyCard({
   isActive: boolean;
   currentUser: User;
 }) {
-  const [open, setOpen] = useState(isActive); // active workspace starts expanded
+  const [open, setOpen] = useState(isActive);
 
   const [companyDetails, setCompanyDetails] = useState<{
     name: string;
@@ -142,9 +142,8 @@ function CompanyCard({
   const [submittingLeave, setSubmittingLeave] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', address: '' });
-
-  // Load data only when first opened
   const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
     if (!open || loaded) return;
     setLoaded(true);
@@ -181,8 +180,6 @@ function CompanyCard({
     }
   };
 
-  const handleLeaveRequest = () => setShowLeaveConfirm(true);
-
   const confirmLeaveRequest = async () => {
     setShowLeaveConfirm(false);
     setSubmittingLeave(true);
@@ -215,21 +212,20 @@ function CompanyCard({
     ? new Date(contract.contract_end) < new Date()
     : false;
 
-  // Display name — use loaded details or fall back to workspace name
   const displayName = companyDetails?.name ?? workspace.name;
   const displayRole = role ?? workspace.role;
 
   return (
     <Card className="overflow-hidden">
-      {/* ── Accordion header — always visible, click to toggle ── */}
+      {/* Accordion header */}
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between p-5 text-left hover:bg-muted/40 transition-colors"
       >
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold text-white flex-shrink-0">
-            {displayName.charAt(0).toUpperCase()}
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
+            <Building2 className="h-5 w-5 text-blue-600" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -248,20 +244,20 @@ function CompanyCard({
         />
       </button>
 
-      {/* ── Accordion body ── */}
+      {/* Accordion body */}
       {open && (
-        <div className="border-t divide-y">
+        <div className="border-t space-y-4 p-6">
 
           {/* Subscription — Directors only */}
           {isDirector && sub && (
-            <div className="p-5 space-y-4">
-              <div className="flex items-center gap-3 mb-1">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100">
-                  <CreditCard className="h-4 w-4 text-purple-600" />
+            <Card className="p-6">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+                  <CreditCard className="h-5 w-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Subscription</p>
-                  <p className="text-xs text-muted-foreground">Your current plan and billing</p>
+                  <h3 className="font-semibold text-foreground">Subscription</h3>
+                  <p className="text-sm text-muted-foreground">Your current plan and billing</p>
                 </div>
               </div>
 
@@ -314,7 +310,7 @@ function CompanyCard({
               </div>
 
               {(sub.status === 'past_due' || sub.status === 'expired') && (
-                <div className="flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 p-3">
+                <div className="mt-3 flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 p-3">
                   <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-red-800">Action required</p>
@@ -325,19 +321,19 @@ function CompanyCard({
                   </div>
                 </div>
               )}
-            </div>
+            </Card>
           )}
 
           {/* Contract + leave — Accountants only */}
           {isAccountant && (
-            <div className="p-5 space-y-4">
-              <div className="flex items-center gap-3 mb-1">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100">
-                  <CalendarClock className="h-4 w-4 text-orange-600" />
+            <Card className="p-6">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
+                  <CalendarClock className="h-5 w-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Your Contract</p>
-                  <p className="text-xs text-muted-foreground">Contract dates and membership</p>
+                  <h3 className="font-semibold text-foreground">Your Contract</h3>
+                  <p className="text-sm text-muted-foreground">Contract dates and membership</p>
                 </div>
               </div>
 
@@ -371,15 +367,13 @@ function CompanyCard({
               </div>
 
               {/* Leave request */}
-              <div className="border-t pt-4">
+              <div className="mt-4 pt-4 border-t">
                 {leavePending ? (
                   <div className="flex items-center gap-3 rounded-lg bg-yellow-50 border border-yellow-200 p-3">
                     <Clock className="h-4 w-4 text-yellow-600 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-yellow-800">Leave request pending</p>
-                      <p className="text-xs text-yellow-600 mt-0.5">
-                        Awaiting director approval.
-                      </p>
+                      <p className="text-xs text-yellow-600 mt-0.5">Awaiting director approval.</p>
                     </div>
                   </div>
                 ) : showLeaveConfirm ? (
@@ -414,7 +408,7 @@ function CompanyCard({
                       variant="outline"
                       size="sm"
                       className="gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 flex-shrink-0 ml-4"
-                      onClick={handleLeaveRequest}
+                      onClick={() => setShowLeaveConfirm(true)}
                       disabled={submittingLeave}
                     >
                       <LogOut className="h-4 w-4" />
@@ -423,19 +417,19 @@ function CompanyCard({
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Company details / edit */}
-          <div className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
+          <Card className="p-6">
+            <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100">
-                  <Building2 className="h-4 w-4 text-blue-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                  <Building2 className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Company Details</p>
-                  <p className="text-xs text-muted-foreground">
+                  <h3 className="font-semibold text-foreground">Company Details</h3>
+                  <p className="text-sm text-muted-foreground">
                     {isEditing ? 'Update company information' : 'Company information'}
                   </p>
                 </div>
@@ -528,7 +522,7 @@ function CompanyCard({
                 )}
               </div>
             )}
-          </div>
+          </Card>
 
         </div>
       )}
@@ -657,31 +651,31 @@ export function Settings() {
                   <p className="text-sm capitalize text-muted-foreground">{currentUser?.role ?? ''}</p>
                 </div>
               </div>
-            <form onSubmit={handleSaveProfile} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input id="name" value={name} onChange={e => setName(e.target.value)} className="pl-10" required />
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <div className="relative">
+                    <UserIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input id="name" value={name} onChange={e => setName(e.target.value)} className="pl-10" required />
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="pl-10" required />
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="pl-10" required />
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Input id="role" value={currentUser?.role ?? ''} disabled className="capitalize" />
-                <p className="text-xs text-muted-foreground">Contact your administrator to change your role</p>
-              </div>
-              <Button type="submit" className="w-full" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', color: 'white' }} disabled={savingProfile}>
-                <Save className="mr-2 h-4 w-4" />
-                {savingProfile ? 'Saving…' : 'Save Changes'}
-              </Button>
-            </form>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Input id="role" value={currentUser?.role ?? ''} disabled className="capitalize" />
+                  <p className="text-xs text-muted-foreground">Contact your administrator to change your role</p>
+                </div>
+                <Button type="submit" className="w-full" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', color: 'white' }} disabled={savingProfile}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {savingProfile ? 'Saving…' : 'Save Changes'}
+                </Button>
+              </form>
             </div>
           </Card>
         </TabsContent>

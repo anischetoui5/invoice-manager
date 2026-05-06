@@ -74,12 +74,10 @@ function ConfirmDialog({
   if (!dialog.open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      {/* Panel */}
       <div className="relative z-10 w-full max-w-sm rounded-xl border bg-background p-6 shadow-xl mx-4">
         <h3 className="text-base font-semibold text-foreground">{dialog.title}</h3>
         <p className="mt-2 text-sm text-muted-foreground">{dialog.description}</p>
@@ -99,6 +97,175 @@ function ConfirmDialog({
             {dialog.confirmLabel}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MemberRow ──────────────────────────────────────────────────────────────
+
+function MemberRow({
+  member,
+  onRemove,
+}: {
+  member: Member;
+  onRemove: (id: string, name: string) => void;
+}) {
+  const contractExpired = member.contract_end
+    ? new Date(member.contract_end) < new Date()
+    : false;
+
+  return (
+    <div className="flex items-center gap-4 rounded-lg border p-4">
+      <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${getRoleAvatarColor(member.role)}`}>
+        {member.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-foreground">{member.name}</p>
+        <p className="text-sm text-muted-foreground truncate">{member.email}</p>
+        {member.contract_end && (
+          <p className={`text-xs mt-0.5 flex items-center gap-1 ${contractExpired ? 'text-red-500' : 'text-muted-foreground'}`}>
+            {contractExpired
+              ? <><AlertTriangle className="h-3 w-3" /> Contract expired {new Date(member.contract_end).toLocaleDateString()}</>
+              : <><Calendar className="h-3 w-3" /> Contract until {new Date(member.contract_end).toLocaleDateString()}</>
+            }
+          </p>
+        )}
+      </div>
+      <span className={`rounded-full px-3 py-1 text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
+        {member.role}
+      </span>
+      {member.role !== 'Director' && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onRemove(member.id, member.name)}
+        >
+          Remove
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// ── InvitationCard ─────────────────────────────────────────────────────────
+
+function InvitationCard({
+  inv,
+  actionLoading,
+  contractDates,
+  setContractDates,
+  onAccept,
+  onReject,
+}: {
+  inv: Invitation;
+  actionLoading: string | null;
+  contractDates: Record<string, { start: string; end: string }>;
+  setContractDates: React.Dispatch<React.SetStateAction<Record<string, { start: string; end: string }>>>;
+  onAccept: (inv: Invitation) => void;
+  onReject: (inv: Invitation) => void;
+}) {
+  const isLeave = inv.type === 'leave_request';
+
+  return (
+    <div className={`rounded-xl border p-5 ${isLeave ? 'bg-red-50/50 border-red-100' : 'bg-muted/30'}`}>
+      {/* Top row */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
+            isLeave
+              ? 'bg-gradient-to-br from-red-400 to-orange-500'
+              : 'bg-gradient-to-br from-blue-500 to-purple-600'
+          }`}>
+            {inv.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">{inv.name}</p>
+            <p className="text-xs text-muted-foreground">{inv.email}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`rounded-full px-3 py-1 text-xs font-medium ${getRoleBadgeColor(inv.role)}`}>
+            {inv.role}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {new Date(inv.created_at).toLocaleDateString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric',
+            })}
+          </span>
+        </div>
+      </div>
+
+      {/* Leave notice */}
+      {isLeave && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-100 border border-red-200 px-3 py-2">
+          <LogOut className="h-4 w-4 text-red-600 flex-shrink-0" />
+          <p className="text-xs text-red-700 font-medium">
+            This member has requested to leave the company. Approving will immediately remove them.
+          </p>
+        </div>
+      )}
+
+      {/* Contract dates — join requests only */}
+      {!isLeave && (
+        <div className="mb-4 grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Contract Start
+            </label>
+            <input
+              type="date"
+              value={contractDates[inv.id]?.start ?? ''}
+              className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={e => setContractDates(prev => ({
+                ...prev,
+                [inv.id]: { ...prev[inv.id], start: e.target.value },
+              }))}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Contract End
+            </label>
+            <input
+              type="date"
+              value={contractDates[inv.id]?.end ?? ''}
+              className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={e => setContractDates(prev => ({
+                ...prev,
+                [inv.id]: { ...prev[inv.id], end: e.target.value },
+              }))}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2">
+        <Button
+          size="sm"
+          style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}
+          onClick={() => onReject(inv)}
+          disabled={actionLoading === inv.id}
+        >
+          <X className="mr-1.5 h-4 w-4" />
+          {isLeave ? 'Deny' : 'Reject'}
+        </Button>
+        <Button
+          size="sm"
+          style={{ backgroundColor: 'var(--success)', color: 'var(--success-foreground)' }}
+          onClick={() => onAccept(inv)}
+          disabled={actionLoading === inv.id}
+        >
+          {actionLoading === inv.id ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              <Check className="mr-1.5 h-4 w-4" />
+              {isLeave ? 'Approve' : 'Accept'}
+            </>
+          )}
+        </Button>
       </div>
     </div>
   );
@@ -125,9 +292,7 @@ export function TeamManagement() {
   });
 
   const closeDialog = () => setDialog(d => ({ ...d, open: false }));
-
-  const openDialog = (opts: Omit<ConfirmDialog, 'open'>) =>
-    setDialog({ ...opts, open: true });
+  const openDialog  = (opts: Omit<ConfirmDialog, 'open'>) => setDialog({ ...opts, open: true });
 
   useEffect(() => {
     if (!currentWorkspace?.id) return;
@@ -145,7 +310,6 @@ export function TeamManagement() {
       const filtered = membersRes.data.members.filter((m: Member) => m.role !== 'Personal');
       setMembers(filtered);
 
-      // Normalize type on every row so null/undefined always → 'join_request'
       const all: Invitation[] = (invitationsRes.data.invitations as any[]).map(i => ({
         ...i,
         type: normalizeType(i.type),
@@ -233,185 +397,37 @@ export function TeamManagement() {
     });
   };
 
+  const handleInvitationAccept = (inv: Invitation) => {
+    if (inv.type === 'leave_request') {
+      openDialog({
+        title: 'Approve leave request',
+        description: `${inv.name} will be immediately removed from the company. This cannot be undone.`,
+        confirmLabel: 'Approve & Remove',
+        confirmStyle: 'danger',
+        onConfirm: () => handleInvitation(inv.id, 'accept', inv.type),
+      });
+    } else {
+      handleInvitation(inv.id, 'accept', inv.type);
+    }
+  };
+
+  const handleInvitationReject = (inv: Invitation) => {
+    const isLeave = inv.type === 'leave_request';
+    openDialog({
+      title: isLeave ? 'Deny leave request' : 'Reject join request',
+      description: isLeave
+        ? `${inv.name} will stay in the company.`
+        : `${inv.name}'s request to join will be rejected.`,
+      confirmLabel: isLeave ? 'Deny' : 'Reject',
+      confirmStyle: 'danger',
+      onConfirm: () => handleInvitation(inv.id, 'reject', inv.type),
+    });
+  };
+
   const director    = members.find(m => m.role === 'Director');
   const accountants = members.filter(m => m.role === 'Accountant');
   const employees   = members.filter(m => m.role === 'Employee');
   const pendingCount = joinRequests.length + leaveRequests.length;
-
-  // ── MemberRow ─────────────────────────────────────────────────────────────
-
-  const MemberRow = ({ member }: { member: Member }) => {
-    const contractExpired = member.contract_end
-      ? new Date(member.contract_end) < new Date()
-      : false;
-
-    return (
-      <div className="flex items-center gap-4 rounded-lg border p-4">
-        <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${getRoleAvatarColor(member.role)}`}>
-          {member.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-foreground">{member.name}</p>
-          <p className="text-sm text-muted-foreground truncate">{member.email}</p>
-          {member.contract_end && (
-            <p className={`text-xs mt-0.5 flex items-center gap-1 ${contractExpired ? 'text-red-500' : 'text-muted-foreground'}`}>
-              {contractExpired
-                ? <><AlertTriangle className="h-3 w-3" /> Contract expired {new Date(member.contract_end).toLocaleDateString()}</>
-                : <><Calendar className="h-3 w-3" /> Contract until {new Date(member.contract_end).toLocaleDateString()}</>
-              }
-            </p>
-          )}
-        </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
-          {member.role}
-        </span>
-        {member.role !== 'Director' && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleRemoveMember(member.id, member.name)}
-          >
-            Remove
-          </Button>
-        )}
-      </div>
-    );
-  };
-
-  // ── InvitationCard ────────────────────────────────────────────────────────
-
-  const InvitationCard = ({ inv }: { inv: Invitation }) => {
-    // type is always normalized to 'join_request' | 'leave_request' by fetchData
-    const isLeave = inv.type === 'leave_request';
-
-    const onReject = () => {
-      openDialog({
-        title: isLeave ? 'Deny leave request' : 'Reject join request',
-        description: isLeave
-          ? `${inv.name} will stay in the company.`
-          : `${inv.name}'s request to join will be rejected.`,
-        confirmLabel: isLeave ? 'Deny' : 'Reject',
-        confirmStyle: 'danger',
-        onConfirm: () => handleInvitation(inv.id, 'reject', inv.type),
-      });
-    };
-
-    const onAccept = () => {
-      if (isLeave) {
-        openDialog({
-          title: 'Approve leave request',
-          description: `${inv.name} will be immediately removed from the company. This cannot be undone.`,
-          confirmLabel: 'Approve & Remove',
-          confirmStyle: 'danger',
-          onConfirm: () => handleInvitation(inv.id, 'accept', inv.type),
-        });
-      } else {
-        // For join requests, accept is handled directly (date validation happens inside)
-        handleInvitation(inv.id, 'accept', inv.type);
-      }
-    };
-
-    return (
-      <div className={`rounded-xl border p-5 ${isLeave ? 'bg-red-50/50 border-red-100' : 'bg-muted/30'}`}>
-        {/* Top row */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
-              isLeave
-                ? 'bg-gradient-to-br from-red-400 to-orange-500'
-                : 'bg-gradient-to-br from-blue-500 to-purple-600'
-            }`}>
-              {inv.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">{inv.name}</p>
-              <p className="text-xs text-muted-foreground">{inv.email}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`rounded-full px-3 py-1 text-xs font-medium ${getRoleBadgeColor(inv.role)}`}>
-              {inv.role}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {new Date(inv.created_at).toLocaleDateString('en-US', {
-                month: 'short', day: 'numeric', year: 'numeric',
-              })}
-            </span>
-          </div>
-        </div>
-
-        {/* Leave notice */}
-        {isLeave && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-100 border border-red-200 px-3 py-2">
-            <LogOut className="h-4 w-4 text-red-600 flex-shrink-0" />
-            <p className="text-xs text-red-700 font-medium">
-              This member has requested to leave the company. Approving will immediately remove them.
-            </p>
-          </div>
-        )}
-
-        {/* Contract dates — join requests only */}
-        {!isLeave && (
-          <div className="mb-4 grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Contract Start
-              </label>
-              <input
-                type="date"
-                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onChange={e => setContractDates(prev => ({
-                  ...prev,
-                  [inv.id]: { ...prev[inv.id], start: e.target.value },
-                }))}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Contract End
-              </label>
-              <input
-                type="date"
-                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onChange={e => setContractDates(prev => ({
-                  ...prev,
-                  [inv.id]: { ...prev[inv.id], end: e.target.value },
-                }))}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex justify-end gap-2">
-          <Button
-            size="sm"
-            style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}
-            onClick={onReject}
-            disabled={actionLoading === inv.id}
-          >
-            <X className="mr-1.5 h-4 w-4" />
-            {isLeave ? 'Deny' : 'Reject'}
-          </Button>
-          <Button
-            size="sm"
-            style={{ backgroundColor: 'var(--success)', color: 'var(--success-foreground)' }}
-            onClick={onAccept}
-            disabled={actionLoading === inv.id}
-          >
-            {actionLoading === inv.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <Check className="mr-1.5 h-4 w-4" />
-                {isLeave ? 'Approve' : 'Accept'}
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    );
-  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -469,7 +485,7 @@ export function TeamManagement() {
         {director && (
           <Card className="p-6">
             <h3 className="mb-4 font-semibold text-foreground">Director</h3>
-            <MemberRow member={director} />
+            <MemberRow member={director} onRemove={handleRemoveMember} />
           </Card>
         )}
 
@@ -480,7 +496,7 @@ export function TeamManagement() {
             <p className="text-sm text-muted-foreground">No accountants yet.</p>
           ) : (
             <div className="space-y-3">
-              {accountants.map(m => <MemberRow key={m.id} member={m} />)}
+              {accountants.map(m => <MemberRow key={m.id} member={m} onRemove={handleRemoveMember} />)}
             </div>
           )}
         </Card>
@@ -492,7 +508,7 @@ export function TeamManagement() {
             <p className="text-sm text-muted-foreground">No employees yet.</p>
           ) : (
             <div className="space-y-3">
-              {employees.map(m => <MemberRow key={m.id} member={m} />)}
+              {employees.map(m => <MemberRow key={m.id} member={m} onRemove={handleRemoveMember} />)}
             </div>
           )}
         </Card>
@@ -520,7 +536,17 @@ export function TeamManagement() {
             </div>
           ) : (
             <div className="space-y-4">
-              {joinRequests.map(inv => <InvitationCard key={inv.id} inv={inv} />)}
+              {joinRequests.map(inv => (
+                <InvitationCard
+                  key={inv.id}
+                  inv={inv}
+                  actionLoading={actionLoading}
+                  contractDates={contractDates}
+                  setContractDates={setContractDates}
+                  onAccept={handleInvitationAccept}
+                  onReject={handleInvitationReject}
+                />
+              ))}
             </div>
           )}
         </Card>
@@ -548,7 +574,17 @@ export function TeamManagement() {
             </div>
           ) : (
             <div className="space-y-4">
-              {leaveRequests.map(inv => <InvitationCard key={inv.id} inv={inv} />)}
+              {leaveRequests.map(inv => (
+                <InvitationCard
+                  key={inv.id}
+                  inv={inv}
+                  actionLoading={actionLoading}
+                  contractDates={contractDates}
+                  setContractDates={setContractDates}
+                  onAccept={handleInvitationAccept}
+                  onReject={handleInvitationReject}
+                />
+              ))}
             </div>
           )}
         </Card>
