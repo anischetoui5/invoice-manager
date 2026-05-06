@@ -155,8 +155,10 @@ export function Layout({
         onMarkAllAsRead={handleMarkAllAsRead}
       />
 
-      <AiChat workspaceId={currentWorkspace.id} />
-      <MobileNav />
+      {/*<AiChat workspaceId={currentWorkspace.id} />*/}
+      <div className="md:hidden">
+        <MobileNav />
+      </div>
       <InstallPWA />
     </div>
   );
