@@ -1,26 +1,39 @@
 const express = require('express');
+const cron = require('node-cron');
 const router = express.Router();
-const { authenticate, authorizeInWorkspace } = require('../../middlewares/auth.middleware');
+const { authenticate, authorizeInWorkspace, authorizeAdmin } = require('../../middlewares/auth.middleware');
 const {
   createInvitationRequest,
+  createLeaveRequest,
+  createRenewalRequest,
+  leaveStatus,
+  renewalStatus,
   getPendingInvitations,
   handleInvitation,
-  createLeaveRequest,
-  leaveStatus,
+  runExpireContracts,
 } = require('./invitations.controller');
+const { removeExpiredContracts } = require('./invitations.service');
+
+// Run once on startup, then daily at midnight
+removeExpiredContracts();
+cron.schedule('0 0 * * *', () => {
+  console.log('[invitations] Running contract expiry check...');
+  removeExpiredContracts();
+});
 
 router.use(authenticate);
 
-// Any authenticated member can send a join request
+// Any authenticated member
 router.post('/request', createInvitationRequest);
-
-// Any authenticated member can submit a leave request
 router.post('/leave', createLeaveRequest);
-
-// Any authenticated member can check their own pending leave request
+router.post('/renew', createRenewalRequest);
 router.get('/leave-status/:workspace_id', leaveStatus);
+router.get('/renew-status/:workspace_id', renewalStatus);
 
-// Director and above only
+// Admin only
+router.post('/expire-contracts', authorizeAdmin, runExpireContracts);
+
+// Director only
 router.get(
   '/workspace/:workspace_id',
   authorizeInWorkspace('Admin', 'Director'),

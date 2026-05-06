@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
-  Users, Check, X, Loader2, Calendar, LogOut, AlertTriangle,
+  Users, Check, X, Loader2, Calendar, LogOut, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -28,7 +28,7 @@ interface Invitation {
   email: string;
   role: string;
   created_at: string;
-  type: 'join_request' | 'leave_request';
+  type: 'join_request' | 'leave_request' | 'renewal_request';
 }
 
 interface ConfirmDialog {
@@ -42,8 +42,11 @@ interface ConfirmDialog {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-const normalizeType = (type: string | null | undefined): 'join_request' | 'leave_request' =>
-  type === 'leave_request' ? 'leave_request' : 'join_request';
+const normalizeType = (type: string | null | undefined): Invitation['type'] => {
+  if (type === 'leave_request')   return 'leave_request';
+  if (type === 'renewal_request') return 'renewal_request';
+  return 'join_request';
+};
 
 const getRoleBadgeColor = (role: string) => {
   switch (role) {
@@ -65,26 +68,16 @@ const getRoleAvatarColor = (role: string) => {
 
 // ── Confirm Dialog ─────────────────────────────────────────────────────────
 
-function ConfirmDialog({
-  dialog, onClose,
-}: {
-  dialog: ConfirmDialog;
-  onClose: () => void;
-}) {
+function ConfirmDialog({ dialog, onClose }: { dialog: ConfirmDialog; onClose: () => void }) {
   if (!dialog.open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-full max-w-sm rounded-xl border bg-background p-6 shadow-xl mx-4">
         <h3 className="text-base font-semibold text-foreground">{dialog.title}</h3>
         <p className="mt-2 text-sm text-muted-foreground">{dialog.description}</p>
         <div className="mt-6 flex justify-end gap-3">
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button
             size="sm"
             onClick={() => { dialog.onConfirm(); onClose(); }}
@@ -104,10 +97,7 @@ function ConfirmDialog({
 
 // ── MemberRow ──────────────────────────────────────────────────────────────
 
-function MemberRow({
-  member,
-  onRemove,
-}: {
+function MemberRow({ member, onRemove }: {
   member: Member;
   onRemove: (id: string, name: string) => void;
 }) {
@@ -136,11 +126,7 @@ function MemberRow({
         {member.role}
       </span>
       {member.role !== 'Director' && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onRemove(member.id, member.name)}
-        >
+        <Button variant="outline" size="sm" onClick={() => onRemove(member.id, member.name)}>
           Remove
         </Button>
       )}
@@ -151,12 +137,7 @@ function MemberRow({
 // ── InvitationCard ─────────────────────────────────────────────────────────
 
 function InvitationCard({
-  inv,
-  actionLoading,
-  contractDates,
-  setContractDates,
-  onAccept,
-  onReject,
+  inv, actionLoading, contractDates, setContractDates, onAccept, onReject,
 }: {
   inv: Invitation;
   actionLoading: string | null;
@@ -165,18 +146,28 @@ function InvitationCard({
   onAccept: (inv: Invitation) => void;
   onReject: (inv: Invitation) => void;
 }) {
-  const isLeave = inv.type === 'leave_request';
+  const isLeave   = inv.type === 'leave_request';
+  const isRenewal = inv.type === 'renewal_request';
+  const isJoin    = inv.type === 'join_request';
+
+  const cardBg = isLeave
+    ? 'bg-red-50/50 border-red-100'
+    : isRenewal
+      ? 'bg-blue-50/50 border-blue-100'
+      : 'bg-muted/30';
+
+  const avatarBg = isLeave
+    ? 'bg-gradient-to-br from-red-400 to-orange-500'
+    : isRenewal
+      ? 'bg-gradient-to-br from-blue-400 to-cyan-500'
+      : 'bg-gradient-to-br from-blue-500 to-purple-600';
 
   return (
-    <div className={`rounded-xl border p-5 ${isLeave ? 'bg-red-50/50 border-red-100' : 'bg-muted/30'}`}>
+    <div className={`rounded-xl border p-5 ${cardBg}`}>
       {/* Top row */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
-            isLeave
-              ? 'bg-gradient-to-br from-red-400 to-orange-500'
-              : 'bg-gradient-to-br from-blue-500 to-purple-600'
-          }`}>
+          <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${avatarBg}`}>
             {inv.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
           </div>
           <div>
@@ -206,26 +197,38 @@ function InvitationCard({
         </div>
       )}
 
-      {/* Contract dates — join requests only */}
-      {!isLeave && (
+      {/* Renewal notice */}
+      {isRenewal && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-blue-100 border border-blue-200 px-3 py-2">
+          <RefreshCw className="h-4 w-4 text-blue-600 flex-shrink-0" />
+          <p className="text-xs text-blue-700 font-medium">
+            This accountant has requested a contract renewal. Set a new end date to approve.
+          </p>
+        </div>
+      )}
+
+      {/* Contract dates — join requests need start + end, renewal needs only end */}
+      {(isJoin || isRenewal) && (
         <div className="mb-4 grid grid-cols-2 gap-4">
-          <div>
+          {isJoin && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Contract Start
+              </label>
+              <input
+                type="date"
+                value={contractDates[inv.id]?.start ?? ''}
+                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={e => setContractDates(prev => ({
+                  ...prev,
+                  [inv.id]: { ...prev[inv.id], start: e.target.value },
+                }))}
+              />
+            </div>
+          )}
+          <div className={isRenewal ? 'col-span-2' : ''}>
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Contract Start
-            </label>
-            <input
-              type="date"
-              value={contractDates[inv.id]?.start ?? ''}
-              className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onChange={e => setContractDates(prev => ({
-                ...prev,
-                [inv.id]: { ...prev[inv.id], start: e.target.value },
-              }))}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Contract End
+              {isRenewal ? 'New Contract End Date' : 'Contract End'}
             </label>
             <input
               type="date"
@@ -262,7 +265,7 @@ function InvitationCard({
           ) : (
             <>
               <Check className="mr-1.5 h-4 w-4" />
-              {isLeave ? 'Approve' : 'Accept'}
+              {isLeave ? 'Approve' : isRenewal ? 'Renew' : 'Accept'}
             </>
           )}
         </Button>
@@ -276,19 +279,16 @@ function InvitationCard({
 export function TeamManagement() {
   const { currentWorkspace } = useOutletContext<{ currentWorkspace: Workspace }>();
 
-  const [members, setMembers]             = useState<Member[]>([]);
-  const [joinRequests, setJoinRequests]   = useState<Invitation[]>([]);
-  const [leaveRequests, setLeaveRequests] = useState<Invitation[]>([]);
-  const [isLoading, setIsLoading]         = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [contractDates, setContractDates] = useState<Record<string, { start: string; end: string }>>({});
+  const [members, setMembers]               = useState<Member[]>([]);
+  const [joinRequests, setJoinRequests]     = useState<Invitation[]>([]);
+  const [leaveRequests, setLeaveRequests]   = useState<Invitation[]>([]);
+  const [renewalRequests, setRenewalRequests] = useState<Invitation[]>([]);
+  const [isLoading, setIsLoading]           = useState(true);
+  const [actionLoading, setActionLoading]   = useState<string | null>(null);
+  const [contractDates, setContractDates]   = useState<Record<string, { start: string; end: string }>>({});
 
   const [dialog, setDialog] = useState<ConfirmDialog>({
-    open: false,
-    title: '',
-    description: '',
-    confirmLabel: 'Confirm',
-    onConfirm: () => {},
+    open: false, title: '', description: '', confirmLabel: 'Confirm', onConfirm: () => {},
   });
 
   const closeDialog = () => setDialog(d => ({ ...d, open: false }));
@@ -317,6 +317,7 @@ export function TeamManagement() {
 
       setJoinRequests(all.filter(i => i.type === 'join_request'));
       setLeaveRequests(all.filter(i => i.type === 'leave_request'));
+      setRenewalRequests(all.filter(i => i.type === 'renewal_request'));
     } catch {
       toast.error('Failed to load team data');
     } finally {
@@ -327,17 +328,26 @@ export function TeamManagement() {
   const handleInvitation = async (
     invitationId: string,
     action: 'accept' | 'reject',
-    type: 'join_request' | 'leave_request',
+    type: Invitation['type'],
   ) => {
-    if (type === 'join_request' && action === 'accept') {
-      const dates = contractDates[invitationId];
-      if (!dates?.start || !dates?.end) {
-        toast.error('Please set contract start and end dates before accepting');
-        return;
+    if (action === 'accept') {
+      if (type === 'join_request') {
+        const dates = contractDates[invitationId];
+        if (!dates?.start || !dates?.end) {
+          toast.error('Please set contract start and end dates before accepting');
+          return;
+        }
+        if (new Date(dates.end) <= new Date(dates.start)) {
+          toast.error('Contract end date must be after start date');
+          return;
+        }
       }
-      if (new Date(dates.end) <= new Date(dates.start)) {
-        toast.error('Contract end date must be after start date');
-        return;
+      if (type === 'renewal_request') {
+        const dates = contractDates[invitationId];
+        if (!dates?.end) {
+          toast.error('Please set a new contract end date before approving');
+          return;
+        }
       }
     }
 
@@ -345,9 +355,11 @@ export function TeamManagement() {
     try {
       const body: any = { action };
       if (type === 'join_request' && action === 'accept') {
-        const dates = contractDates[invitationId];
-        body.contractStart = dates.start;
-        body.contractEnd   = dates.end;
+        body.contractStart = contractDates[invitationId].start;
+        body.contractEnd   = contractDates[invitationId].end;
+      }
+      if (type === 'renewal_request' && action === 'accept') {
+        body.contractEnd = contractDates[invitationId].end;
       }
 
       await api.patch(
@@ -355,19 +367,16 @@ export function TeamManagement() {
         body,
       );
 
-      toast.success(
-        type === 'leave_request'
-          ? action === 'accept'
-            ? 'Member removed from company'
-            : 'Leave request rejected — member stays'
-          : `Request ${action}ed successfully`,
-      );
+      const successMsg =
+        type === 'leave_request'   ? (action === 'accept' ? 'Member removed from company'       : 'Leave request rejected — member stays') :
+        type === 'renewal_request' ? (action === 'accept' ? 'Contract renewed successfully'      : 'Renewal request rejected') :
+                                     (action === 'accept' ? 'Join request accepted'              : 'Join request rejected');
 
-      if (type === 'join_request') {
-        setJoinRequests(prev => prev.filter(i => i.id !== invitationId));
-      } else {
-        setLeaveRequests(prev => prev.filter(i => i.id !== invitationId));
-      }
+      toast.success(successMsg);
+
+      if (type === 'join_request')     setJoinRequests(prev => prev.filter(i => i.id !== invitationId));
+      if (type === 'leave_request')    setLeaveRequests(prev => prev.filter(i => i.id !== invitationId));
+      if (type === 'renewal_request')  setRenewalRequests(prev => prev.filter(i => i.id !== invitationId));
 
       if (action === 'accept') fetchData();
     } catch (err: any) {
@@ -412,24 +421,19 @@ export function TeamManagement() {
   };
 
   const handleInvitationReject = (inv: Invitation) => {
-    const isLeave = inv.type === 'leave_request';
-    openDialog({
-      title: isLeave ? 'Deny leave request' : 'Reject join request',
-      description: isLeave
-        ? `${inv.name} will stay in the company.`
-        : `${inv.name}'s request to join will be rejected.`,
-      confirmLabel: isLeave ? 'Deny' : 'Reject',
-      confirmStyle: 'danger',
-      onConfirm: () => handleInvitation(inv.id, 'reject', inv.type),
-    });
+    const labels: Record<Invitation['type'], { title: string; description: string; confirmLabel: string }> = {
+      leave_request:   { title: 'Deny leave request',    description: `${inv.name} will stay in the company.`,                       confirmLabel: 'Deny'   },
+      renewal_request: { title: 'Reject renewal request', description: `${inv.name}'s contract renewal request will be rejected.`,    confirmLabel: 'Reject' },
+      join_request:    { title: 'Reject join request',    description: `${inv.name}'s request to join will be rejected.`,             confirmLabel: 'Reject' },
+    };
+    const { title, description, confirmLabel } = labels[inv.type];
+    openDialog({ title, description, confirmLabel, confirmStyle: 'danger', onConfirm: () => handleInvitation(inv.id, 'reject', inv.type) });
   };
 
-  const director    = members.find(m => m.role === 'Director');
-  const accountants = members.filter(m => m.role === 'Accountant');
-  const employees   = members.filter(m => m.role === 'Employee');
-  const pendingCount = joinRequests.length + leaveRequests.length;
-
-  // ── Render ────────────────────────────────────────────────────────────────
+  const director     = members.find(m => m.role === 'Director');
+  const accountants  = members.filter(m => m.role === 'Accountant');
+  const employees    = members.filter(m => m.role === 'Employee');
+  const pendingCount = joinRequests.length + leaveRequests.length + renewalRequests.length;
 
   if (isLoading) {
     return (
@@ -447,9 +451,7 @@ export function TeamManagement() {
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-foreground">Team Management</h1>
-          <p className="mt-1 text-muted-foreground">
-            Manage your company team members and requests
-          </p>
+          <p className="mt-1 text-muted-foreground">Manage your company team members and requests</p>
         </div>
 
         {/* Summary */}
@@ -537,15 +539,41 @@ export function TeamManagement() {
           ) : (
             <div className="space-y-4">
               {joinRequests.map(inv => (
-                <InvitationCard
-                  key={inv.id}
-                  inv={inv}
-                  actionLoading={actionLoading}
-                  contractDates={contractDates}
-                  setContractDates={setContractDates}
-                  onAccept={handleInvitationAccept}
-                  onReject={handleInvitationReject}
-                />
+                <InvitationCard key={inv.id} inv={inv} actionLoading={actionLoading}
+                  contractDates={contractDates} setContractDates={setContractDates}
+                  onAccept={handleInvitationAccept} onReject={handleInvitationReject} />
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Renewal Requests */}
+        <Card className="p-6">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-foreground">Renewal Requests</h3>
+              <p className="text-sm text-muted-foreground mt-1">Accountants requesting a contract renewal</p>
+            </div>
+            {renewalRequests.length > 0 && (
+              <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
+                {renewalRequests.length} pending
+              </span>
+            )}
+          </div>
+          {renewalRequests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 mb-3">
+                <Check className="h-7 w-7 text-green-600" />
+              </div>
+              <p className="font-medium text-foreground">No renewal requests</p>
+              <p className="text-sm text-muted-foreground mt-1">No contracts pending renewal.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {renewalRequests.map(inv => (
+                <InvitationCard key={inv.id} inv={inv} actionLoading={actionLoading}
+                  contractDates={contractDates} setContractDates={setContractDates}
+                  onAccept={handleInvitationAccept} onReject={handleInvitationReject} />
               ))}
             </div>
           )}
@@ -575,15 +603,9 @@ export function TeamManagement() {
           ) : (
             <div className="space-y-4">
               {leaveRequests.map(inv => (
-                <InvitationCard
-                  key={inv.id}
-                  inv={inv}
-                  actionLoading={actionLoading}
-                  contractDates={contractDates}
-                  setContractDates={setContractDates}
-                  onAccept={handleInvitationAccept}
-                  onReject={handleInvitationReject}
-                />
+                <InvitationCard key={inv.id} inv={inv} actionLoading={actionLoading}
+                  contractDates={contractDates} setContractDates={setContractDates}
+                  onAccept={handleInvitationAccept} onReject={handleInvitationReject} />
               ))}
             </div>
           )}

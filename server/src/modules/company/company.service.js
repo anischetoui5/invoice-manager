@@ -144,6 +144,6 @@ async function getAllCompanies() {
   );
   return result.rows;
 }
- 
+
 module.exports = { getCompany, updateCompany, getMembers, getInvitations, getAllCompanies };
  

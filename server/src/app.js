@@ -18,6 +18,7 @@ const { getAllInvoices } = require('./modules/invoices/invoices.controller');
 const { authenticate, authorizeAdmin } = require('./middlewares/auth.middleware');
 
 
+
 const app = express();
 
 app.use(helmet());

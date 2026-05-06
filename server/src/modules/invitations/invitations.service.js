@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const { createNotification } = require('../notifications/notifications.service');
 const { logActivity } = require('../activity/activity.service');
 
-// ── Join request (existing, unchanged logic) ───────────────────────────────
+// ── Join request ───────────────────────────────────────────────────────────
 async function createInvitationRequest(userId, companyCode, requestedRole) {
   const roleName = requestedRole === 'accountant' ? 'Accountant' : 'Employee';
 
@@ -66,9 +66,8 @@ async function createInvitationRequest(userId, companyCode, requestedRole) {
   return result.rows[0];
 }
 
-// ── Leave request (new) ────────────────────────────────────────────────────
+// ── Leave request ──────────────────────────────────────────────────────────
 async function createLeaveRequest(userId, workspaceId) {
-  // Verify user is a member (Accountant or Employee)
   const memberResult = await pool.query(
     `SELECT m.id, r.name as role FROM memberships m
      JOIN roles r ON r.id = m.role_id
@@ -79,7 +78,6 @@ async function createLeaveRequest(userId, workspaceId) {
   const { role } = memberResult.rows[0];
   if (role === 'Director') throw new Error('Directors cannot submit a leave request');
 
-  // Check no pending leave request already
   const pending = await pool.query(
     `SELECT id FROM invitations
      WHERE user_id = $1 AND workspace_id = $2 AND status = 'pending' AND type = 'leave_request'`,
@@ -87,7 +85,6 @@ async function createLeaveRequest(userId, workspaceId) {
   );
   if (pending.rows.length > 0) throw new Error('You already have a pending leave request');
 
-  // Get director
   const directorResult = await pool.query(
     `SELECT m.user_id FROM memberships m
      JOIN roles r ON r.id = m.role_id
@@ -97,7 +94,6 @@ async function createLeaveRequest(userId, workspaceId) {
   );
   const directorId = directorResult.rows[0]?.user_id;
 
-  // Get role_id for the member
   const roleResult = await pool.query(`SELECT id FROM roles WHERE name = $1`, [role]);
   const roleId = roleResult.rows[0]?.id;
 
@@ -113,7 +109,6 @@ async function createLeaveRequest(userId, workspaceId) {
     [workspaceId, uniqueCode, roleId, userId, userId, roleId]
   );
 
-  // Notify director
   if (directorId) {
     await createNotification(pool, {
       user_id: directorId,
@@ -127,7 +122,60 @@ async function createLeaveRequest(userId, workspaceId) {
   return result.rows[0];
 }
 
-// ── Get pending invitations (join + leave, split) ──────────────────────────
+// ── Renewal request ────────────────────────────────────────────────────────
+async function createRenewalRequest(userId, workspaceId) {
+  const memberResult = await pool.query(
+    `SELECT m.id, r.name as role, r.id as role_id FROM memberships m
+     JOIN roles r ON r.id = m.role_id
+     WHERE m.user_id = $1 AND m.workspace_id = $2`,
+    [userId, workspaceId]
+  );
+  if (!memberResult.rows.length) throw new Error('You are not a member of this company');
+  const { role, role_id } = memberResult.rows[0];
+  if (role !== 'Accountant') throw new Error('Only Accountants can request a contract renewal');
+
+  const pending = await pool.query(
+    `SELECT id FROM invitations
+     WHERE user_id = $1 AND workspace_id = $2 AND status = 'pending' AND type = 'renewal_request'`,
+    [userId, workspaceId]
+  );
+  if (pending.rows.length > 0) throw new Error('You already have a pending renewal request');
+
+  const directorResult = await pool.query(
+    `SELECT m.user_id FROM memberships m
+     JOIN roles r ON r.id = m.role_id
+     WHERE m.workspace_id = $1 AND r.name = 'Director'
+     LIMIT 1`,
+    [workspaceId]
+  );
+  const directorId = directorResult.rows[0]?.user_id;
+
+  const userResult = await pool.query(`SELECT name FROM users WHERE id = $1`, [userId]);
+  const userName = userResult.rows[0]?.name ?? 'Someone';
+
+  const uniqueCode = crypto.randomBytes(8).toString('hex');
+  const result = await pool.query(
+    `INSERT INTO invitations
+      (workspace_id, code, role_id, created_by, user_id, requested_role_id, status, type)
+     VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'renewal_request')
+     RETURNING *`,
+    [workspaceId, uniqueCode, role_id, userId, userId, role_id]
+  );
+
+  if (directorId) {
+    await createNotification(pool, {
+      user_id: directorId,
+      type: 'info',
+      title: 'Contract Renewal Request',
+      message: `${userName} has requested a contract renewal. Set a new end date to approve.`,
+      action_url: '/dashboard/team',
+    });
+  }
+
+  return result.rows[0];
+}
+
+// ── Get pending invitations ────────────────────────────────────────────────
 async function getPendingInvitations(workspaceId, requesterId) {
   const directorCheck = await pool.query(
     `SELECT r.name FROM memberships m
@@ -153,7 +201,7 @@ async function getPendingInvitations(workspaceId, requesterId) {
   return result.rows;
 }
 
-// ── Handle invitation (join or leave) ─────────────────────────────────────
+// ── Handle invitation (join, leave, renewal) ───────────────────────────────
 async function handleInvitation(requesterId, invitationId, action, contractStart, contractEnd) {
   const client = await pool.connect();
   try {
@@ -166,7 +214,6 @@ async function handleInvitation(requesterId, invitationId, action, contractStart
     if (!invResult.rows.length) throw new Error('Invitation not found');
     const inv = invResult.rows[0];
 
-    // Verify requester is director
     const directorCheck = await client.query(
       `SELECT r.name FROM memberships m
        JOIN roles r ON r.id = m.role_id
@@ -178,7 +225,8 @@ async function handleInvitation(requesterId, invitationId, action, contractStart
     }
 
     const companyResult = await client.query(
-      `SELECT c.name, c.id FROM companies c WHERE c.workspace_id = $1`, [inv.workspace_id]
+      `SELECT c.name FROM companies c WHERE c.workspace_id = $1`,
+      [inv.workspace_id]
     );
     const companyName = companyResult.rows[0]?.name ?? 'the company';
 
@@ -188,7 +236,7 @@ async function handleInvitation(requesterId, invitationId, action, contractStart
     const roleResult = await client.query(`SELECT name FROM roles WHERE id = $1`, [inv.requested_role_id]);
     const roleName = roleResult.rows[0]?.name ?? 'Member';
 
-    // ── JOIN REQUEST ──
+    // ── JOIN REQUEST ──────────────────────────────────────────────────────
     if (inv.type === 'join_request' || !inv.type) {
       if (action === 'accept') {
         if (!contractStart || !contractEnd) {
@@ -238,16 +286,14 @@ async function handleInvitation(requesterId, invitationId, action, contractStart
       });
     }
 
-    // ── LEAVE REQUEST ──
+    // ── LEAVE REQUEST ─────────────────────────────────────────────────────
     if (inv.type === 'leave_request') {
       if (action === 'accept') {
-        // Remove membership
         await client.query(
           `DELETE FROM memberships WHERE user_id = $1 AND workspace_id = $2`,
           [inv.user_id, inv.workspace_id]
         );
 
-        // Reset their active workspace to their personal one
         await client.query(
           `UPDATE users
            SET last_active_workspace_id = (
@@ -282,7 +328,6 @@ async function handleInvitation(requesterId, invitationId, action, contractStart
           metadata: { user_name: userName, role: roleName, company_name: companyName },
         });
       } else {
-        // Director rejected the leave request — member stays
         await client.query(
           `UPDATE invitations SET status = 'rejected', rejected_at = NOW() WHERE id = $1`,
           [invitationId]
@@ -298,6 +343,55 @@ async function handleInvitation(requesterId, invitationId, action, contractStart
       }
     }
 
+    // ── RENEWAL REQUEST ───────────────────────────────────────────────────
+    if (inv.type === 'renewal_request') {
+      if (action === 'accept') {
+        if (!contractEnd) throw new Error('A new contract end date is required to approve renewal');
+
+        await client.query(
+          `UPDATE memberships
+           SET contract_end = $1, contract_start = NOW()
+           WHERE user_id = $2 AND workspace_id = $3`,
+          [contractEnd, inv.user_id, inv.workspace_id]
+        );
+
+        await client.query(
+          `UPDATE invitations SET status = 'accepted', accepted_by = $1, accepted_at = NOW() WHERE id = $2`,
+          [requesterId, invitationId]
+        );
+
+        await createNotification(client, {
+          user_id: inv.user_id,
+          type: 'success',
+          title: 'Contract Renewed',
+          message: `Your contract with ${companyName} has been renewed.`,
+          action_url: '/dashboard/settings',
+        });
+
+        await logActivity(client, {
+          workspace_id: inv.workspace_id,
+          user_id: requesterId,
+          action: 'contract.renewed',
+          entity_type: 'membership',
+          entity_id: inv.user_id,
+          metadata: { user_name: userName, company_name: companyName, new_contract_end: contractEnd },
+        });
+      } else {
+        await client.query(
+          `UPDATE invitations SET status = 'rejected', rejected_at = NOW() WHERE id = $1`,
+          [invitationId]
+        );
+
+        await createNotification(client, {
+          user_id: inv.user_id,
+          type: 'error',
+          title: 'Renewal Request Rejected',
+          message: `Your contract renewal request for ${companyName} was not approved.`,
+          action_url: null,
+        });
+      }
+    }
+
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -307,7 +401,7 @@ async function handleInvitation(requesterId, invitationId, action, contractStart
   }
 }
 
-// ── Check if current user has a pending leave request ─────────────────────
+// ── Check pending leave request ────────────────────────────────────────────
 async function getMyLeaveRequest(userId, workspaceId) {
   const result = await pool.query(
     `SELECT id, status, created_at FROM invitations
@@ -319,10 +413,95 @@ async function getMyLeaveRequest(userId, workspaceId) {
   return result.rows[0] ?? null;
 }
 
+// ── Check pending renewal request ─────────────────────────────────────────
+async function getMyRenewalRequest(userId, workspaceId) {
+  const result = await pool.query(
+    `SELECT id, status, created_at FROM invitations
+     WHERE user_id = $1 AND workspace_id = $2
+       AND type = 'renewal_request' AND status = 'pending'
+     LIMIT 1`,
+    [userId, workspaceId]
+  );
+  return result.rows[0] ?? null;
+}
+
+// ── Remove expired contracts ───────────────────────────────────────────────
+async function removeExpiredContracts() {
+  try {
+    const expired = await pool.query(
+      `SELECT m.user_id, m.workspace_id, u.name, c.name as company_name
+       FROM memberships m
+       JOIN users u ON u.id = m.user_id
+       JOIN roles r ON r.id = m.role_id
+       JOIN companies c ON c.workspace_id = m.workspace_id
+       WHERE r.name = 'Accountant'
+         AND m.contract_end IS NOT NULL
+         AND m.contract_end < NOW()`
+    );
+
+    for (const row of expired.rows) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        await client.query(
+          `DELETE FROM memberships WHERE user_id = $1 AND workspace_id = $2`,
+          [row.user_id, row.workspace_id]
+        );
+
+        await client.query(
+          `UPDATE users
+           SET last_active_workspace_id = (
+             SELECT w.id FROM workspaces w
+             JOIN memberships m ON m.workspace_id = w.id
+             WHERE m.user_id = $1 AND w.type = 'personal'
+             LIMIT 1
+           )
+           WHERE id = $1`,
+          [row.user_id]
+        );
+
+        await createNotification(client, {
+          user_id: row.user_id,
+          type: 'error',
+          title: 'Contract Expired',
+          message: `Your contract with ${row.company_name} has expired. You have been removed from the company.`,
+          action_url: '/dashboard/settings',
+        });
+
+        await logActivity(client, {
+          workspace_id: row.workspace_id,
+          user_id: row.user_id,
+          action: 'membership.expired',
+          entity_type: 'membership',
+          entity_id: row.user_id,
+          metadata: { name: row.name, company_name: row.company_name, reason: 'contract_expired' },
+        });
+
+        await client.query('COMMIT');
+        console.log(`[invitations.job] Removed expired accountant: ${row.name} from ${row.company_name}`);
+      } catch (err) {
+        await client.query('ROLLBACK');
+        console.error(`[invitations.job] Failed to remove ${row.name}:`, err.message);
+      } finally {
+        client.release();
+      }
+    }
+
+    return expired.rows.length;
+  } catch (err) {
+    console.error('[invitations.job] Query failed:', err);
+    return 0;
+  }
+}
+
 module.exports = {
   createInvitationRequest,
   createLeaveRequest,
+  createRenewalRequest,
   getPendingInvitations,
   handleInvitation,
   getMyLeaveRequest,
+  getMyRenewalRequest,
+  removeExpiredContracts,
 };

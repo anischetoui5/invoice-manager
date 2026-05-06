@@ -3,7 +3,7 @@ import {
   User as UserIcon, Mail, Lock, Bell, Shield, Save,
   Building2, Pencil, Phone, Copy, CreditCard, LogOut,
   CalendarClock, AlertTriangle, CheckCircle2, Clock,
-  ChevronDown, Check,
+  ChevronDown, Check, RefreshCw,
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { Card } from '../components/ui/card';
@@ -60,7 +60,7 @@ const ALL_NOTIFICATIONS: {
   { key: 'pendingReviewReminder', label: 'Pending review reminder', desc: 'Daily reminder when invoices are waiting for your review', roles: ['Accountant','Director'] },
   { key: 'newJoinRequest',        label: 'New join request',        desc: 'When someone requests to join your workspace',             roles: ['Director','Admin'] },
   { key: 'weeklyReport',          label: 'Weekly report',           desc: 'Summary email every Monday',                              roles: ['Accountant','Director','Admin'] },
-  { key: 'pushNotifications',     label: 'Push notifications',      desc: 'Browser push notifications for real-time updates',         roles: ['Personal','Employee','Accountant','Director','Admin'] },
+  { key: 'pushNotifications',     label: 'Push notifications',      desc: 'Browser push notifications for real-time updates',        roles: ['Personal','Employee','Accountant','Director','Admin'] },
 ];
 
 function getNotificationOptions(role: string | undefined, isAdmin: boolean) {
@@ -109,9 +109,6 @@ function SubscriptionBadge({ status }: { status: Subscription['status'] }) {
   );
 }
 
-// ── Section divider used inside accordion ──────────────────────────────────
-// Replaces nested <Card> — same visual weight without adding extra box model width
-
 function Section({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`border-t px-6 py-5 ${className}`}>
@@ -143,12 +140,14 @@ function CompanyCard({
     myRole?: string;
   } | null>(null);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [leavePending, setLeavePending] = useState(false);
+  const [isEditing, setIsEditing]           = useState(false);
+  const [saving, setSaving]                 = useState(false);
+  const [leavePending, setLeavePending]     = useState(false);
   const [submittingLeave, setSubmittingLeave] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', address: '' });
+  const [renewalPending, setRenewalPending] = useState(false);
+  const [submittingRenewal, setSubmittingRenewal] = useState(false);
 
   useEffect(() => {
     if (!open || loaded) return;
@@ -167,6 +166,9 @@ function CompanyCard({
     api.get(`/invitations/leave-status/${workspace.id}`)
       .then(({ data }) => setLeavePending(!!data.pending))
       .catch(() => {});
+    api.get(`/invitations/renew-status/${workspace.id}`)
+    .then(({ data }) => setRenewalPending(!!data.pending))
+    .catch(() => {});
   }, [open, loaded, workspace.id]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -198,11 +200,24 @@ function CompanyCard({
     }
   };
 
-  const role = companyDetails?.myRole ?? workspace.role;
+  const handleRenewalRequest = async () => {
+    setSubmittingRenewal(true);
+    try {
+      await api.post('/invitations/renew', { workspaceId: workspace.id });
+      setRenewalPending(true);
+      toast.success('Renewal request submitted. Waiting for director approval.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to submit renewal request');
+    } finally {
+      setSubmittingRenewal(false);
+    }
+  };
+
+  const role        = companyDetails?.myRole ?? workspace.role;
   const isDirector  = role === 'Director';
   const isAccountant = role === 'Accountant';
-  const sub      = companyDetails?.subscription;
-  const contract = companyDetails?.myContract;
+  const sub         = companyDetails?.subscription;
+  const contract    = companyDetails?.myContract;
 
   const expiryDate = sub?.current_period_end ?? sub?.trial_ends_at;
   const expiryFormatted = expiryDate
@@ -248,7 +263,6 @@ function CompanyCard({
         />
       </button>
 
-      {/* Accordion body — all sections are flat divs separated by border-t, no nested Cards */}
       {open && (
         <>
           {/* Subscription — Directors only */}
@@ -263,7 +277,6 @@ function CompanyCard({
                   <p className="text-xs text-muted-foreground">Your current plan and billing</p>
                 </div>
               </div>
-
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg bg-muted/40 p-3">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan</p>
@@ -311,7 +324,6 @@ function CompanyCard({
                   </div>
                 )}
               </div>
-
               {(sub.status === 'past_due' || sub.status === 'expired') && (
                 <div className="mt-3 flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 p-3">
                   <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
@@ -327,7 +339,7 @@ function CompanyCard({
             </Section>
           )}
 
-          {/* Contract + leave — Accountants only */}
+          {/* Contract + leave + renew — Accountants only */}
           {isAccountant && (
             <Section>
               <div className="flex items-center gap-3 mb-4">
@@ -367,7 +379,21 @@ function CompanyCard({
                 </div>
               </div>
 
-              {/* Leave request */}
+              {/* Expired warning banner */}
+              {contractExpired && (
+                <div className="mt-3 flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 p-3">
+                  <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-red-800">Contract expired</p>
+                    <p className="text-xs text-red-600 mt-0.5">
+                      Your contract expired on {contractEndFormatted}. You will be automatically
+                      removed from this company unless your director renews it.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions row — renew + leave side by side */}
               <div className="mt-4 pt-4 border-t">
                 {leavePending ? (
                   <div className="flex items-center gap-3 rounded-lg bg-yellow-50 border border-yellow-200 p-3">
@@ -388,9 +414,9 @@ function CompanyCard({
                         size="sm"
                         style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}
                         onClick={confirmLeaveRequest}
-                        disabled={submittingLeave}
+                        disabled={submittingRenewal}
                       >
-                        {submittingLeave ? 'Submitting…' : 'Yes, send request'}
+                        {submittingRenewal ? 'Submitting…' : 'Yes, send request'}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => setShowLeaveConfirm(false)}>
                         Cancel
@@ -398,20 +424,35 @@ function CompanyCard({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-sm font-medium text-foreground">Leave Company</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Submit a request to leave. Director must approve.</p>
+                      <p className="text-sm font-medium text-foreground">Membership Actions</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Request a contract renewal or leave the company.
+                      </p>
                     </div>
-                    <Button
-                      variant="outline" size="sm"
-                      className="gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 flex-shrink-0 ml-4"
-                      onClick={() => setShowLeaveConfirm(true)}
-                      disabled={submittingLeave}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Request to Leave
-                    </Button>
+                    <div className="flex gap-2 flex-shrink-0">
+                      {/* Renew button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+                        onClick={handleRenewalRequest}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Renew
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                        onClick={() => setShowLeaveConfirm(true)}
+                        disabled={submittingLeave}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Leave
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -537,10 +578,9 @@ export function Settings() {
     workspaces: Workspace[];
   }>();
 
-  const [name, setName]                   = useState(currentUser.name);
-  const [email, setEmail]                 = useState(currentUser.email);
-  const [savingProfile, setSavingProfile] = useState(false);
-
+  const [name, setName]                       = useState(currentUser.name);
+  const [email, setEmail]                     = useState(currentUser.email);
+  const [savingProfile, setSavingProfile]     = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword]         = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -585,11 +625,11 @@ export function Settings() {
 
   const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPassword) { toast.error('Please enter your current password'); return; }
-    if (!newPassword)     { toast.error('Please enter a new password'); return; }
-    if (newPassword.length < 8) { toast.error('New password must be at least 8 characters'); return; }
-    if (newPassword !== confirmPassword) { toast.error('New passwords do not match'); return; }
-    if (currentPassword === newPassword) { toast.error('New password must be different from current password'); return; }
+    if (!currentPassword)                    { toast.error('Please enter your current password'); return; }
+    if (!newPassword)                        { toast.error('Please enter a new password'); return; }
+    if (newPassword.length < 8)              { toast.error('New password must be at least 8 characters'); return; }
+    if (newPassword !== confirmPassword)     { toast.error('New passwords do not match'); return; }
+    if (currentPassword === newPassword)     { toast.error('New password must be different from current password'); return; }
     setSavingPassword(true);
     try {
       await api.put('/users/me/password', { currentPassword, newPassword });
@@ -612,6 +652,9 @@ export function Settings() {
   };
 
   const companyWorkspaces = workspaces?.filter(w => w.type === 'company') ?? [];
+
+  // All tab contents share this wrapper for consistent width
+  const tabContentClass = "space-y-6";
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -637,7 +680,7 @@ export function Settings() {
         )}
 
         {/* ── Profile ── */}
-        <TabsContent value="profile" className="space-y-6">
+        <TabsContent value="profile" className={tabContentClass}>
           <Card className="overflow-hidden">
             <div style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', height: 72 }} />
             <div className="px-6 pb-6">
@@ -679,7 +722,7 @@ export function Settings() {
 
         {/* ── Company ── */}
         {!isAdmin && (
-          <TabsContent value="company" className="space-y-4">
+          <TabsContent value="company" className={tabContentClass}>
             {isPersonalOnly && <JoinCompany userRole={currentUser.role} />}
             {isAccountant    && <JoinCompany userRole="accountant" lockedRole />}
             {companyWorkspaces.length === 0 ? (
@@ -706,7 +749,7 @@ export function Settings() {
         )}
 
         {/* ── Security ── */}
-        <TabsContent value="security" className="space-y-6">
+        <TabsContent value="security" className={tabContentClass}>
           <Card className="p-6">
             <div className="mb-6 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
@@ -771,7 +814,7 @@ export function Settings() {
         </TabsContent>
 
         {/* ── Notifications ── */}
-        <TabsContent value="notifications" className="space-y-6">
+        <TabsContent value="notifications" className={tabContentClass}>
           <Card className="p-6">
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
