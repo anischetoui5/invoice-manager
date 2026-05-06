@@ -567,7 +567,7 @@ export function Settings() {
     ocrFailed:             true,
   });
 
-  const isAdmin = currentUser.role.toLowerCase() === 'admin';
+  const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
   const hasCompanyRole = workspaces?.some(w =>
     w.type === 'company' && ['Employee', 'Director', 'Accountant'].includes(w.role)
   );
@@ -654,7 +654,7 @@ export function Settings() {
                 <Avatar name={name} size={72} />
                 <div className="pb-1">
                   <h2 className="text-lg font-semibold text-foreground">{name}</h2>
-                  <p className="text-sm capitalize text-muted-foreground">{currentUser.role}</p>
+                  <p className="text-sm capitalize text-muted-foreground">{currentUser?.role ?? ''}</p>
                 </div>
               </div>
             <form onSubmit={handleSaveProfile} className="space-y-4">
@@ -674,7 +674,7 @@ export function Settings() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
-                <Input id="role" value={currentUser.role} disabled className="capitalize" />
+                <Input id="role" value={currentUser?.role ?? ''} disabled className="capitalize" />
                 <p className="text-xs text-muted-foreground">Contact your administrator to change your role</p>
               </div>
               <Button type="submit" className="w-full" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', color: 'white' }} disabled={savingProfile}>
