@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { Search, Filter, Download, Eye, Loader2, Trash2, X } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -78,6 +80,39 @@ function DeleteConfirmModal({ invoice, onClose, onConfirm, deleting }: {
       </div>
     </div>
   );
+}
+
+function exportToPDF(invoices: Invoice[], workspaceName: string) {
+  const doc = new jsPDF();
+  const date = new Date().toLocaleDateString('en-GB');
+
+  doc.setFontSize(18);
+  doc.setTextColor(30, 64, 175);
+  doc.text('EASYfact — Invoice Report', 14, 18);
+
+  doc.setFontSize(10);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Workspace: ${workspaceName}`, 14, 26);
+  doc.text(`Generated: ${date}`, 14, 32);
+
+  autoTable(doc, {
+    startY: 40,
+    head: [['#', 'Invoice No.', 'Vendor', 'Amount', 'Currency', 'Date', 'Status']],
+    body: invoices.map((inv, i) => [
+      i + 1,
+      inv.invoice_number || '—',
+      inv.vendor_name || '—',
+      inv.amount != null ? Number(inv.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : '—',
+      inv.currency || '—',
+      inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('en-GB') : '—',
+      STATUS_CONFIG[inv.current_status]?.label ?? inv.current_status,
+    ]),
+    headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [240, 244, 255] },
+    styles: { fontSize: 9, cellPadding: 4 },
+  });
+
+  doc.save(`invoices-${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
 export function InvoiceList() {
@@ -202,9 +237,9 @@ export function InvoiceList() {
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => exportToPDF(invoices, currentWorkspace?.name ?? 'Workspace')}>
               <Download className="mr-2 h-4 w-4" />
-              Export
+              Export PDF
             </Button>
           </div>
         </div>
@@ -221,101 +256,95 @@ export function InvoiceList() {
             <p>{error}</p>
             <Button variant="outline" size="sm" onClick={() => setPage(1)}>Retry</Button>
           </div>
+        ) : invoices.length === 0 ? (
+          <div className="flex h-32 flex-col items-center justify-center gap-2">
+            <p className="text-muted-foreground">No invoices found</p>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/dashboard/upload">Upload Invoice</Link>
+            </Button>
+          </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice #</TableHead>
-                {isAdmin && <TableHead>Company</TableHead>}
-                <TableHead>Vendor</TableHead>
-                {role !== 'Employee' && role !== 'Personal' && (
-                  <TableHead>Uploaded By</TableHead>
-                )}
-                <TableHead>Amount</TableHead>
-                <TableHead>Invoice Date</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="h-32 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <p className="text-muted-foreground">No invoices found</p>
-                      <Button asChild variant="outline" size="sm">
-                        <Link to="/dashboard/upload">Upload Invoice</Link>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                invoices.map(invoice => {
-                  const badge = STATUS_CONFIG[invoice.current_status] ?? {
-                    color: 'bg-gray-100 text-gray-700',
-                    label: invoice.current_status,
-                  };
-                  return (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-medium">
-                        {invoice.invoice_number ?? '—'}
-                      </TableCell>
-                      {isAdmin && (
-                        <TableCell className="text-muted-foreground">
-                          {(invoice as any).company_name ?? (invoice as any).workspace_name}
-                        </TableCell>
-                      )}
-                      <TableCell>{invoice.vendor_name ?? '—'}</TableCell>
-                      {role !== 'Employee' && role !== 'Personal' && (
-                        <TableCell className="text-muted-foreground">
-                          {invoice.created_by_name}
-                        </TableCell>
-                      )}
-                      <TableCell className="font-medium">
-                        {invoice.currency} {Number(invoice.amount ?? 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {invoice.invoice_date
-                          ? new Date(invoice.invoice_date).toLocaleDateString()
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {invoice.due_date
-                          ? new Date(invoice.due_date).toLocaleDateString()
-                          : '—'}
-                      </TableCell>
-                      <TableCell>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.color}`}>
-                          {badge.label}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button asChild variant="ghost" size="sm">
-                            <Link to={`/dashboard/invoices/${invoice.id}`}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View
-                            </Link>
-                          </Button>
-                          {canDelete(invoice) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => setDeleteTarget(invoice)}
-                            >
-                              <Trash2 className="h-4 w-4" />
+          <>
+            {/* ── Desktop table ── */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice #</TableHead>
+                    {isAdmin && <TableHead>Company</TableHead>}
+                    <TableHead>Vendor</TableHead>
+                    {role !== 'Employee' && role !== 'Personal' && <TableHead>Uploaded By</TableHead>}
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Invoice Date</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {invoices.map(invoice => {
+                    const badge = STATUS_CONFIG[invoice.current_status] ?? { color: 'bg-gray-100 text-gray-700', label: invoice.current_status };
+                    return (
+                      <TableRow key={invoice.id}>
+                        <TableCell className="font-medium">{invoice.invoice_number ?? '—'}</TableCell>
+                        {isAdmin && <TableCell className="text-muted-foreground">{(invoice as any).company_name ?? (invoice as any).workspace_name}</TableCell>}
+                        <TableCell>{invoice.vendor_name ?? '—'}</TableCell>
+                        {role !== 'Employee' && role !== 'Personal' && <TableCell className="text-muted-foreground">{invoice.created_by_name}</TableCell>}
+                        <TableCell className="font-medium">{invoice.currency} {Number(invoice.amount ?? 0).toLocaleString()}</TableCell>
+                        <TableCell className="text-muted-foreground">{invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString() : '—'}</TableCell>
+                        <TableCell className="text-muted-foreground">{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '—'}</TableCell>
+                        <TableCell><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.color}`}>{badge.label}</span></TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button asChild variant="ghost" size="sm">
+                              <Link to={`/dashboard/invoices/${invoice.id}`}><Eye className="mr-2 h-4 w-4" />View</Link>
                             </Button>
-                          )}
+                            {canDelete(invoice) && (
+                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(invoice)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* ── Mobile cards ── */}
+            <div className="flex flex-col gap-3 p-3 md:hidden">
+              {invoices.map(invoice => {
+                const badge = STATUS_CONFIG[invoice.current_status] ?? { color: 'bg-gray-100 text-gray-700', label: invoice.current_status };
+                return (
+                  <Link key={invoice.id} to={`/dashboard/invoices/${invoice.id}`} style={{ textDecoration: 'none' }}>
+                    <div className="rounded-xl border border-border bg-background p-4 shadow-sm active:scale-95 transition-transform">
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div>
+                          <p className="font-semibold text-foreground text-sm">{invoice.vendor_name || 'Unknown vendor'}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">#{invoice.invoice_number ?? '—'}</p>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium flex-shrink-0 ${badge.color}`}>{badge.label}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-lg font-bold text-foreground">{invoice.currency} {Number(invoice.amount ?? 0).toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">{invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString() : '—'}</p>
+                      </div>
+                      {canDelete(invoice) && (
+                        <button
+                          className="mt-3 w-full rounded-lg py-1.5 text-xs font-medium text-red-500 border border-red-100 bg-red-50 active:bg-red-100 transition-colors"
+                          onClick={e => { e.preventDefault(); setDeleteTarget(invoice); }}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </>
         )}
       </Card>
 

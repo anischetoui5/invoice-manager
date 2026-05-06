@@ -26,7 +26,12 @@ CREATE TABLE users (
     email varchar(255) UNIQUE NOT NULL,
     password_hash text NOT NULL,
     created_at timestamp DEFAULT now(),
-    last_active_workspace_id uuid
+    last_active_workspace_id uuid,
+    is_verified boolean NOT NULL DEFAULT false,
+    verification_code varchar(6),
+    verification_expires_at timestamptz,
+    reset_code varchar(6),
+    reset_expires_at timestamptz
 );
 
 -- ROLES

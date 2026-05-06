@@ -16,7 +16,43 @@ async function login(req, res) {
     const result = await authService.login(req.body);
     res.status(200).json({ message: 'Login successful', ...result });
   } catch (err) {
+    if (err.code === 'EMAIL_NOT_VERIFIED') {
+      return res.status(403).json({ error: err.message, code: 'EMAIL_NOT_VERIFIED', email: err.email });
+    }
     res.status(401).json({ error: err.message });
+  }
+}
+
+async function verifyEmail(req, res) {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
+    const result = await authService.verifyEmail(email, code);
+    res.status(200).json({ message: 'Email verified successfully', ...result });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    await authService.forgotPassword(email);
+    res.status(200).json({ message: 'If this email exists, a reset code has been sent.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function resetPassword(req, res) {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) return res.status(400).json({ error: 'Email, code and new password are required' });
+    await authService.resetPassword(email, code, newPassword);
+    res.status(200).json({ message: 'Password reset successfully' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 }
 
@@ -34,4 +70,4 @@ async function switchWorkspace(req, res) {
   }
 }
 
-module.exports = { register, login, switchWorkspace };
+module.exports = { register, login, switchWorkspace, verifyEmail, forgotPassword, resetPassword };

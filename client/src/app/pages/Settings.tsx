@@ -3,7 +3,7 @@ import {
   User as UserIcon, Mail, Lock, Bell, Shield, Save,
   Building2, Pencil, Phone, Copy, CreditCard, LogOut,
   CalendarClock, AlertTriangle, CheckCircle2, Clock,
-  ChevronDown,
+  ChevronDown, Check,
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { Card } from '../components/ui/card';
@@ -70,6 +70,31 @@ function getNotificationOptions(role: string | undefined, isAdmin: boolean) {
   const r = isAdmin ? 'Admin' : (role ?? 'Personal');
   return ALL_NOTIFICATIONS.filter(n => n.roles.includes(r));
 }
+
+function Avatar({ name, size = 72 }: { name: string; size?: number }) {
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.3, fontWeight: '700', color: 'white',
+      boxShadow: '0 4px 20px rgba(37,99,235,0.35)',
+      flexShrink: 0, border: '3px solid white',
+    }}>{initials}</div>
+  );
+}
+
+function passwordStrength(pw: string): 0 | 1 | 2 | 3 {
+  if (!pw) return 0;
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (/[A-Z]/.test(pw) && /[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  return score as 0 | 1 | 2 | 3;
+}
+const STRENGTH_LABEL = ['', 'Weak', 'Fair', 'Strong'];
+const STRENGTH_COLOR = ['', '#ef4444', '#f59e0b', '#22c55e'];
 
 // ── Subscription status badge ──────────────────────────────────────────────
 
@@ -622,16 +647,16 @@ export function Settings() {
 
         {/* Profile */}
         <TabsContent value="profile" className="space-y-6">
-          <Card className="p-6">
-            <div className="mb-6 flex items-center gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-600 text-2xl font-bold text-white">
-                {name.split(' ').map(n => n[0]).join('')}
+          <Card className="overflow-hidden">
+            <div style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', height: 72 }} />
+            <div className="px-6 pb-6">
+              <div className="flex items-end gap-4 -mt-9 mb-5">
+                <Avatar name={name} size={72} />
+                <div className="pb-1">
+                  <h2 className="text-lg font-semibold text-foreground">{name}</h2>
+                  <p className="text-sm capitalize text-muted-foreground">{currentUser.role}</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">{name}</h2>
-                <p className="text-sm capitalize text-muted-foreground">{currentUser.role}</p>
-              </div>
-            </div>
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
@@ -652,11 +677,12 @@ export function Settings() {
                 <Input id="role" value={currentUser.role} disabled className="capitalize" />
                 <p className="text-xs text-muted-foreground">Contact your administrator to change your role</p>
               </div>
-              <Button type="submit" className="w-full" disabled={savingProfile}>
+              <Button type="submit" className="w-full" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', color: 'white' }} disabled={savingProfile}>
                 <Save className="mr-2 h-4 w-4" />
                 {savingProfile ? 'Saving…' : 'Save Changes'}
               </Button>
             </form>
+            </div>
           </Card>
         </TabsContent>
 
@@ -720,6 +746,19 @@ export function Settings() {
                     value={newPassword} onChange={e => setNewPassword(e.target.value)}
                     className="pl-10" required />
                 </div>
+                {newPassword && (
+                  <div className="space-y-1">
+                    <div className="flex gap-1">
+                      {[1,2,3].map(i => (
+                        <div key={i} className="h-1.5 flex-1 rounded-full transition-all duration-300"
+                          style={{ background: passwordStrength(newPassword) >= i ? STRENGTH_COLOR[passwordStrength(newPassword)] : '#e2e8f0' }} />
+                      ))}
+                    </div>
+                    <p className="text-xs font-medium" style={{ color: STRENGTH_COLOR[passwordStrength(newPassword)] }}>
+                      {STRENGTH_LABEL[passwordStrength(newPassword)]}
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
@@ -729,8 +768,15 @@ export function Settings() {
                     value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
                     className="pl-10" required />
                 </div>
+                {confirmPassword && newPassword && (
+                  <p className={`text-xs font-medium flex items-center gap-1 ${confirmPassword === newPassword ? 'text-green-600' : 'text-red-500'}`}>
+                    {confirmPassword === newPassword
+                      ? <><Check className="h-3 w-3" /> Passwords match</>
+                      : '✗ Passwords do not match'}
+                  </p>
+                )}
               </div>
-              <Button type="submit" className="w-full" disabled={savingPassword}>
+              <Button type="submit" className="w-full" style={{ background: 'linear-gradient(135deg,#ea580c,#f97316)', color: 'white' }} disabled={savingPassword}>
                 <Lock className="mr-2 h-4 w-4" />
                 {savingPassword ? 'Updating…' : 'Update Password'}
               </Button>
@@ -752,18 +798,24 @@ export function Settings() {
             </div>
             <div className="space-y-4">
               {getNotificationOptions(currentWorkspace?.role, isAdmin).map(({ key, label, desc }) => (
-                <div key={key} className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{label}</p>
-                    <p className="text-xs text-muted-foreground">{desc}</p>
+                <div key={key}
+                  onClick={() => setNotifications(prev => ({ ...prev, [key]: !prev[key] }))}
+                  className="flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all hover:border-purple-200 hover:bg-purple-50/50">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-2 w-2 rounded-full flex-shrink-0 ${notifications[key] ? 'bg-purple-500' : 'bg-gray-300'}`} />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{label}</p>
+                      <p className="text-xs text-muted-foreground">{desc}</p>
+                    </div>
                   </div>
                   <Switch
                     checked={notifications[key]}
                     onCheckedChange={val => setNotifications(prev => ({ ...prev, [key]: val }))}
+                    onClick={e => e.stopPropagation()}
                   />
                 </div>
               ))}
-              <Button onClick={handleSaveNotifications} className="w-full">
+              <Button onClick={handleSaveNotifications} className="w-full" style={{ background: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', color: 'white' }}>
                 <Save className="mr-2 h-4 w-4" />
                 Save Preferences
               </Button>

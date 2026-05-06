@@ -54,7 +54,7 @@ export function NotificationsPanel({
         className="fixed inset-0 z-40 bg-black/20"
         onClick={onClose}
       />
-      <div className="fixed right-0 top-0 z-50 flex h-screen w-96 flex-col bg-background shadow-xl">
+      <div className="fixed right-0 top-0 z-50 flex h-screen w-full md:w-96 flex-col bg-background shadow-xl">
         <div className="flex items-center justify-between border-b p-4">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Notifications</h2>

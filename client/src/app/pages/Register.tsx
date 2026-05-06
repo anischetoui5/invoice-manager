@@ -28,6 +28,10 @@ export function Register() {
   const [registrationType, setRegistrationType] = useState<RegistrationType | null>(null);
   const [step, setStep] = useState<CompanyCreationStep>('type');
   const [joinRole, setJoinRole] = useState<JoinRole>('employee');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'starter' | 'business' | 'professional' | 'enterprise'>('business');
   const [generatedCompanyCode, setGeneratedCompanyCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -244,14 +248,13 @@ export function Register() {
     if (formData.password !== formData.confirmPassword) { toast.error('Passwords do not match'); return; }
     if (registrationType === 'company') { setStep('company-setup'); return; }
     try {
-      const response = await api.post('/auth/register', {
+      await api.post('/auth/register', {
         name: formData.name, email: formData.email, password: formData.password,
         registrationType, companyCode: formData.companyCode, joinRole,
       });
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      toast.success('Account created successfully!');
-      navigate('/dashboard');
+      setPendingEmail(formData.email);
+      setShowVerification(true);
+      toast.success('A verification code has been sent to your email!');
     } catch (err: any) { toast.error(err.response?.data?.error || 'Registration failed'); }
   };
 
@@ -275,14 +278,13 @@ export function Register() {
         companyPhone: formData.companyPhone, companyAddress: formData.companyAddress,
         industry: formData.industry, plan: selectedPlan, cardName: formData.cardName,
       });
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
       if (response.data.companyCode) {
         setGeneratedCompanyCode(response.data.companyCode);
         handleInputChange('companyCode', response.data.companyCode);
       }
-      toast.success('Payment processed successfully!');
-      setStep('confirmation');
+      setPendingEmail(formData.email);
+      setShowVerification(true);
+      toast.success('A verification code has been sent to your email!');
     } catch (err: any) { toast.error(err.response?.data?.error || 'Registration failed'); }
   };
 
@@ -330,6 +332,63 @@ export function Register() {
     border: t.cardBorder, boxShadow: isDark ? 'none' : '0 8px 32px rgba(37,99,235,0.08)',
     transition: 'all 0.4s ease',
   };
+
+  const handleVerifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationCode.trim()) { toast.error('Please enter the verification code'); return; }
+    setIsVerifying(true);
+    try {
+      const response = await api.post('/auth/verify-email', { email: pendingEmail, code: verificationCode });
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      toast.success('Email verified! Welcome to EASYfact.');
+      navigate('/dashboard');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Invalid code');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  if (showVerification) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)', fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ background: 'white', borderRadius: '20px', padding: '48px 40px', maxWidth: '420px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', textAlign: 'center' }}>
+          <div style={{ width: '64px', height: '64px', background: '#eff6ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <Mail size={28} color="#1d4ed8" />
+          </div>
+          <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>Check your email</h2>
+          <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '32px' }}>
+            We sent a 6-digit code to <strong>{pendingEmail}</strong>
+          </p>
+          <form onSubmit={handleVerifySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <input
+              type="text"
+              maxLength={6}
+              placeholder="Enter 6-digit code"
+              value={verificationCode}
+              onChange={e => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+              style={{ textAlign: 'center', fontSize: '28px', fontWeight: '700', letterSpacing: '12px', padding: '16px', border: '2px solid #e2e8f0', borderRadius: '12px', outline: 'none', transition: 'border 0.2s' }}
+              onFocus={e => e.target.style.border = '2px solid #1d4ed8'}
+              onBlur={e => e.target.style.border = '2px solid #e2e8f0'}
+              required
+            />
+            <button
+              type="submit"
+              disabled={isVerifying || verificationCode.length !== 6}
+              style={{ padding: '14px', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', opacity: (isVerifying || verificationCode.length !== 6) ? 0.6 : 1 }}
+            >
+              {isVerifying ? 'Verifying...' : 'Verify Email'}
+            </button>
+          </form>
+          <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '20px' }}>
+            Didn't receive the code?{' '}
+            <button onClick={async () => { try { await api.post('/auth/forgot-password', { email: pendingEmail }); toast.success('New code sent!'); } catch { toast.error('Failed to resend'); } }} style={{ color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', padding: 0 }}>Resend</button>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{

@@ -137,7 +137,7 @@ export function History() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <HistoryIcon className="h-6 w-6 text-muted-foreground" />
           <div>
@@ -146,12 +146,12 @@ export function History() {
           </div>
         </div>
 
-        <div className="flex gap-1 rounded-lg border border-border p-1">
+        <div className="flex gap-1 rounded-lg border border-border p-1 self-start sm:self-auto overflow-x-auto">
           {FILTERS.map(f => (
             <button
               key={f.value}
               onClick={() => { setEntityFilter(f.value); setPage(1); }}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
                 entityFilter === f.value
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-muted'
@@ -200,8 +200,9 @@ export function History() {
                         <p className="text-xs text-muted-foreground">by {entry.user_name ?? '—'}</p>
                       </div>
                     </div>
-                    <time className="whitespace-nowrap text-xs text-muted-foreground">
-                      {new Date(entry.created_at).toLocaleString()}
+                    <time className="whitespace-nowrap text-xs text-muted-foreground flex-shrink-0">
+                      <span className="hidden sm:inline">{new Date(entry.created_at).toLocaleString()}</span>
+                      <span className="sm:hidden">{new Date(entry.created_at).toLocaleDateString()}</span>
                     </time>
                   </div>
                 </li>

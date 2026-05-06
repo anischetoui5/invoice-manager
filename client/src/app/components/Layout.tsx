@@ -5,6 +5,9 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { TopBar } from './Topbar';
 import { Sidebar } from './Sidebar';
 import { NotificationsPanel } from './NotificationsPanel';
+import { AiChat } from './AiChat';
+import { MobileNav } from './MobileNav';
+import { InstallPWA } from './InstallPWA';
 import api from '../../lib/api';
 import type { User, Enterprise, Notification, Workspace } from '../types';
 
@@ -112,8 +115,11 @@ export function Layout({
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-muted">
-      <Sidebar currentWorkspace={currentWorkspace} />
+    <div className="flex overflow-hidden bg-muted" style={{ height: '100dvh' }}>
+      {/* Sidebar — hidden on mobile */}
+      <div className="hidden md:flex">
+        <Sidebar currentWorkspace={currentWorkspace} />
+      </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar
@@ -128,7 +134,8 @@ export function Layout({
           onSwitchWorkspace={handleSwitchWorkspace}
         />
 
-        <main className="flex-1 overflow-y-auto p-8">
+        {/* Extra bottom padding on mobile so content clears the nav bar */}
+        <main className="flex-1 overflow-y-auto overscroll-y-none p-4 md:p-8 pb-20 md:pb-8">
           <Outlet context={{
             activeEnterpriseId,
             currentUser,
@@ -147,6 +154,10 @@ export function Layout({
         onMarkAsRead={handleMarkAsRead}
         onMarkAllAsRead={handleMarkAllAsRead}
       />
+
+      <AiChat workspaceId={currentWorkspace.id} />
+      <MobileNav />
+      <InstallPWA />
     </div>
   );
 }

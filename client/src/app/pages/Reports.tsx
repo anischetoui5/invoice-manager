@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -8,7 +8,13 @@ import {
 import {
   Download, TrendingUp, DollarSign, FileText, Users,
   Loader2, CheckCircle2, XCircle, Clock, TrendingDown, Minus,
+  ChevronDown, FileSpreadsheet, FileType2, Archive,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel, BorderStyle } from 'docx';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -46,73 +52,267 @@ const PERIOD_LABELS: Record<string, string> = {
 const fmt = (n: number) =>
   n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// ── CSV Export Helper ──────────────────────────────────────────────────────────
+// ── Export Helpers ─────────────────────────────────────────────────────────────
 
-function exportToCSV(data: any, period: string, isPersonal: boolean) {
-  const rows: string[][] = [];
+function buildReportRows(data: any, period: string, isPersonal: boolean) {
   const periodLabel = PERIOD_LABELS[period] ?? period;
+  const s = data?.summary ?? {};
+  const trend: any[] = data?.monthly_trend ?? [];
+  const vendors: any[] = data?.top_vendors ?? [];
+  const employees: any[] = data?.employee_leaderboard ?? [];
+  const total = Number(s.total ?? 0);
+  const approved = Number(s.approved ?? 0);
+  return { periodLabel, s, trend, vendors, employees, total, approved };
+}
+
+function getCSVBlob(data: any, period: string, isPersonal: boolean): Blob {
+  const rows: string[][] = [];
+  const { periodLabel, s, trend, vendors, employees, total, approved } = buildReportRows(data, period, isPersonal);
 
   rows.push([isPersonal ? 'My Invoice Report' : 'Company Invoice Report', periodLabel]);
   rows.push([]);
-
-  // Summary
   rows.push(['Summary']);
   rows.push(['Metric', 'Value']);
-  const s = data?.summary ?? {};
-  rows.push(['Total Invoices',    String(s.total ?? 0)]);
-  rows.push(['Total Amount',      `$${fmt(Number(s.total_amount ?? 0))}`]);
-  rows.push(['Average Amount',    `$${fmt(Number(s.avg_amount ?? 0))}`]);
+  rows.push(['Total Invoices', String(s.total ?? 0)]);
+  rows.push(['Total Amount', `${fmt(Number(s.total_amount ?? 0))}`]);
+  rows.push(['Average Amount', `${fmt(Number(s.avg_amount ?? 0))}`]);
   if (!isPersonal) {
-    const total    = Number(s.total ?? 0);
-    const approved = Number(s.approved ?? 0);
-    rows.push(['Approved',        String(approved)]);
-    rows.push(['Rejected',        String(s.rejected ?? 0)]);
-    rows.push(['Pending Review',  String(s.pending ?? 0)]);
-    rows.push(['Approval Rate',   total > 0 ? `${Math.round((approved / total) * 100)}%` : '0%']);
-    rows.push(['Team Members',    String(data?.total_members ?? 0)]);
+    rows.push(['Approved', String(approved)]);
+    rows.push(['Rejected', String(s.rejected ?? 0)]);
+    rows.push(['Pending Review', String(s.pending ?? 0)]);
+    rows.push(['Approval Rate', total > 0 ? `${Math.round((approved / total) * 100)}%` : '0%']);
+    rows.push(['Team Members', String(data?.total_members ?? 0)]);
   }
   rows.push([]);
-
-  // Monthly trend
-  const trend = data?.monthly_trend ?? [];
   if (trend.length > 0) {
     rows.push(['Monthly Trend']);
     rows.push(['Month', 'Invoice Count', 'Amount']);
-    trend.forEach((t: any) => {
-      rows.push([t.month, String(t.count), `$${fmt(Number(t.amount))}`]);
-    });
+    trend.forEach((t: any) => rows.push([t.month, String(t.count), fmt(Number(t.amount))]));
     rows.push([]);
   }
-
-  // Top vendors (company only)
-  const vendors = data?.top_vendors ?? [];
   if (!isPersonal && vendors.length > 0) {
     rows.push(['Top Vendors']);
     rows.push(['Rank', 'Vendor', 'Invoice Count', 'Total Amount']);
-    vendors.forEach((v: any, i: number) => {
-      rows.push([String(i + 1), v.vendor ?? '—', String(v.count), `$${fmt(Number(v.total_amount))}`]);
-    });
+    vendors.forEach((v: any, i: number) => rows.push([String(i + 1), v.vendor ?? '—', String(v.count), fmt(Number(v.total_amount))]));
     rows.push([]);
   }
-
-  // Employee leaderboard (company only)
-  const employees = data?.employee_leaderboard ?? [];
   if (!isPersonal && employees.length > 0) {
     rows.push(['Employee Upload Leaderboard']);
     rows.push(['Rank', 'Employee', 'Invoice Count', 'Total Amount']);
-    employees.forEach((e: any, i: number) => {
-      rows.push([String(i + 1), e.name ?? '—', String(e.count), `$${fmt(Number(e.total_amount))}`]);
+    employees.forEach((e: any, i: number) => rows.push([String(i + 1), e.name ?? '—', String(e.count), fmt(Number(e.total_amount))]));
+  }
+  const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+  return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+}
+
+function getPDFBlob(data: any, period: string, isPersonal: boolean): Blob {
+  const { periodLabel, s, trend, vendors, employees, total, approved } = buildReportRows(data, period, isPersonal);
+  const doc = new jsPDF();
+  const date = new Date().toLocaleDateString('en-GB');
+
+  doc.setFontSize(18);
+  doc.setTextColor(30, 64, 175);
+  doc.text('EASYfact — Invoice Report', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Period: ${periodLabel}`, 14, 26);
+  doc.text(`Generated: ${date}`, 14, 32);
+
+  autoTable(doc, {
+    startY: 40,
+    head: [['Metric', 'Value']],
+    body: [
+      ['Total Invoices', String(s.total ?? 0)],
+      ['Total Amount', fmt(Number(s.total_amount ?? 0))],
+      ['Average Amount', fmt(Number(s.avg_amount ?? 0))],
+      ...(!isPersonal ? [
+        ['Approved', String(approved)],
+        ['Rejected', String(s.rejected ?? 0)],
+        ['Pending Review', String(s.pending ?? 0)],
+        ['Approval Rate', total > 0 ? `${Math.round((approved / total) * 100)}%` : '0%'],
+        ['Team Members', String(data?.total_members ?? 0)],
+      ] : []),
+    ],
+    headStyles: { fillColor: [30, 64, 175], textColor: 255 },
+    alternateRowStyles: { fillColor: [240, 244, 255] },
+    styles: { fontSize: 9 },
+  });
+
+  if (trend.length > 0) {
+    autoTable(doc, {
+      head: [['Month', 'Count', 'Amount']],
+      body: trend.map((t: any) => [t.month, String(t.count), fmt(Number(t.amount))]),
+      headStyles: { fillColor: [30, 64, 175], textColor: 255 },
+      alternateRowStyles: { fillColor: [240, 244, 255] },
+      styles: { fontSize: 9 },
+      didDrawPage: (d: any) => { if (d.pageNumber === 1) doc.text('Monthly Trend', 14, (doc as any).lastAutoTable.finalY + 10); },
     });
   }
 
-  const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `invoice-report-${period}-${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  if (!isPersonal && vendors.length > 0) {
+    autoTable(doc, {
+      head: [['#', 'Vendor', 'Count', 'Total Amount']],
+      body: vendors.map((v: any, i: number) => [i + 1, v.vendor ?? '—', v.count, fmt(Number(v.total_amount))]),
+      headStyles: { fillColor: [30, 64, 175], textColor: 255 },
+      alternateRowStyles: { fillColor: [240, 244, 255] },
+      styles: { fontSize: 9 },
+    });
+  }
+
+  if (!isPersonal && employees.length > 0) {
+    autoTable(doc, {
+      head: [['#', 'Employee', 'Count', 'Total Amount']],
+      body: employees.map((e: any, i: number) => [i + 1, e.name ?? '—', e.count, fmt(Number(e.total_amount))]),
+      headStyles: { fillColor: [30, 64, 175], textColor: 255 },
+      alternateRowStyles: { fillColor: [240, 244, 255] },
+      styles: { fontSize: 9 },
+    });
+  }
+
+  return new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+}
+
+async function getDOCXBlob(data: any, period: string, isPersonal: boolean): Promise<Blob> {
+  const { periodLabel, s, trend, vendors, employees, total, approved } = buildReportRows(data, period, isPersonal);
+
+  const borderStyle = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' };
+  const cellBorders = { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle };
+
+  const makeHeaderRow = (cells: string[]) => new TableRow({
+    children: cells.map(c => new TableCell({
+      children: [new Paragraph({ children: [new TextRun({ text: c, bold: true, color: 'FFFFFF' })] })],
+      shading: { fill: '1E40AF' },
+      borders: cellBorders,
+    })),
+  });
+
+  const makeRow = (cells: string[], shade = false) => new TableRow({
+    children: cells.map(c => new TableCell({
+      children: [new Paragraph({ children: [new TextRun({ text: c, size: 18 })] })],
+      shading: shade ? { fill: 'F0F4FF' } : undefined,
+      borders: cellBorders,
+    })),
+  });
+
+  const summaryRows = [
+    ['Total Invoices', String(s.total ?? 0)],
+    ['Total Amount', fmt(Number(s.total_amount ?? 0))],
+    ['Average Amount', fmt(Number(s.avg_amount ?? 0))],
+    ...(!isPersonal ? [
+      ['Approved', String(approved)],
+      ['Rejected', String(s.rejected ?? 0)],
+      ['Pending Review', String(s.pending ?? 0)],
+      ['Approval Rate', total > 0 ? `${Math.round((approved / total) * 100)}%` : '0%'],
+      ['Team Members', String(data?.total_members ?? 0)],
+    ] : []),
+  ];
+
+  const sections: any[] = [
+    new Paragraph({ text: 'EASYfact — Invoice Report', heading: HeadingLevel.HEADING_1 }),
+    new Paragraph({ children: [new TextRun({ text: `Period: ${periodLabel}  |  Generated: ${new Date().toLocaleDateString('en-GB')}`, color: '64748B', size: 18 })] }),
+    new Paragraph(''),
+    new Paragraph({ text: 'Summary', heading: HeadingLevel.HEADING_2 }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [makeHeaderRow(['Metric', 'Value']), ...summaryRows.map((r, i) => makeRow(r, i % 2 === 0))],
+    }),
+  ];
+
+  if (trend.length > 0) {
+    sections.push(new Paragraph(''), new Paragraph({ text: 'Monthly Trend', heading: HeadingLevel.HEADING_2 }));
+    sections.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [makeHeaderRow(['Month', 'Count', 'Amount']), ...trend.map((t: any, i: number) => makeRow([t.month, String(t.count), fmt(Number(t.amount))], i % 2 === 0))],
+    }));
+  }
+
+  if (!isPersonal && vendors.length > 0) {
+    sections.push(new Paragraph(''), new Paragraph({ text: 'Top Vendors', heading: HeadingLevel.HEADING_2 }));
+    sections.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [makeHeaderRow(['#', 'Vendor', 'Count', 'Total Amount']), ...vendors.map((v: any, i: number) => makeRow([String(i + 1), v.vendor ?? '—', String(v.count), fmt(Number(v.total_amount))], i % 2 === 0))],
+    }));
+  }
+
+  if (!isPersonal && employees.length > 0) {
+    sections.push(new Paragraph(''), new Paragraph({ text: 'Employee Leaderboard', heading: HeadingLevel.HEADING_2 }));
+    sections.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [makeHeaderRow(['#', 'Employee', 'Count', 'Total Amount']), ...employees.map((e: any, i: number) => makeRow([String(i + 1), e.name ?? '—', String(e.count), fmt(Number(e.total_amount))], i % 2 === 0))],
+    }));
+  }
+
+  const doc = new Document({ sections: [{ children: sections }] });
+  return Packer.toBlob(doc);
+}
+
+async function exportAll(data: any, period: string, isPersonal: boolean, filename: string) {
+  const zip = new JSZip();
+  const csvBlob  = getCSVBlob(data, period, isPersonal);
+  const pdfBlob  = getPDFBlob(data, period, isPersonal);
+  const docxBlob = await getDOCXBlob(data, period, isPersonal);
+  zip.file(`${filename}.csv`, csvBlob);
+  zip.file(`${filename}.pdf`, pdfBlob);
+  zip.file(`${filename}.docx`, docxBlob);
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  saveAs(zipBlob, `${filename}.zip`);
+}
+
+// ── Export Dropdown ─────────────────────────────────────────────────────────────
+
+function ExportDropdown({ data, period, isPersonal }: { data: any; period: string; isPersonal: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const filename = `invoice-report-${period}-${new Date().toISOString().split('T')[0]}`;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const options = [
+    { label: 'Export CSV',  icon: <FileSpreadsheet className="h-4 w-4 text-green-600" />, action: () => { saveAs(getCSVBlob(data, period, isPersonal), `${filename}.csv`); setOpen(false); } },
+    { label: 'Export PDF',  icon: <FileType2 className="h-4 w-4 text-red-500" />,         action: () => { saveAs(getPDFBlob(data, period, isPersonal), `${filename}.pdf`); setOpen(false); } },
+    { label: 'Export DOCX', icon: <FileText className="h-4 w-4 text-blue-600" />,         action: async () => { saveAs(await getDOCXBlob(data, period, isPersonal), `${filename}.docx`); setOpen(false); } },
+    { label: 'Export All (ZIP)', icon: <Archive className="h-4 w-4 text-purple-600" />,   action: () => { exportAll(data, period, isPersonal, filename); setOpen(false); } },
+  ];
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <Button variant="outline" onClick={() => setOpen(o => !o)} disabled={!data}>
+        <Download className="mr-2 h-4 w-4" />
+        Export
+        <ChevronDown className="ml-2 h-3 w-3" />
+      </Button>
+      {open && (
+        <div style={{
+          position: 'absolute', right: 0, top: 'calc(100% + 6px)',
+          background: 'white', border: '1px solid #e2e8f0',
+          borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          minWidth: '180px', zIndex: 50, overflow: 'hidden',
+          animation: 'fadeSlideUp 0.15s ease',
+        }}>
+          <style>{`@keyframes fadeSlideUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }`}</style>
+          {options.map((opt, i) => (
+            <button key={i} onClick={opt.action} style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '10px 16px', background: 'none', border: 'none',
+              cursor: 'pointer', fontSize: '13.5px', fontFamily: 'inherit',
+              color: '#1e293b', textAlign: 'left',
+              borderTop: i > 0 ? '1px solid #f1f5f9' : 'none',
+              transition: 'background 0.15s',
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+            >
+              {opt.icon} {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -533,10 +733,7 @@ export function Reports() {
         </div>
         <div className="flex gap-3">
           <PeriodSelect />
-          <Button variant="outline" onClick={() => exportToCSV(data, period, false)}>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
+          <ExportDropdown data={data} period={period} isPersonal={isPersonal} />
         </div>
       </div>
 

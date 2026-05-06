@@ -149,6 +149,8 @@ export function UploadInvoice() {
             onDrop={handleDrop}
           >
             <input type="file" id="file-upload" className="hidden" multiple accept=".pdf,image/*" onChange={handleFileInput} />
+            {/* Camera capture — only used on mobile via the Take Photo button */}
+            <input type="file" id="camera-capture" className="hidden" accept="image/*" capture="environment" onChange={handleFileInput} />
             <div className="flex flex-col items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
                 <Upload className="h-8 w-8 text-blue-600" />
@@ -163,6 +165,19 @@ export function UploadInvoice() {
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">Supports: PDF, JPG, PNG (Max 10MB per file)</p>
+
+              {/* Camera button — only visible on mobile */}
+              <label
+                htmlFor="camera-capture"
+                className="md:hidden flex items-center gap-2 cursor-pointer rounded-xl px-5 py-3 text-sm font-semibold text-white"
+                style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 4px 14px rgba(37,99,235,0.4)' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                Take Photo of Invoice
+              </label>
             </div>
           </div>
 

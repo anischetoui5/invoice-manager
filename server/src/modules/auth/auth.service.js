@@ -3,6 +3,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../../config/db');
 const invitationsService = require('../invitations/invitations.service');
+const { sendVerificationCode, sendPasswordResetCode } = require('../../config/email');
+
+function generateCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
 
 function generateToken(user) {
   return jwt.sign(
@@ -148,17 +153,26 @@ if (isCompany) {
       if (!companyCode) throw new Error('Company code is required to join');
     }
 
+    // Generate verification code
+    const code = generateCode();
+    await client.query(
+      `UPDATE users
+       SET verification_code = $1, verification_expires_at = NOW() + INTERVAL '15 minutes'
+       WHERE id = $2`,
+      [code, user.id]
+    );
+
     await client.query('COMMIT');
 
     if (isJoin) {
       await invitationsService.createInvitationRequest(user.id, companyCode, joinRole);
     }
 
+    await sendVerificationCode(email, code);
+
     return {
-      user: { ...user, role: returnedRole },
-      token: generateToken(user),
-      activeWorkspaceId: companyWorkspaceId ?? personalWorkspace.id,
-      personalWorkspaceId: personalWorkspace.id,
+      requiresVerification: true,
+      email,
       companyCode: companyCodeResult,
     };
 
@@ -179,7 +193,7 @@ async function login({ email, password }) {
   }
 
   const result = await pool.query(
-    `SELECT id, name, email, password_hash, last_active_workspace_id
+    `SELECT id, name, email, password_hash, last_active_workspace_id, is_verified
      FROM users WHERE email = $1`,
     [email]
   );
@@ -187,6 +201,16 @@ async function login({ email, password }) {
 
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     throw new Error('Invalid email or password');
+  }
+
+  if (!user.is_verified) {
+    const code = generateCode();
+    await pool.query(
+      `UPDATE users SET verification_code = $1, verification_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2`,
+      [code, user.id]
+    );
+    await sendVerificationCode(email, code);
+    throw Object.assign(new Error('Email not verified. A new code has been sent to your email.'), { code: 'EMAIL_NOT_VERIFIED', email });
   }
 
   const workspaceResult = await pool.query(
@@ -243,4 +267,65 @@ async function switchWorkspace(userId, workspaceId) {
   };
 }
 
-module.exports = { register, login, switchWorkspace };
+async function verifyEmail(email, code) {
+  const result = await pool.query(
+    `SELECT id, verification_code, verification_expires_at, last_active_workspace_id
+     FROM users WHERE email = $1`,
+    [email]
+  );
+  const user = result.rows[0];
+  if (!user) throw new Error('User not found');
+  if (user.verification_code !== code) throw new Error('Invalid verification code');
+  if (new Date() > new Date(user.verification_expires_at)) throw new Error('Code has expired. Please request a new one.');
+
+  await pool.query(
+    `UPDATE users SET is_verified = true, verification_code = NULL, verification_expires_at = NULL WHERE id = $1`,
+    [user.id]
+  );
+
+  const workspaceResult = await pool.query(
+    `SELECT w.id AS workspace_id, r.name AS role_name
+     FROM workspaces w
+     JOIN memberships m ON m.workspace_id = w.id
+     JOIN roles r ON r.id = m.role_id
+     WHERE m.user_id = $1 AND w.id = $2 LIMIT 1`,
+    [user.id, user.last_active_workspace_id]
+  );
+  const workspace = workspaceResult.rows[0];
+
+  return {
+    token: generateToken(user),
+    user: { id: user.id, name: (await pool.query('SELECT name, email FROM users WHERE id=$1', [user.id])).rows[0].name, email },
+    activeWorkspaceId: workspace?.workspace_id ?? null,
+  };
+}
+
+async function forgotPassword(email) {
+  const result = await pool.query(`SELECT id FROM users WHERE email = $1`, [email]);
+  if (!result.rows.length) return; // silent — don't reveal if email exists
+  const code = generateCode();
+  await pool.query(
+    `UPDATE users SET reset_code = $1, reset_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2`,
+    [code, result.rows[0].id]
+  );
+  await sendPasswordResetCode(email, code);
+}
+
+async function resetPassword(email, code, newPassword) {
+  if (!newPassword || newPassword.length < 8) throw new Error('Password must be at least 8 characters');
+  const result = await pool.query(
+    `SELECT id, reset_code, reset_expires_at FROM users WHERE email = $1`,
+    [email]
+  );
+  const user = result.rows[0];
+  if (!user || user.reset_code !== code) throw new Error('Invalid reset code');
+  if (new Date() > new Date(user.reset_expires_at)) throw new Error('Code has expired. Please request a new one.');
+
+  const password_hash = await bcrypt.hash(newPassword, 10);
+  await pool.query(
+    `UPDATE users SET password_hash = $1, reset_code = NULL, reset_expires_at = NULL WHERE id = $2`,
+    [password_hash, user.id]
+  );
+}
+
+module.exports = { register, login, switchWorkspace, verifyEmail, forgotPassword, resetPassword };

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogIn, Eye, EyeOff, Sun, Moon } from 'lucide-react';
+import { LogIn, Eye, EyeOff, Sun, Moon, Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import api from '../../lib/api';
 import { toast } from 'sonner';
 
@@ -11,6 +11,15 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDark, setIsDark] = useState(false);
+
+  // Flow: 'login' | 'verify' | 'forgot' | 'reset' | 'done'
+  const [view, setView] = useState<'login' | 'verify' | 'forgot' | 'reset' | 'done'>('login');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +32,58 @@ export function Login() {
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Invalid credentials');
+      if (err.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        setPendingEmail(err.response.data.email || email);
+        setVerificationCode('');
+        setView('verify');
+        toast.info('Please verify your email first.');
+      } else {
+        toast.error(err.response?.data?.error || 'Invalid credentials');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const response = await api.post('/auth/verify-email', { email: pendingEmail, code: verificationCode });
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('activeWorkspaceId', response.data.activeWorkspaceId);
+      toast.success('Email verified!');
+      navigate('/dashboard');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Invalid or expired code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await api.post('/auth/forgot-password', { email: forgotEmail });
+      setView('reset');
+    } catch {
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await api.post('/auth/reset-password', { email: forgotEmail, code: resetCode, newPassword });
+      setView('done');
+      toast.success('Password reset successfully!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Invalid or expired code');
     } finally {
       setIsLoading(false);
     }
@@ -121,6 +181,38 @@ export function Login() {
     blobColor1: 'rgba(255,255,255,0.06)',
     blobColor2: 'rgba(255,255,255,0.04)',
   };
+
+  const spinner = (
+    <div style={{
+      width: '16px', height: '16px',
+      border: '2px solid rgba(255,255,255,0.3)',
+      borderTopColor: 'white', borderRadius: '50%',
+      animation: 'spin 0.7s linear infinite',
+    }} />
+  );
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: isDark ? '12px' : '13px',
+    fontWeight: isDark ? '700' : '600',
+    color: t.labelColor,
+    marginBottom: '8px',
+    letterSpacing: isDark ? '0.8px' : '0.3px',
+    textTransform: isDark ? 'uppercase' : 'none',
+    transition: 'all 0.4s ease',
+  };
+
+  const backBtn = (onClick: () => void, label = 'Back to login') => (
+    <button type="button" onClick={onClick} style={{
+      background: 'none', border: 'none', cursor: 'pointer',
+      color: t.subColor, fontSize: '13px', padding: 0,
+      display: 'flex', alignItems: 'center', gap: '4px',
+      fontFamily: 'inherit', marginBottom: '20px',
+      transition: 'color 0.2s',
+    }}>
+      <ArrowLeft size={14} /> {label}
+    </button>
+  );
 
   return (
     <div style={{
@@ -308,7 +400,6 @@ export function Login() {
               overflow: 'hidden',
               animation: 'glow 3s ease-in-out infinite',
             }}>
-              {/* Replace with your logo: <img src="/logo.png" style={{width:'100%',height:'100%',objectFit:'contain'}} /> */}
               <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>LOGO</span>
             </div>
             <span style={{
@@ -415,7 +506,6 @@ export function Login() {
                 overflow: 'hidden',
                 transition: 'all 0.4s ease',
               }}>
-                {/* Replace with your logo */}
                 <span style={{ fontSize: '9px', color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.6)' }}>LOGO</span>
               </div>
               <span style={{
@@ -436,134 +526,302 @@ export function Login() {
               boxShadow: t.cardShadow,
               transition: 'all 0.4s ease',
             }}>
-              <div style={{ marginBottom: '24px' }}>
-                <h2 style={{
-                  fontFamily: "'Syne', sans-serif",
-                  fontSize: '26px', fontWeight: '800',
-                  color: t.titleColor,
-                  marginBottom: '6px',
-                  transition: 'color 0.4s ease',
-                }}>Welcome back!</h2>
-                <p style={{ fontSize: '14px', color: t.subColor, transition: 'color 0.4s ease' }}>
-                  Sign in to continue to EasyFact
-                </p>
-              </div>
 
-              <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-
-                {/* Email */}
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontSize: isDark ? '12px' : '13px',
-                    fontWeight: isDark ? '700' : '600',
-                    color: t.labelColor,
-                    marginBottom: '8px',
-                    letterSpacing: isDark ? '0.8px' : '0.3px',
-                    textTransform: isDark ? 'uppercase' : 'none',
-                    transition: 'all 0.4s ease',
-                  }}>Email</label>
-                  <input
-                    className="login-input"
-                    type="email"
-                    placeholder="you@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
+              {/* ── LOGIN ── */}
+              {view === 'login' && (<>
+                <div style={{ marginBottom: '24px' }}>
+                  <h2 style={{
+                    fontFamily: "'Syne', sans-serif",
+                    fontSize: '26px', fontWeight: '800',
+                    color: t.titleColor, marginBottom: '6px',
+                    transition: 'color 0.4s ease',
+                  }}>Welcome back!</h2>
+                  <p style={{ fontSize: '14px', color: t.subColor, transition: 'color 0.4s ease' }}>
+                    Sign in to continue to EasyFact
+                  </p>
                 </div>
 
-                {/* Password */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label style={{
-                      fontSize: isDark ? '12px' : '13px',
-                      fontWeight: isDark ? '700' : '600',
-                      color: t.labelColor,
-                      letterSpacing: isDark ? '0.8px' : '0.3px',
-                      textTransform: isDark ? 'uppercase' : 'none',
-                      transition: 'all 0.4s ease',
-                    }}>Password</label>
-                    <a href="#" style={{
-                      fontSize: '13px', color: t.forgotColor,
-                      textDecoration: 'none', fontWeight: '500',
-                      transition: 'color 0.2s',
-                    }}>Forgot password?</a>
-                  </div>
-                  <div style={{ position: 'relative' }}>
+                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  <div>
+                    <label style={labelStyle}>Email</label>
                     <input
                       className="login-input"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      type="email"
+                      placeholder="you@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
-                      style={{ paddingRight: '46px' }}
                     />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
-                      position: 'absolute', right: '12px', top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: t.eyeColor, display: 'flex', alignItems: 'center',
-                      transition: 'color 0.2s',
-                    }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = t.eyeHover)}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = t.eyeColor)}
-                    >
-                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                    </button>
                   </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
+                      <button type="button" onClick={() => { setForgotEmail(''); setView('forgot'); }} style={{
+                        fontSize: '13px', color: t.forgotColor,
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontWeight: '500', padding: 0, fontFamily: 'inherit',
+                        transition: 'color 0.2s',
+                      }}>Forgot password?</button>
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        className="login-input"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        style={{ paddingRight: '46px' }}
+                      />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
+                        position: 'absolute', right: '12px', top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: t.eyeColor, display: 'flex', alignItems: 'center',
+                        transition: 'color 0.2s',
+                      }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = t.eyeHover)}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = t.eyeColor)}
+                      >
+                        {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {!isDark && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input type="checkbox" style={{ width: '16px', height: '16px', accentColor: t.checkboxAccent }} />
+                      <span style={{ fontSize: '13px', color: t.subColor }}>Remember me</span>
+                    </label>
+                  )}
+
+                  <button type="submit" className="login-btn" disabled={isLoading}>
+                    {isLoading ? <>{spinner} Signing in...</> : <><LogIn size={17} /> Sign In</>}
+                  </button>
+                </form>
+              </>)}
+
+              {/* ── VERIFY EMAIL (after login with unverified account) ── */}
+              {view === 'verify' && (<>
+                <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                  <div style={{
+                    width: '56px', height: '56px', borderRadius: '16px',
+                    background: isDark ? 'rgba(88,101,242,0.15)' : 'rgba(59,130,246,0.08)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 16px',
+                  }}>
+                    <Mail size={24} color={t.accentColor} />
+                  </div>
+                  <h2 style={{
+                    fontFamily: "'Syne', sans-serif",
+                    fontSize: '22px', fontWeight: '800',
+                    color: t.titleColor, marginBottom: '8px',
+                  }}>Check your email</h2>
+                  <p style={{ fontSize: '14px', color: t.subColor, lineHeight: '1.5' }}>
+                    We sent a 6-digit code to<br />
+                    <strong style={{ color: t.titleColor }}>{pendingEmail}</strong>
+                  </p>
                 </div>
 
-                {/* Remember me */}
-                {!isDark && (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input type="checkbox" style={{ width: '16px', height: '16px', accentColor: t.checkboxAccent }} />
-                    <span style={{ fontSize: '13px', color: t.subColor }}>Remember me</span>
-                  </label>
-                )}
+                <form onSubmit={handleVerifyEmail} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={labelStyle}>Verification Code</label>
+                    <input
+                      className="login-input"
+                      type="text"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                      style={{ letterSpacing: '0.4em', fontSize: '20px', textAlign: 'center', fontWeight: '700' }}
+                      required
+                      autoFocus
+                    />
+                  </div>
 
-                {/* Submit */}
-                <button type="submit" className="login-btn" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <div style={{
-                        width: '16px', height: '16px',
-                        border: '2px solid rgba(255,255,255,0.3)',
-                        borderTopColor: 'white', borderRadius: '50%',
-                        animation: 'spin 0.7s linear infinite',
-                      }} />
-                      Signing in...
-                    </>
-                  ) : (
-                    <>
-                      <LogIn size={17} />
-                      Sign In
-                    </>
-                  )}
-                </button>
-              </form>
+                  <button type="submit" className="login-btn" disabled={isLoading || verificationCode.length !== 6}>
+                    {isLoading ? <>{spinner} Verifying...</> : 'Verify Email'}
+                  </button>
+
+                  <p style={{ textAlign: 'center', fontSize: '13px', color: t.subColor, margin: 0 }}>
+                    Didn't receive the code?{' '}
+                    <button type="button" onClick={async () => {
+                      try {
+                        await api.post('/auth/forgot-password', { email: pendingEmail });
+                        toast.success('Code resent!');
+                      } catch { toast.error('Failed to resend'); }
+                    }} style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: t.accentColor, fontWeight: '600', padding: 0,
+                      fontFamily: 'inherit', fontSize: '13px',
+                    }}>Resend</button>
+                  </p>
+
+                  <button type="button" onClick={() => setView('login')} style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: t.subColor, fontSize: '13px',
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                    justifyContent: 'center', fontFamily: 'inherit', padding: 0,
+                    transition: 'color 0.2s',
+                  }}>
+                    <ArrowLeft size={14} /> Back to login
+                  </button>
+                </form>
+              </>)}
+
+              {/* ── FORGOT PASSWORD — enter email ── */}
+              {view === 'forgot' && (<>
+                <div style={{ marginBottom: '24px' }}>
+                  {backBtn(() => setView('login'))}
+                  <h2 style={{
+                    fontFamily: "'Syne', sans-serif",
+                    fontSize: '24px', fontWeight: '800',
+                    color: t.titleColor, marginBottom: '6px',
+                  }}>Reset password</h2>
+                  <p style={{ fontSize: '14px', color: t.subColor }}>
+                    Enter your email and we'll send you a reset code.
+                  </p>
+                </div>
+
+                <form onSubmit={handleForgotEmail} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  <div>
+                    <label style={labelStyle}>Email address</label>
+                    <input
+                      className="login-input"
+                      type="email"
+                      placeholder="you@company.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  <button type="submit" className="login-btn" disabled={isLoading}>
+                    {isLoading ? <>{spinner} Sending...</> : <><Mail size={16} /> Send Reset Code</>}
+                  </button>
+                </form>
+              </>)}
+
+              {/* ── FORGOT PASSWORD — enter code + new password ── */}
+              {view === 'reset' && (<>
+                <div style={{ marginBottom: '24px' }}>
+                  {backBtn(() => setView('forgot'), 'Back')}
+                  <h2 style={{
+                    fontFamily: "'Syne', sans-serif",
+                    fontSize: '24px', fontWeight: '800',
+                    color: t.titleColor, marginBottom: '6px',
+                  }}>Set new password</h2>
+                  <p style={{ fontSize: '14px', color: t.subColor }}>
+                    Enter the code sent to <strong style={{ color: t.titleColor }}>{forgotEmail}</strong>.
+                  </p>
+                </div>
+
+                <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  <div>
+                    <label style={labelStyle}>Reset Code</label>
+                    <input
+                      className="login-input"
+                      type="text"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={resetCode}
+                      onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ''))}
+                      style={{ letterSpacing: '0.4em', fontSize: '20px', textAlign: 'center', fontWeight: '700' }}
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>New Password</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        className="login-input"
+                        type={showNewPassword ? 'text' : 'password'}
+                        placeholder="At least 8 characters"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        minLength={8}
+                        style={{ paddingRight: '46px' }}
+                      />
+                      <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={{
+                        position: 'absolute', right: '12px', top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: t.eyeColor, display: 'flex', alignItems: 'center',
+                        transition: 'color 0.2s',
+                      }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = t.eyeHover)}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = t.eyeColor)}
+                      >
+                        {showNewPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button type="submit" className="login-btn"
+                    disabled={isLoading || resetCode.length !== 6 || newPassword.length < 8}>
+                    {isLoading ? <>{spinner} Resetting...</> : 'Reset Password'}
+                  </button>
+                </form>
+              </>)}
+
+              {/* ── SUCCESS ── */}
+              {view === 'done' && (
+                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <div style={{
+                    width: '64px', height: '64px', borderRadius: '50%',
+                    background: isDark ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 20px',
+                  }}>
+                    <CheckCircle size={32} color="#22c55e" />
+                  </div>
+                  <h2 style={{
+                    fontFamily: "'Syne', sans-serif",
+                    fontSize: '24px', fontWeight: '800',
+                    color: t.titleColor, marginBottom: '8px',
+                  }}>Password reset!</h2>
+                  <p style={{ fontSize: '14px', color: t.subColor, marginBottom: '28px' }}>
+                    Your password has been updated successfully.
+                  </p>
+                  <button type="button" className="login-btn" onClick={() => {
+                    setView('login');
+                    setForgotEmail('');
+                    setResetCode('');
+                    setNewPassword('');
+                  }}>
+                    <LogIn size={17} /> Back to Login
+                  </button>
+                </div>
+              )}
+
             </div>
 
-            {/* Sign up */}
-            <div style={{
-              marginTop: '16px', padding: '16px',
-              background: t.signupBg,
-              borderRadius: isDark ? '4px' : '14px',
-              textAlign: 'center',
-              border: isDark ? 'none' : '1px solid rgba(0,0,0,0.04)',
-              transition: 'all 0.4s ease',
-            }}>
-              <span style={{ fontSize: '14px', color: t.signupText }}>
-                Need an account?{' '}
-              </span>
-              <Link to="/register" style={{
-                color: t.accentColor, fontWeight: '600',
-                fontSize: '14px', textDecoration: 'none',
+            {/* Sign up link — only show on login view */}
+            {view === 'login' && (
+              <div style={{
+                marginTop: '16px', padding: '16px',
+                background: t.signupBg,
+                borderRadius: isDark ? '4px' : '14px',
+                textAlign: 'center',
+                border: isDark ? 'none' : '1px solid rgba(0,0,0,0.04)',
+                transition: 'all 0.4s ease',
               }}>
-                Create account
-              </Link>
-            </div>
+                <span style={{ fontSize: '14px', color: t.signupText }}>
+                  Need an account?{' '}
+                </span>
+                <Link to="/register" style={{
+                  color: t.accentColor, fontWeight: '600',
+                  fontSize: '14px', textDecoration: 'none',
+                }}>
+                  Create account
+                </Link>
+              </div>
+            )}
 
             {/* Trust badges */}
             <div style={{

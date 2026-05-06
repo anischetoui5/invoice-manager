@@ -73,9 +73,9 @@ export function TopBar({
   };
 
   return (
-    <div className="flex h-16 items-center justify-between border-b bg-background px-6">
+    <div className="flex h-16 items-center justify-between border-b bg-background px-3 md:px-6">
       <div className="flex flex-1 items-center gap-4">
-        <div className="relative w-96">
+        <div className="relative hidden md:block w-96">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
@@ -134,15 +134,15 @@ export function TopBar({
         </button>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-medium text-white">
+          <DropdownMenuTrigger className="flex items-center gap-3 rounded-lg px-2 md:px-3 py-2 hover:bg-muted">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-medium text-white flex-shrink-0">
               {user.name.split(' ').map(n => n[0]).join('')}
             </div>
-            <div className="text-left">
+            <div className="text-left hidden md:block">
               <div className="text-sm font-medium text-foreground">{user.name}</div>
               <div className="text-xs text-muted-foreground capitalize">{currentWorkspace.name}</div>
             </div>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-56">

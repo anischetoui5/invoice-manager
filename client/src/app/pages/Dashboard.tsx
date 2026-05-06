@@ -253,7 +253,7 @@ function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit
                 </>
               ) : (
                 <>
-                  <div className="grid grid-cols-3 gap-4 w-full mb-4">
+                  <div className="grid grid-cols-3 gap-2 md:gap-4 w-full mb-4">
                     <div className="text-center">
                       <p className="text-2xl font-bold text-yellow-600">{pending}</p>
                       <p className="text-xs text-muted-foreground">Processing</p>
@@ -893,7 +893,7 @@ function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit
               <h3 className="font-semibold text-foreground">User Distribution</h3>
               <p className="text-sm text-muted-foreground mt-1">By role across the platform</p>
             </div>
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
               <div className="rounded-lg bg-orange-50 p-4">
                 <p className="text-sm font-medium text-orange-900">Directors</p>
                 <p className="mt-2 text-2xl font-bold text-orange-900">{roleCounts.director ?? 0}</p>
