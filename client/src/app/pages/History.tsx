@@ -8,7 +8,7 @@ import {
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import api from '../../lib/api';
-import type { Workspace } from '../types';
+import type { Workspace, User } from '../types';
 
 interface ActivityEntry {
   id: string;
@@ -18,6 +18,7 @@ interface ActivityEntry {
   metadata: Record<string, string>;
   created_at: string;
   user_name: string;
+  workspace_name?: string; // populated for admins
 }
 
 const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
@@ -105,8 +106,13 @@ const FILTERS = [
 ];
 
 export function History() {
-  const { currentWorkspace } = useOutletContext<{ currentWorkspace: Workspace }>();
+  const { currentWorkspace, currentUser } = useOutletContext<{
+    currentWorkspace: Workspace;
+    currentUser: User;
+  }>();
   const navigate = useNavigate();
+
+  const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
 
   const [entries, setEntries]           = useState<ActivityEntry[]>([]);
   const [total, setTotal]               = useState(0);
@@ -123,7 +129,10 @@ export function History() {
     try {
       const params: Record<string, string | number> = { page, limit: LIMIT };
       if (entityFilter) params.entity_type = entityFilter;
-      const { data } = await api.get(`/workspaces/${currentWorkspace.id}/activity`, { params, headers: { 'x-workspace-id': currentWorkspace.id }, });
+      const { data } = await api.get(
+        `/workspaces/${currentWorkspace.id}/activity`,
+        { params, headers: { 'x-workspace-id': currentWorkspace.id } }
+      );
       setEntries(data.activity || []);
       setTotal(data.total || 0);
     } catch {
@@ -142,7 +151,10 @@ export function History() {
           <HistoryIcon className="h-6 w-6 text-muted-foreground" />
           <div>
             <h1 className="text-2xl font-bold text-foreground">Activity History</h1>
-            <p className="text-sm text-muted-foreground">{total} event{total !== 1 ? 's' : ''} recorded</p>
+            <p className="text-sm text-muted-foreground">
+              {total} event{total !== 1 ? 's' : ''}
+              {isAdmin ? ' across all companies' : ''}
+            </p>
           </div>
         </div>
 
@@ -197,7 +209,16 @@ export function History() {
                             </button>
                           ) : text}
                         </p>
-                        <p className="text-xs text-muted-foreground">by {entry.user_name ?? '—'}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-xs text-muted-foreground">by {entry.user_name ?? '—'}</p>
+                          {/* Workspace badge — admins only */}
+                          {isAdmin && entry.workspace_name && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                              <Building2 className="h-2.5 w-2.5" />
+                              {entry.workspace_name}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <time className="whitespace-nowrap text-xs text-muted-foreground flex-shrink-0">
