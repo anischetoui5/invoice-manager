@@ -47,13 +47,10 @@ interface MyContract {
   contract_end: string | null;
 }
 
-// ── Notification options ───────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 const ALL_NOTIFICATIONS: {
-  key: NotificationKey;
-  label: string;
-  desc: string;
-  roles: string[];
+  key: NotificationKey; label: string; desc: string; roles: string[];
 }[] = [
   { key: 'emailInvoiceUploaded',  label: 'Invoice uploaded',        desc: 'When a new invoice is submitted',                          roles: ['Personal','Employee','Accountant','Director','Admin'] },
   { key: 'ocrCompleted',          label: 'OCR completed',           desc: 'When your invoice has been scanned and data extracted',    roles: ['Personal'] },
@@ -96,8 +93,6 @@ function passwordStrength(pw: string): 0 | 1 | 2 | 3 {
 const STRENGTH_LABEL = ['', 'Weak', 'Fair', 'Strong'];
 const STRENGTH_COLOR = ['', '#ef4444', '#f59e0b', '#22c55e'];
 
-// ── Subscription status badge ──────────────────────────────────────────────
-
 function SubscriptionBadge({ status }: { status: Subscription['status'] }) {
   const map: Record<Subscription['status'], { label: string; className: string; icon: React.ReactNode }> = {
     active:    { label: 'Active',    className: 'bg-green-100 text-green-700',    icon: <CheckCircle2 className="h-3 w-3" /> },
@@ -114,6 +109,17 @@ function SubscriptionBadge({ status }: { status: Subscription['status'] }) {
   );
 }
 
+// ── Section divider used inside accordion ──────────────────────────────────
+// Replaces nested <Card> — same visual weight without adding extra box model width
+
+function Section({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`border-t px-6 py-5 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 // ── CompanyCard ────────────────────────────────────────────────────────────
 
 function CompanyCard({
@@ -124,6 +130,7 @@ function CompanyCard({
   currentUser: User;
 }) {
   const [open, setOpen] = useState(isActive);
+  const [loaded, setLoaded] = useState(false);
 
   const [companyDetails, setCompanyDetails] = useState<{
     name: string;
@@ -142,12 +149,10 @@ function CompanyCard({
   const [submittingLeave, setSubmittingLeave] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', address: '' });
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!open || loaded) return;
     setLoaded(true);
-
     api.get(`/company/${workspace.id}`)
       .then(({ data }) => {
         setCompanyDetails(data.company);
@@ -159,7 +164,6 @@ function CompanyCard({
         });
       })
       .catch(() => {});
-
     api.get(`/invitations/leave-status/${workspace.id}`)
       .then(({ data }) => setLeavePending(!!data.pending))
       .catch(() => {});
@@ -184,7 +188,7 @@ function CompanyCard({
     setShowLeaveConfirm(false);
     setSubmittingLeave(true);
     try {
-      await api.post(`/invitations/leave`, { workspaceId: workspace.id });
+      await api.post('/invitations/leave', { workspaceId: workspace.id });
       setLeavePending(true);
       toast.success('Leave request submitted. Waiting for director approval.');
     } catch (err: any) {
@@ -195,9 +199,9 @@ function CompanyCard({
   };
 
   const role = companyDetails?.myRole ?? workspace.role;
-  const isDirector = role === 'Director';
+  const isDirector  = role === 'Director';
   const isAccountant = role === 'Accountant';
-  const sub = companyDetails?.subscription;
+  const sub      = companyDetails?.subscription;
   const contract = companyDetails?.myContract;
 
   const expiryDate = sub?.current_period_end ?? sub?.trial_ends_at;
@@ -221,11 +225,11 @@ function CompanyCard({
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between p-5 text-left hover:bg-muted/40 transition-colors"
+        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/40 transition-colors"
       >
-        <div className="flex items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
-            <Building2 className="h-5 w-5 text-blue-600" />
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
+            <Building2 className="h-4 w-4 text-blue-600" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -240,39 +244,38 @@ function CompanyCard({
           </div>
         </div>
         <ChevronDown
-          className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`h-4 w-4 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
-      {/* Accordion body */}
+      {/* Accordion body — all sections are flat divs separated by border-t, no nested Cards */}
       {open && (
-        <div className="border-t space-y-4 p-6">
-
+        <>
           {/* Subscription — Directors only */}
           {isDirector && sub && (
-            <Card className="p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
-                  <CreditCard className="h-5 w-5 text-purple-600" />
+            <Section>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 flex-shrink-0">
+                  <CreditCard className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Subscription</h3>
-                  <p className="text-sm text-muted-foreground">Your current plan and billing</p>
+                  <p className="font-semibold text-foreground text-sm">Subscription</p>
+                  <p className="text-xs text-muted-foreground">Your current plan and billing</p>
                 </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border p-3">
+                <div className="rounded-lg bg-muted/40 p-3">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan</p>
                   <p className="mt-1 text-sm font-semibold text-foreground">{sub.plan_name}</p>
                   <p className="text-xs text-muted-foreground">${sub.price}/mo</p>
                 </div>
-                <div className="rounded-lg border p-3">
+                <div className="rounded-lg bg-muted/40 p-3">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
                   <div className="mt-1"><SubscriptionBadge status={sub.status} /></div>
                 </div>
                 {expiryFormatted && (
-                  <div className="rounded-lg border p-3">
+                  <div className="rounded-lg bg-muted/40 p-3">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       {sub.status === 'trialing' ? 'Trial ends' : 'Renews'}
                     </p>
@@ -283,13 +286,13 @@ function CompanyCard({
                   </div>
                 )}
                 {Number(sub.credits) > 0 && (
-                  <div className="rounded-lg border p-3">
+                  <div className="rounded-lg bg-muted/40 p-3">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Credits</p>
                     <p className="mt-1 text-sm font-semibold text-foreground">${Number(sub.credits).toFixed(2)}</p>
                   </div>
                 )}
                 {(sub.max_invoices || sub.max_users) && (
-                  <div className="rounded-lg border p-3 sm:col-span-2">
+                  <div className="rounded-lg bg-muted/40 p-3 sm:col-span-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Plan Limits</p>
                     <div className="flex gap-6">
                       {sub.max_invoices && (
@@ -321,25 +324,25 @@ function CompanyCard({
                   </div>
                 </div>
               )}
-            </Card>
+            </Section>
           )}
 
           {/* Contract + leave — Accountants only */}
           {isAccountant && (
-            <Card className="p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
-                  <CalendarClock className="h-5 w-5 text-orange-600" />
+            <Section>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100 flex-shrink-0">
+                  <CalendarClock className="h-4 w-4 text-orange-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Your Contract</h3>
-                  <p className="text-sm text-muted-foreground">Contract dates and membership</p>
+                  <p className="font-semibold text-foreground text-sm">Your Contract</p>
+                  <p className="text-xs text-muted-foreground">Contract dates and membership</p>
                 </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 {contract?.contract_start && (
-                  <div className="rounded-lg border p-3">
+                  <div className="rounded-lg bg-muted/40 p-3">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Start Date</p>
                     <p className="mt-1 text-sm font-medium text-foreground">
                       {new Date(contract.contract_start).toLocaleDateString('en-US', {
@@ -348,11 +351,11 @@ function CompanyCard({
                     </p>
                   </div>
                 )}
-                <div className={`rounded-lg border p-3 ${contractExpired ? 'border-red-200 bg-red-50' : ''}`}>
+                <div className={`rounded-lg p-3 ${contractExpired ? 'bg-red-50 border border-red-200' : 'bg-muted/40'}`}>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">End Date</p>
                   {contractEndFormatted ? (
                     <div className="mt-1 flex items-center gap-1.5">
-                      {contractExpired && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                      {contractExpired && <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />}
                       <p className={`text-sm font-medium ${contractExpired ? 'text-red-700' : 'text-foreground'}`}>
                         {contractEndFormatted}
                       </p>
@@ -360,9 +363,7 @@ function CompanyCard({
                   ) : (
                     <p className="mt-1 text-sm text-muted-foreground">Not specified</p>
                   )}
-                  {contractExpired && (
-                    <p className="text-xs text-red-500 mt-0.5">Contract has expired</p>
-                  )}
+                  {contractExpired && <p className="text-xs text-red-500 mt-0.5">Contract has expired</p>}
                 </div>
               </div>
 
@@ -400,13 +401,10 @@ function CompanyCard({
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-medium text-foreground">Leave Company</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Submit a request to leave. Director must approve.
-                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Submit a request to leave. Director must approve.</p>
                     </div>
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant="outline" size="sm"
                       className="gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 flex-shrink-0 ml-4"
                       onClick={() => setShowLeaveConfirm(true)}
                       disabled={submittingLeave}
@@ -417,26 +415,26 @@ function CompanyCard({
                   </div>
                 )}
               </div>
-            </Card>
+            </Section>
           )}
 
           {/* Company details / edit */}
-          <Card className="p-6">
-            <div className="mb-4 flex items-center justify-between">
+          <Section>
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                  <Building2 className="h-5 w-5 text-blue-600" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
+                  <Building2 className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Company Details</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground text-sm">Company Details</p>
+                  <p className="text-xs text-muted-foreground">
                     {isEditing ? 'Update company information' : 'Company information'}
                   </p>
                 </div>
               </div>
               {isDirector && !isEditing && (
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2">
-                  <Pencil className="h-4 w-4" /> Edit
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-1.5">
+                  <Pencil className="h-3.5 w-3.5" /> Edit
                 </Button>
               )}
             </div>
@@ -480,30 +478,30 @@ function CompanyCard({
               </form>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border p-3">
+                <div className="rounded-lg bg-muted/40 p-3">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Name</p>
                   <p className="mt-1 text-sm font-medium text-foreground">{companyDetails?.name ?? '—'}</p>
                 </div>
-                <div className="rounded-lg border p-3">
+                <div className="rounded-lg bg-muted/40 p-3">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Your Role</p>
                   <p className="mt-1 text-sm font-medium text-foreground capitalize">{displayRole}</p>
                 </div>
-                <div className="rounded-lg border p-3">
+                <div className="rounded-lg bg-muted/40 p-3">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Email</p>
                   <p className="mt-1 text-sm font-medium text-foreground">{companyDetails?.email ?? '—'}</p>
                 </div>
-                <div className="rounded-lg border p-3">
+                <div className="rounded-lg bg-muted/40 p-3">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</p>
                   <p className="mt-1 text-sm font-medium text-foreground">{companyDetails?.phone ?? '—'}</p>
                 </div>
                 {companyDetails?.address && (
-                  <div className="rounded-lg border p-3 sm:col-span-2">
+                  <div className="rounded-lg bg-muted/40 p-3 sm:col-span-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address</p>
                     <p className="mt-1 text-sm font-medium text-foreground">{companyDetails.address}</p>
                   </div>
                 )}
                 {isDirector && companyDetails?.code && (
-                  <div className="rounded-lg border p-3 sm:col-span-2">
+                  <div className="rounded-lg bg-muted/40 p-3 sm:col-span-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Code</p>
                     <div className="mt-1 flex items-center gap-3">
                       <code className="text-lg font-bold tracking-widest text-blue-600">{companyDetails.code}</code>
@@ -522,9 +520,8 @@ function CompanyCard({
                 )}
               </div>
             )}
-          </Card>
-
-        </div>
+          </Section>
+        </>
       )}
     </Card>
   );
@@ -540,14 +537,14 @@ export function Settings() {
     workspaces: Workspace[];
   }>();
 
-  const [name, setName] = useState(currentUser.name);
-  const [email, setEmail] = useState(currentUser.email);
+  const [name, setName]                   = useState(currentUser.name);
+  const [email, setEmail]                 = useState(currentUser.email);
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  const [newPassword, setNewPassword]         = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [savingPassword, setSavingPassword] = useState(false);
+  const [savingPassword, setSavingPassword]   = useState(false);
 
   const [notifications, setNotifications] = useState<Record<NotificationKey, boolean>>({
     emailInvoiceUploaded:  true,
@@ -561,16 +558,16 @@ export function Settings() {
     ocrFailed:             true,
   });
 
-  const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
+  const isAdmin        = currentUser?.role?.toLowerCase() === 'admin';
   const hasCompanyRole = workspaces?.some(w =>
     w.type === 'company' && ['Employee', 'Director', 'Accountant'].includes(w.role)
   );
-  const isAccountant = workspaces?.some(w => w.role === 'Accountant');
+  const isAccountant   = workspaces?.some(w => w.role === 'Accountant');
   const isPersonalOnly = !isAdmin && !hasCompanyRole && !isAccountant && currentWorkspace?.type === 'personal';
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) { toast.error('Name cannot be empty'); return; }
+    if (!name.trim())  { toast.error('Name cannot be empty');  return; }
     if (!email.trim()) { toast.error('Email cannot be empty'); return; }
     if (name === currentUser.name && email === currentUser.email) { toast.info('No changes to save'); return; }
     setSavingProfile(true);
@@ -589,7 +586,7 @@ export function Settings() {
   const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword) { toast.error('Please enter your current password'); return; }
-    if (!newPassword) { toast.error('Please enter a new password'); return; }
+    if (!newPassword)     { toast.error('Please enter a new password'); return; }
     if (newPassword.length < 8) { toast.error('New password must be at least 8 characters'); return; }
     if (newPassword !== confirmPassword) { toast.error('New passwords do not match'); return; }
     if (currentPassword === newPassword) { toast.error('New password must be different from current password'); return; }
@@ -639,7 +636,7 @@ export function Settings() {
           </TabsList>
         )}
 
-        {/* Profile */}
+        {/* ── Profile ── */}
         <TabsContent value="profile" className="space-y-6">
           <Card className="overflow-hidden">
             <div style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', height: 72 }} />
@@ -680,11 +677,11 @@ export function Settings() {
           </Card>
         </TabsContent>
 
-        {/* Company */}
+        {/* ── Company ── */}
         {!isAdmin && (
           <TabsContent value="company" className="space-y-4">
             {isPersonalOnly && <JoinCompany userRole={currentUser.role} />}
-            {isAccountant && <JoinCompany userRole="accountant" lockedRole />}
+            {isAccountant    && <JoinCompany userRole="accountant" lockedRole />}
             {companyWorkspaces.length === 0 ? (
               <Card className="p-6">
                 <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -692,9 +689,7 @@ export function Settings() {
                     <Building2 className="h-7 w-7 text-blue-600" />
                   </div>
                   <p className="font-medium text-foreground">No company yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    You are not currently part of any company.
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">You are not currently part of any company.</p>
                 </div>
               </Card>
             ) : (
@@ -710,7 +705,7 @@ export function Settings() {
           </TabsContent>
         )}
 
-        {/* Security */}
+        {/* ── Security ── */}
         <TabsContent value="security" className="space-y-6">
           <Card className="p-6">
             <div className="mb-6 flex items-center gap-3">
@@ -728,8 +723,7 @@ export function Settings() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input id="currentPassword" type="password" placeholder="Enter current password"
-                    value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
-                    className="pl-10" required />
+                    value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="pl-10" required />
                 </div>
               </div>
               <div className="space-y-2">
@@ -737,8 +731,7 @@ export function Settings() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input id="newPassword" type="password" placeholder="At least 8 characters"
-                    value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                    className="pl-10" required />
+                    value={newPassword} onChange={e => setNewPassword(e.target.value)} className="pl-10" required />
                 </div>
                 {newPassword && (
                   <div className="space-y-1">
@@ -759,8 +752,7 @@ export function Settings() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input id="confirmPassword" type="password" placeholder="Repeat new password"
-                    value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                    className="pl-10" required />
+                    value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="pl-10" required />
                 </div>
                 {confirmPassword && newPassword && (
                   <p className={`text-xs font-medium flex items-center gap-1 ${confirmPassword === newPassword ? 'text-green-600' : 'text-red-500'}`}>
@@ -778,7 +770,7 @@ export function Settings() {
           </Card>
         </TabsContent>
 
-        {/* Notifications */}
+        {/* ── Notifications ── */}
         <TabsContent value="notifications" className="space-y-6">
           <Card className="p-6">
             <div className="mb-4 flex items-center gap-3">
@@ -790,11 +782,13 @@ export function Settings() {
                 <p className="text-sm text-muted-foreground">Choose what you want to be notified about</p>
               </div>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {getNotificationOptions(currentWorkspace?.role, isAdmin).map(({ key, label, desc }) => (
-                <div key={key}
+                <div
+                  key={key}
                   onClick={() => setNotifications(prev => ({ ...prev, [key]: !prev[key] }))}
-                  className="flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all hover:border-purple-200 hover:bg-purple-50/50">
+                  className="flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all hover:border-purple-200 hover:bg-purple-50/50"
+                >
                   <div className="flex items-center gap-3">
                     <div className={`h-2 w-2 rounded-full flex-shrink-0 ${notifications[key] ? 'bg-purple-500' : 'bg-gray-300'}`} />
                     <div>
@@ -809,7 +803,7 @@ export function Settings() {
                   />
                 </div>
               ))}
-              <Button onClick={handleSaveNotifications} className="w-full" style={{ background: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', color: 'white' }}>
+              <Button onClick={handleSaveNotifications} className="w-full mt-1" style={{ background: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', color: 'white' }}>
                 <Save className="mr-2 h-4 w-4" />
                 Save Preferences
               </Button>
