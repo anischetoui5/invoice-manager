@@ -40,9 +40,7 @@ export function Dashboard({ userRole }: DashboardProps) {
     setStats(null);
     setStatsLoading(true);
 
-    api.get(`/workspaces/${currentWorkspace.id}/invoices/dashboard-stats`, {
-      headers: { 'Cache-Control': 'no-cache' },
-    })
+    api.get(`/workspaces/${currentWorkspace.id}/invoices/dashboard-stats`)
       .then(({ data }) => setStats(data.stats))
       .catch((err) => console.error('Dashboard stats error:', err.response?.data ?? err.message))
       .finally(() => setStatsLoading(false));
