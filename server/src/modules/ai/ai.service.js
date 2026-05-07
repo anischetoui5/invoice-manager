@@ -102,6 +102,7 @@ ${recentBlock || '  No invoices found'}
 
 async function chat(workspaceId, messages) {
   const context = await getWorkspaceContext(workspaceId);
+  console.log('[AI context]', context.slice(0, 600));
 
   const systemPrompt = `You are EASYfact AI, an intelligent assistant built into EASYfact — a professional invoice management platform.
 
