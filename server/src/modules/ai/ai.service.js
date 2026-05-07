@@ -23,15 +23,15 @@ async function getWorkspaceContext(workspaceId) {
       [workspaceId]
     ),
     pool.query(
-      `SELECT TO_CHAR(invoice_date, 'Mon YYYY') AS month,
+      `SELECT TO_CHAR(DATE_TRUNC('month', COALESCE(invoice_date, created_at)), 'Mon YYYY') AS month,
               COUNT(*)::int AS count,
               COALESCE(SUM(amount), 0)::numeric AS total,
               currency
        FROM invoices
        WHERE workspace_id = $1
-         AND invoice_date >= NOW() - INTERVAL '6 months'
-       GROUP BY TO_CHAR(invoice_date, 'Mon YYYY'), currency, DATE_TRUNC('month', invoice_date)
-       ORDER BY DATE_TRUNC('month', invoice_date) DESC`,
+         AND COALESCE(invoice_date, created_at) >= NOW() - INTERVAL '6 months'
+       GROUP BY DATE_TRUNC('month', COALESCE(invoice_date, created_at)), currency
+       ORDER BY DATE_TRUNC('month', COALESCE(invoice_date, created_at)) DESC`,
       [workspaceId]
     ),
     pool.query(
