@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorizeInWorkspace, authorizeAdmin } = require('../../middlewares/auth.middleware');
+const { requireActiveSubscription } = require('../../middlewares/subscription.middleware');
 const {
   getMe, updateMe, updatePassword,
   getWorkspaceMembers, updateMemberRole, removeMember,
@@ -12,8 +13,8 @@ router.use(authenticate);
 
 // ── Personal profile ──────────────────────────────────────────
 router.get('/me',          getMe);
-router.put('/me',          updateMe);
-router.put('/me/password', updatePassword);
+router.put('/me', authenticate, requireActiveSubscription, updateMe);
+router.put('/me/password', authenticate, requireActiveSubscription, updatePassword);
 
 // ── Workspace-scoped ──────────────────────────────────────────
 router.get('/workspace/:workspace_id/members',
@@ -22,10 +23,14 @@ router.get('/workspace/:workspace_id/members',
 );
 router.patch('/workspace/:workspace_id/members/:userId/role',
   authorizeInWorkspace('Admin', 'Director'),
+  authenticate, 
+  requireActiveSubscription, 
   updateMemberRole
 );
 router.delete('/workspace/:workspace_id/members/:userId',
   authorizeInWorkspace('Admin', 'Director'),
+  authenticate, 
+  requireActiveSubscription, 
   removeMember
 );
 

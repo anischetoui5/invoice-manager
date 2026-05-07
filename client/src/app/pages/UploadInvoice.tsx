@@ -106,7 +106,7 @@ export function UploadInvoice() {
   const [notes, setNotes]               = useState('');
   const [isUploading, setIsUploading]   = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-
+  
   // Step derived from state
   const step = entries.length === 0 ? 1 : isUploading ? 3 : 2;
 

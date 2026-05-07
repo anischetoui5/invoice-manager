@@ -3,6 +3,7 @@ const router = express.Router({ mergeParams: true });
 const multer = require('multer');
 const path = require('path');
 const { authenticate, authorizeInWorkspace } = require('../../middlewares/auth.middleware');
+const { requireActiveSubscription } = require('../../middlewares/subscription.middleware');
 const {
   uploadDocument,
   getDocuments,
@@ -60,12 +61,16 @@ router.get('/:id/download', downloadDocument);
 router.post('/',
   upload.single('file'),
   handleMulterError,
+  authenticate, 
+  requireActiveSubscription, 
   uploadDocument
 );
 
 // only Director and above can delete documents
 router.delete('/:id',
   authorizeInWorkspace('Admin', 'Director', 'Employee', 'Personal'),
+  authenticate, 
+  requireActiveSubscription, 
   deleteDocument
 );
 

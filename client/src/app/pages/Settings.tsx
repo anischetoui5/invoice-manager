@@ -140,14 +140,14 @@ function CompanyCard({
     myRole?: string;
   } | null>(null);
 
-  const [isEditing, setIsEditing]           = useState(false);
-  const [saving, setSaving]                 = useState(false);
-  const [leavePending, setLeavePending]     = useState(false);
-  const [submittingLeave, setSubmittingLeave] = useState(false);
+  const [isEditing, setIsEditing]               = useState(false);
+  const [saving, setSaving]                     = useState(false);
+  const [leavePending, setLeavePending]         = useState(false);
+  const [submittingLeave, setSubmittingLeave]   = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', phone: '', address: '' });
-  const [renewalPending, setRenewalPending] = useState(false);
+  const [renewalPending, setRenewalPending]     = useState(false);
   const [submittingRenewal, setSubmittingRenewal] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', phone: '', address: '' });
 
   useEffect(() => {
     if (!open || loaded) return;
@@ -167,8 +167,8 @@ function CompanyCard({
       .then(({ data }) => setLeavePending(!!data.pending))
       .catch(() => {});
     api.get(`/invitations/renew-status/${workspace.id}`)
-    .then(({ data }) => setRenewalPending(!!data.pending))
-    .catch(() => {});
+      .then(({ data }) => setRenewalPending(!!data.pending))
+      .catch(() => {});
   }, [open, loaded, workspace.id]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -213,26 +213,43 @@ function CompanyCard({
     }
   };
 
-  const role        = companyDetails?.myRole ?? workspace.role;
-  const isDirector  = role === 'Director';
+  const role         = companyDetails?.myRole ?? workspace.role;
+  const isDirector   = role === 'Director';
   const isAccountant = role === 'Accountant';
-  const sub         = companyDetails?.subscription;
-  const contract    = companyDetails?.myContract;
+  const sub          = companyDetails?.subscription;
+  const contract     = companyDetails?.myContract;
 
   const expiryDate = sub?.current_period_end ?? sub?.trial_ends_at;
   const expiryFormatted = expiryDate
     ? new Date(expiryDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : null;
 
-  const contractEndFormatted = contract?.contract_end
-    ? new Date(contract.contract_end).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const contractEnd = contract?.contract_end ? new Date(contract.contract_end) : null;
+  const now         = new Date();
+
+  const contractEndFormatted = contractEnd
+    ? contractEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : null;
-  const contractExpired = contract?.contract_end
-    ? new Date(contract.contract_end) < new Date()
-    : false;
+  const contractExpired  = contractEnd ? contractEnd < now : false;
+  const daysUntilExpiry  = contractEnd
+    ? Math.ceil((contractEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  const canRenew         = daysUntilExpiry !== null && daysUntilExpiry <= 30;
+  const renewableFrom    = contractEnd
+    ? new Date(contractEnd.getTime() - 30 * 24 * 60 * 60 * 1000)
+        .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : null;
 
   const displayName = companyDetails?.name ?? workspace.name;
   const displayRole = role ?? workspace.role;
+
+  // Description shown under "Membership Actions"
+  const membershipActionDesc = (() => {
+    if (!contractEnd) return 'Request a contract renewal or leave the company.';
+    if (contractExpired) return 'Your contract has expired. Request a renewal to stay in the company.';
+    if (canRenew) return `Your contract expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'}. You can request a renewal.`;
+    return `Renewal available from ${renewableFrom}.`;
+  })();
 
   return (
     <Card className="overflow-hidden">
@@ -393,7 +410,7 @@ function CompanyCard({
                 </div>
               )}
 
-              {/* Actions row — renew + leave side by side */}
+              {/* Actions row */}
               <div className="mt-4 pt-4 border-t">
                 {leavePending ? (
                   <div className="flex items-center gap-3 rounded-lg bg-yellow-50 border border-yellow-200 p-3">
@@ -414,9 +431,9 @@ function CompanyCard({
                         size="sm"
                         style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}
                         onClick={confirmLeaveRequest}
-                        disabled={submittingRenewal}
+                        disabled={submittingLeave} // ← was wrongly submittingRenewal
                       >
-                        {submittingRenewal ? 'Submitting…' : 'Yes, send request'}
+                        {submittingLeave ? 'Submitting…' : 'Yes, send request'}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => setShowLeaveConfirm(false)}>
                         Cancel
@@ -424,24 +441,30 @@ function CompanyCard({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium text-foreground">Membership Actions</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Request a contract renewal or leave the company.
-                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{membershipActionDesc}</p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                      {/* Renew button */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
-                        onClick={handleRenewalRequest}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                        Renew
-                      </Button>
+                      {renewalPending ? (
+                        <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-200 px-3 py-1.5">
+                          <Clock className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                          <p className="text-xs font-medium text-blue-700">Renewal pending</p>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={handleRenewalRequest}
+                          disabled={!canRenew || submittingRenewal}
+                          title={!canRenew ? `Renewal available from ${renewableFrom}` : undefined}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          {submittingRenewal ? 'Submitting…' : 'Renew'}
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -625,11 +648,11 @@ export function Settings() {
 
   const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPassword)                    { toast.error('Please enter your current password'); return; }
-    if (!newPassword)                        { toast.error('Please enter a new password'); return; }
-    if (newPassword.length < 8)              { toast.error('New password must be at least 8 characters'); return; }
-    if (newPassword !== confirmPassword)     { toast.error('New passwords do not match'); return; }
-    if (currentPassword === newPassword)     { toast.error('New password must be different from current password'); return; }
+    if (!currentPassword)                { toast.error('Please enter your current password'); return; }
+    if (!newPassword)                    { toast.error('Please enter a new password'); return; }
+    if (newPassword.length < 8)          { toast.error('New password must be at least 8 characters'); return; }
+    if (newPassword !== confirmPassword) { toast.error('New passwords do not match'); return; }
+    if (currentPassword === newPassword) { toast.error('New password must be different from current password'); return; }
     setSavingPassword(true);
     try {
       await api.put('/users/me/password', { currentPassword, newPassword });
@@ -652,9 +675,7 @@ export function Settings() {
   };
 
   const companyWorkspaces = workspaces?.filter(w => w.type === 'company') ?? [];
-
-  // All tab contents share this wrapper for consistent width
-  const tabContentClass = "space-y-6";
+  const tabContentClass   = 'space-y-6';
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">

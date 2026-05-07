@@ -5,11 +5,13 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { TopBar } from './Topbar';
 import { Sidebar } from './Sidebar';
 import { NotificationsPanel } from './NotificationsPanel';
-import { AiChat } from './AiChat';
+//import { AiChat } from './AiChat';
 import { MobileNav } from './MobileNav';
 import { InstallPWA } from './InstallPWA';
 import api from '../../lib/api';
-import type { User, Enterprise, Notification, Workspace } from '../types';
+import type { User, Enterprise, Notification, Workspace, Subscription } from '../types';
+import { AlertTriangle } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface LayoutProps {
   currentUser: User;
@@ -33,7 +35,7 @@ export function Layout({
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
   const [showNotifications, setShowNotifications] = useState(false);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(initialWorkspace);
-  const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -136,6 +138,47 @@ export function Layout({
 
         {/* Extra bottom padding on mobile so content clears the nav bar */}
         <main className="flex-1 overflow-y-auto overscroll-y-none p-4 md:p-8 pb-20 md:pb-8">
+            {/* Subscription expired banner */}
+            {currentWorkspace?.type === 'company' && currentSubscription?.status === 'expired' && (
+              <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+                <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-800">Subscription expired</p>
+                  <p className="text-xs text-red-600 mt-0.5">
+                    Your workspace is in read-only mode. Renew your subscription to continue.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-red-300 text-red-700 hover:bg-red-100 flex-shrink-0"
+                  onClick={() => navigate('/dashboard/settings')}
+                >
+                  Renew
+                </Button>
+              </div>
+            )}
+
+            {/* Payment past due banner */}
+            {currentWorkspace?.type === 'company' && currentSubscription?.status === 'past_due' && (
+              <div className="mb-4 flex items-center gap-3 rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-yellow-800">Payment past due</p>
+                  <p className="text-xs text-yellow-600 mt-0.5">
+                    Please update your billing to avoid service interruption.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-yellow-300 text-yellow-700 hover:bg-yellow-100 flex-shrink-0"
+                  onClick={() => navigate('/dashboard/settings')}
+                >
+                  Update Billing
+                </Button>
+              </div>
+            )}
           <Outlet context={{
             activeEnterpriseId,
             currentUser,

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorizeInWorkspace, authorizeAdmin } = require('../../middlewares/auth.middleware');
+const { requireActiveSubscription } = require('../../middlewares/subscription.middleware');
 const {
   getCompany, updateCompany,
   getMembers, getInvitations,
@@ -21,6 +22,8 @@ router.get(
 router.put(
   '/:workspace_id',
   authorizeInWorkspace('Admin', 'Director'),
+  authenticate, 
+  requireActiveSubscription, 
   updateCompany
 );
 router.get(

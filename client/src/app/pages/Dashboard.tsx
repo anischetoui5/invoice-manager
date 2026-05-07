@@ -73,6 +73,8 @@ const ACTION_CONFIG: Record<string, { label: string; color: string }> = {
   'invitation.accepted':    { label: 'Invitation accepted',    color: 'bg-green-100 text-green-700' },
   'invitation.rejected':    { label: 'Invitation rejected',    color: 'bg-red-100 text-red-700' },
   'company.updated':        { label: 'Company updated',        color: 'bg-blue-100 text-blue-700' },
+  'membership.expired' :    { label: 'Membership expired',     color: 'bg-red-100 text-red-700' },
+  'contract.renewed' :      { label: 'Contract renewed',       color: 'bg-green-100 text-green-700' },
 };
 
 function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit?: number }) {

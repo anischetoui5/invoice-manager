@@ -2,6 +2,7 @@ const express = require('express');
 const cron = require('node-cron');
 const router = express.Router();
 const { authenticate, authorizeInWorkspace, authorizeAdmin } = require('../../middlewares/auth.middleware');
+const { requireActiveSubscription } = require('../../middlewares/subscription.middleware');
 const {
   createInvitationRequest,
   createLeaveRequest,
@@ -24,9 +25,9 @@ cron.schedule('0 0 * * *', () => {
 router.use(authenticate);
 
 // Any authenticated member
-router.post('/request', createInvitationRequest);
-router.post('/leave', createLeaveRequest);
-router.post('/renew', createRenewalRequest);
+router.post('/request', authenticate, requireActiveSubscription, createInvitationRequest);
+router.post('/leave', authenticate, requireActiveSubscription, createLeaveRequest);
+router.post('/renew', authenticate, requireActiveSubscription, createRenewalRequest);
 router.get('/leave-status/:workspace_id', leaveStatus);
 router.get('/renew-status/:workspace_id', renewalStatus);
 
@@ -42,6 +43,8 @@ router.get(
 router.patch(
   '/workspace/:workspace_id/invitations/:invitationId',
   authorizeInWorkspace('Admin', 'Director'),
+  authenticate, 
+  requireActiveSubscription, 
   handleInvitation
 );
 

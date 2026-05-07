@@ -125,14 +125,27 @@ async function createLeaveRequest(userId, workspaceId) {
 // ── Renewal request ────────────────────────────────────────────────────────
 async function createRenewalRequest(userId, workspaceId) {
   const memberResult = await pool.query(
-    `SELECT m.id, r.name as role, r.id as role_id FROM memberships m
+    `SELECT m.id, r.name as role, r.id as role_id, m.contract_end
+     FROM memberships m
      JOIN roles r ON r.id = m.role_id
      WHERE m.user_id = $1 AND m.workspace_id = $2`,
     [userId, workspaceId]
   );
   if (!memberResult.rows.length) throw new Error('You are not a member of this company');
-  const { role, role_id } = memberResult.rows[0];
+  const { role, role_id, contract_end } = memberResult.rows[0];
   if (role !== 'Accountant') throw new Error('Only Accountants can request a contract renewal');
+
+  // Enforce 30-day window
+  if (contract_end) {
+    const daysUntilExpiry = Math.ceil(
+      (new Date(contract_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    if (daysUntilExpiry > 30) {
+      const renewableFrom = new Date(new Date(contract_end).getTime() - 30 * 24 * 60 * 60 * 1000)
+        .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      throw new Error(`Renewal is only available within 30 days of contract expiry. You can request from ${renewableFrom}`);
+    }
+  }
 
   const pending = await pool.query(
     `SELECT id FROM invitations
@@ -153,6 +166,10 @@ async function createRenewalRequest(userId, workspaceId) {
   const userResult = await pool.query(`SELECT name FROM users WHERE id = $1`, [userId]);
   const userName = userResult.rows[0]?.name ?? 'Someone';
 
+  const daysLeft = contract_end
+    ? Math.max(0, Math.ceil((new Date(contract_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
+
   const uniqueCode = crypto.randomBytes(8).toString('hex');
   const result = await pool.query(
     `INSERT INTO invitations
@@ -167,7 +184,9 @@ async function createRenewalRequest(userId, workspaceId) {
       user_id: directorId,
       type: 'info',
       title: 'Contract Renewal Request',
-      message: `${userName} has requested a contract renewal. Set a new end date to approve.`,
+      message: daysLeft === 0
+        ? `${userName}'s contract has expired. They are requesting a renewal.`
+        : `${userName} has requested a contract renewal. Their contract expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`,
       action_url: '/dashboard/team',
     });
   }
@@ -368,9 +387,20 @@ async function handleInvitation(requesterId, invitationId, action, contractStart
           action_url: '/dashboard/settings',
         });
 
+        // Log for the director (who performed the action)
         await logActivity(client, {
           workspace_id: inv.workspace_id,
           user_id: requesterId,
+          action: 'contract.renewed',
+          entity_type: 'membership',
+          entity_id: inv.user_id,
+          metadata: { user_name: userName, company_name: companyName, new_contract_end: contractEnd },
+        });
+
+        // Log for the accountant (who was affected)
+        await logActivity(client, {
+          workspace_id: inv.workspace_id,
+          user_id: inv.user_id,
           action: 'contract.renewed',
           entity_type: 'membership',
           entity_id: inv.user_id,

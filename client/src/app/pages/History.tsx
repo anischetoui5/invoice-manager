@@ -4,6 +4,7 @@ import {
   History as HistoryIcon, ChevronLeft, ChevronRight,
   Loader2, Clock, FileText, UserPlus, UserMinus,
   XCircle, Trash2, Building2, ArrowRightLeft, CheckCircle2,
+  RefreshCw,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -88,6 +89,20 @@ function getActionConfig(entry: ActivityEntry) {
         text: <>Company information for <span className="font-medium">{m.company_name}</span> was updated</>,
         clickable: false,
       };
+      case 'membership.expired':
+        return {
+          icon: <UserMinus className="h-4 w-4 text-orange-500" />,
+          bg: 'bg-orange-50',
+          text: <><span className="font-medium">{m.name}</span>'s contract with <span className="font-medium">{m.company_name}</span> expired and they were removed</>,
+          clickable: false,
+        };
+      case 'contract.renewed':
+        return {
+          icon: <RefreshCw className="h-4 w-4 text-blue-500" />,
+          bg: 'bg-blue-50',
+          text: <><span className="font-medium">{m.user_name}</span>'s contract was renewed until <span className="font-medium">{new Date(m.new_contract_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span></>,
+          clickable: false,
+        };
     default:
       return {
         icon: <CheckCircle2 className="h-4 w-4 text-muted-foreground" />,

@@ -38,7 +38,7 @@ export function JoinCompany({ userRole, lockedRole = false }: JoinCompanyProps) 
     }
     setIsSubmitting(true);
     try {
-      await api.post('/invitations/request', { code: companyCode.trim(), role });
+      await api.post('/invitations/request', { companyCode: companyCode.trim(), role });
       toast.success('Join request sent! Waiting for director approval.', { duration: 4000 });
       setCompanyCode('');
     } catch (err: any) {

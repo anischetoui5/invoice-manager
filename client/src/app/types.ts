@@ -49,7 +49,7 @@ export interface Subscription {
   id: string;
   enterpriseId: string;
   plan: PlanType;
-  status: 'active' | 'cancelled' | 'expired';
+  status: 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired';
   startDate: string;
   endDate?: string;
   invoiceLimit: number;

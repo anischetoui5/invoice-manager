@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router({ mergeParams: true });
 const { authenticate, authorizeInWorkspace } = require('../../middlewares/auth.middleware');
+const { requireActiveSubscription } = require('../../middlewares/subscription.middleware');
 const {
   createInvoice,
   getInvoice,
@@ -20,7 +21,7 @@ router.use(authenticate);
 router.use(authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'));
 
 // ── All members ───────────────────────────────────────────────
-router.post('/',                  createInvoice);
+router.post('/', authenticate, requireActiveSubscription, createInvoice);
 router.get('/',                   searchInvoices);
 router.get('/dashboard-stats',
   authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'),
@@ -40,16 +41,22 @@ router.get('/:invoice_id/history', getStatusHistory);
 // ── Director / Accountant and above ──────────────────────────
 router.put('/:invoice_id',
   authorizeInWorkspace('Admin', 'Director', 'Employee', 'Personal'),
+  authenticate, 
+  requireActiveSubscription, 
   updateInvoice
 );
 router.patch('/:invoice_id/status',
   authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
+  authenticate, 
+  requireActiveSubscription, 
   updateInvoiceStatus
 );
 
 // ── Director and above only ───────────────────────────────────
 router.delete('/:invoice_id',
   authorizeInWorkspace('Admin', 'Director', 'Employee', 'Personal'),
+  authenticate, 
+  requireActiveSubscription, 
   deleteInvoice
 );
 
@@ -60,10 +67,14 @@ router.get('/:invoice_id/fields',
 );
 router.patch('/:invoice_id/fields',
   authorizeInWorkspace('Admin', 'Director', 'Employee', 'Personal'),
+  authenticate, 
+  requireActiveSubscription, 
   ocrController.updateExtractedFields
 );
 router.post('/:invoice_id/ocr',
   authorizeInWorkspace('Admin', 'Director', 'Employee', 'Personal'),
+  authenticate, 
+  requireActiveSubscription, 
   ocrController.triggerOCR
 );
 

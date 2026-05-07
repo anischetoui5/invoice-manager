@@ -81,7 +81,7 @@ CREATE TABLE memberships (
     joined_at timestamp DEFAULT now(),
     contract_start timestamp,
     contract_end timestamp,
-    UNIQUE(user_id, workspace_id)
+    UNIQUE(user_id, workspace_id),
 );
 
 CREATE INDEX idx_memberships_user ON memberships(user_id);
@@ -150,7 +150,7 @@ CREATE TABLE extracted_fields (
     manually_corrected boolean DEFAULT false,
     created_at timestamp DEFAULT now(),
     updated_at timestamp DEFAULT now(),
-    corrected_by UUID REFERENCES users(id) ON DELETE SET NULL;
+    corrected_by UUID REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE(invoice_id, field_name)
 );
 
@@ -185,8 +185,8 @@ CREATE TABLE invitations (
     status varchar(20) DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected')),
     user_id uuid REFERENCES users(id) ON DELETE CASCADE,
     requested_role_id uuid REFERENCES roles(id),
-    rejected_at timestamp
-    type varchar(20) DEFAULT 'join_request' CHECK (type IN ('join_request', 'leave_request'));
+    rejected_at timestamp,
+    type varchar(20) DEFAULT 'join_request' CHECK (type IN ('join_request', 'leave_request', 'renewal_request'))
 );
 
 -- SUBSCRIPTION PLANS
