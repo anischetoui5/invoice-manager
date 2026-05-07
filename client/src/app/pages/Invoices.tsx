@@ -114,6 +114,10 @@ function SortableHead({
         ) : (
           <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
         )}
+        {/* Hint: clicking a desc-sorted column a third time resets it */}
+        {active && currentDir === 'desc' && (
+          <span className="text-[10px] text-muted-foreground/50 leading-none">↺</span>
+        )}
       </div>
     </TableHead>
   );
@@ -244,8 +248,18 @@ export function InvoiceList() {
   };
 
   const handleSort = (key: SortKey) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDir('asc'); }
+    if (sortKey !== key) {
+      // New column — start asc
+      setSortKey(key);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      // Second click — go desc
+      setSortDir('desc');
+    } else {
+      // Third click — clear sort, back to default order
+      setSortKey(null);
+      setSortDir('asc');
+    }
   };
 
   useEffect(() => {
