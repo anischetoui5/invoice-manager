@@ -23,14 +23,7 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    // Allow localhost and any local network IP (192.168.x.x, 10.x.x.x, 172.x.x.x)
-    const allowed = /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(origin);
-    if (allowed || origin === process.env.CLIENT_URL) return callback(null, true);
-    callback(new Error('Not allowed by CORS'));
-  },
+  origin: true,   // reflect request origin — allows localhost, LAN IPs, and phone access
   credentials: true,
 }));
 app.use(morgan('dev'));
