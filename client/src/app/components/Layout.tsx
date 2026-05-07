@@ -117,7 +117,7 @@ export function Layout({
   };
 
   return (
-    <div className="flex overflow-hidden bg-muted" style={{ height: '100dvh' }}>
+    <div className="flex overflow-hidden" style={{ height: '100dvh', background: 'var(--gradient-page)' }}>
       {/* Sidebar — hidden on mobile */}
       <div className="hidden md:flex">
         <Sidebar currentWorkspace={currentWorkspace} />
