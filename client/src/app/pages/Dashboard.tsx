@@ -32,25 +32,27 @@ export function Dashboard({ userRole }: DashboardProps) {
 
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
-  if (!currentWorkspace?.id) return;
+    if (!currentWorkspace?.id) return;
 
-  setStats(null);
+    setStats(null);
+    setStatsLoading(true);
 
-  api.get(`/workspaces/${currentWorkspace.id}/invoices/dashboard-stats`, {
-    params: { role: currentWorkspace.role },
-    headers: { 'Cache-Control': 'no-cache' },
-  })
-    .then(({ data }) => setStats(data.stats))
-    .catch(() => {});
+    api.get(`/workspaces/${currentWorkspace.id}/invoices/dashboard-stats`, {
+      headers: { 'Cache-Control': 'no-cache' },
+    })
+      .then(({ data }) => setStats(data.stats))
+      .catch((err) => console.error('Dashboard stats error:', err.response?.data ?? err.message))
+      .finally(() => setStatsLoading(false));
 
-  if (currentWorkspace?.type === 'company') {
-    api.get(`/company/${currentWorkspace.id}`)
-      .then(({ data }) => setCompanyCode(data.company.code))
-      .catch(() => {});
-  }
-}, [currentWorkspace?.id, currentWorkspace?.role]);
+    if (currentWorkspace?.type === 'company') {
+      api.get(`/company/${currentWorkspace.id}`)
+        .then(({ data }) => setCompanyCode(data.company.code))
+        .catch(() => {});
+    }
+  }, [currentWorkspace?.id, currentWorkspace?.role]);
 
 const [recentCompanies, setRecentCompanies] = useState<any[]>([]);
 
@@ -68,13 +70,10 @@ useEffect(() => {
   if (!currentWorkspace?.id) return;
   if (!['employee', 'accountant'].includes(userRole)) return;
 
-  api.get(`/workspaces/${currentWorkspace.id}/invoices`, {
-    params: {
-      role: currentWorkspace.role,
-      limit: 5,
-      page: 1,
-    }
-  })
+  const params: Record<string, any> = { limit: 5, page: 1 };
+  if (userRole === 'accountant') params.status = 'pending_review';
+
+  api.get(`/workspaces/${currentWorkspace.id}/invoices`, { params })
     .then(({ data }) => setRecentInvoices(data.invoices ?? []))
     .catch(() => {});
 }, [currentWorkspace?.id, userRole]);
@@ -224,6 +223,12 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
   );
 };
 
+  const StatValue = ({ value }: { value: number | string }) => (
+    statsLoading
+      ? <div className="mt-2 h-9 w-16 rounded-md bg-muted animate-pulse" />
+      : <p className="mt-2 text-3xl font-bold text-foreground">{value}</p>
+  );
+
   // ── Normal/Personal ────────────────────────────────────────────────────────
   const renderNormalUserDashboard = () => {
     const totalInvoices = Number(stats?.total ?? 0);
@@ -245,7 +250,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{totalInvoices}</p>
+                <StatValue value={totalInvoices} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <FileText className="h-6 w-6 text-blue-600" />
@@ -257,7 +262,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">OCR Processing</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{pending}</p>
+                <StatValue value={pending} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
                 <Clock className="h-6 w-6 text-yellow-600" />
@@ -269,9 +274,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">
-                  ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
+                <StatValue value={`$${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <DollarSign className="h-6 w-6 text-green-600" />
@@ -392,7 +395,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Uploaded</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{total}</p>
+                <StatValue value={total} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <FileText className="h-6 w-6 text-blue-600" />
@@ -404,7 +407,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Pending Review</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{pending}</p>
+                <StatValue value={pending} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
                 <Clock className="h-6 w-6 text-yellow-600" />
@@ -416,7 +419,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Approved</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{approved}</p>
+                <StatValue value={approved} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
@@ -428,7 +431,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Rejected</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{rejected}</p>
+                <StatValue value={rejected} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                 <XCircle className="h-6 w-6 text-red-600" />
@@ -529,7 +532,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Pending Validation</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{pendingValidation}</p>
+                <StatValue value={pendingValidation} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
                 <Clock className="h-6 w-6 text-orange-600" />
@@ -541,7 +544,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Validated Today</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{validatedToday}</p>
+                <StatValue value={validatedToday} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
                 <CheckCircle2 className="h-6 w-6 text-purple-600" />
@@ -553,7 +556,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Approved</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{approved}</p>
+                <StatValue value={approved} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
@@ -565,7 +568,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Rejected</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{rejected}</p>
+                <StatValue value={rejected} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                 <XCircle className="h-6 w-6 text-red-600" />
@@ -649,7 +652,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{total}</p>
+                <StatValue value={total} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <FileText className="h-6 w-6 text-blue-600" />
@@ -661,7 +664,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Approved Amount</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">${totalAmount.toLocaleString()}</p>
+                <StatValue value={`$${totalAmount.toLocaleString()}`} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <DollarSign className="h-6 w-6 text-green-600" />
@@ -673,7 +676,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Approval Rate</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{approvalRate}%</p>
+                <StatValue value={`${approvalRate}%`} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
                 <CheckCircle2 className="h-6 w-6 text-purple-600" />
@@ -685,7 +688,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active Users</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{totalMembers}</p>
+                <StatValue value={totalMembers} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
                 <Users className="h-6 w-6 text-orange-600" />
@@ -854,7 +857,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Users</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{totalUsers}</p>
+                <StatValue value={totalUsers} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <Users className="h-6 w-6 text-blue-600" />
@@ -866,7 +869,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Companies</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{totalCompanies}</p>
+                <StatValue value={totalCompanies} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
                 <Building2 className="h-6 w-6 text-purple-600" />
@@ -878,7 +881,7 @@ const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
-                <p className="mt-2 text-3xl font-bold text-foreground">{totalInvoices}</p>
+                <StatValue value={totalInvoices} />
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <FileText className="h-6 w-6 text-green-600" />

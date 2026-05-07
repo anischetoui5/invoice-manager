@@ -5,7 +5,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { TopBar } from './Topbar';
 import { Sidebar } from './Sidebar';
 import { NotificationsPanel } from './NotificationsPanel';
-//import { AiChat } from './AiChat';
+import { AiChat } from './AiChat';
 import { MobileNav } from './MobileNav';
 import { InstallPWA } from './InstallPWA';
 import api from '../../lib/api';
@@ -198,7 +198,7 @@ export function Layout({
         onMarkAllAsRead={handleMarkAllAsRead}
       />
 
-      {/*<AiChat workspaceId={currentWorkspace.id} />*/}
+      <AiChat workspaceId={currentWorkspace.id} />
       <div className="md:hidden">
         <MobileNav />
       </div>
