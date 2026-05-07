@@ -62,6 +62,23 @@ useEffect(() => {
   }
 }, [userRole]);
 
+const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
+
+useEffect(() => {
+  if (!currentWorkspace?.id) return;
+  if (!['employee', 'accountant'].includes(userRole)) return;
+
+  api.get(`/workspaces/${currentWorkspace.id}/invoices`, {
+    params: {
+      role: currentWorkspace.role,
+      limit: 5,
+      page: 1,
+    }
+  })
+    .then(({ data }) => setRecentInvoices(data.invoices ?? []))
+    .catch(() => {});
+}, [currentWorkspace?.id, userRole]);
+
 
 const ACTION_CONFIG: Record<string, { label: string; color: string }> = {
   'invoice.created':        { label: 'Invoice created',        color: 'bg-blue-100 text-blue-700' },
@@ -132,6 +149,80 @@ function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit
     </div>
   );
 }
+
+const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
+  invoices: any[];
+  emptyMessage: string;
+  uploadLink?: boolean;
+}) => {
+  const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+    draft:          { color: 'bg-gray-100 text-gray-700',    label: 'Draft' },
+    pending_review: { color: 'bg-yellow-100 text-yellow-700', label: 'Pending Review' },
+    approved:       { color: 'bg-green-100 text-green-700',   label: 'Approved' },
+    rejected:       { color: 'bg-red-100 text-red-700',      label: 'Rejected' },
+  };
+
+  if (invoices.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 mb-4">
+          <Upload className="h-8 w-8 text-blue-600" />
+        </div>
+        <p className="text-muted-foreground mb-4">{emptyMessage}</p>
+        {uploadLink && (
+          <Link to="/dashboard/upload">
+            <Button>
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Invoice
+            </Button>
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {invoices.map(invoice => {
+        const badge = STATUS_CONFIG[invoice.current_status] ?? {
+          color: 'bg-gray-100 text-gray-700',
+          label: invoice.current_status,
+        };
+        return (
+          <Link
+            key={invoice.id}
+            to={`/dashboard/invoices/${invoice.id}`}
+            className="flex items-center justify-between rounded-lg border p-3 hover:border-blue-300 hover:bg-muted/50 transition-colors"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100">
+                <FileText className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {invoice.vendor_name ?? 'Unknown Vendor'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {invoice.invoice_number ?? '—'} · {invoice.invoice_date
+                    ? new Date(invoice.invoice_date).toLocaleDateString()
+                    : new Date(invoice.created_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0 ml-3">
+              <span className="text-sm font-medium text-foreground">
+                {invoice.currency} {Number(invoice.amount ?? 0).toLocaleString()}
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.color}`}>
+                {badge.label}
+              </span>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+};
 
   // ── Normal/Personal ────────────────────────────────────────────────────────
   const renderNormalUserDashboard = () => {
@@ -347,41 +438,16 @@ function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit
         </div>
 
         <Card className="p-6">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-foreground">My Invoices</h3>
-              <p className="text-sm text-muted-foreground mt-1">Track the status of all your submitted invoices</p>
-            </div>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="font-semibold text-foreground">My Recent Invoices</h3>
             <Link to="/dashboard/invoices" className="text-sm font-medium text-blue-600 hover:text-blue-700">
               View all
             </Link>
           </div>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 mb-4">
-              <Upload className="h-8 w-8 text-blue-600" />
-            </div>
-            {total === 0 ? (
-              <>
-                <p className="text-muted-foreground mb-4">No invoices yet. Upload your first invoice to get started.</p>
-                <Link to="/dashboard/upload">
-                  <Button>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Invoice
-                  </Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <p className="text-muted-foreground mb-4">You have {total} invoice{total !== 1 ? 's' : ''} submitted.</p>
-                <Link to="/dashboard/invoices">
-                  <Button>
-                    <FileText className="mr-2 h-4 w-4" />
-                    View All Invoices
-                  </Button>
-                </Link>
-              </>
-            )}
-          </div>
+          <InvoicePreview
+            invoices={recentInvoices}
+            emptyMessage="No invoices yet. Upload your first invoice to get started."
+          />
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -509,7 +575,7 @@ function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit
         </div>
 
         <Card className="p-6 my-6">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-foreground">Invoices to Validate</h3>
               <p className="text-sm text-muted-foreground mt-1">
@@ -520,21 +586,11 @@ function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit
               View all
             </Link>
           </div>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className={`flex h-16 w-16 items-center justify-center rounded-full mb-4 ${pendingValidation > 0 ? 'bg-orange-100' : 'bg-green-100'}`}>
-              <CheckCircle2 className={`h-8 w-8 ${pendingValidation > 0 ? 'text-orange-600' : 'text-green-600'}`} />
-            </div>
-            {pendingValidation > 0 ? (
-              <>
-                <p className="text-muted-foreground mb-4">{pendingValidation} invoice{pendingValidation !== 1 ? 's' : ''} waiting for your review.</p>
-                <Link to="/dashboard/invoices?status=pending_review">
-                  <Button>Review Now</Button>
-                </Link>
-              </>
-            ) : (
-              <p className="text-muted-foreground">All caught up! No invoices pending validation.</p>
-            )}
-          </div>
+          <InvoicePreview
+            invoices={recentInvoices}
+            emptyMessage="All caught up! No invoices pending validation."
+            uploadLink={false}
+          />
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
