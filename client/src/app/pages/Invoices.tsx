@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import {
   Search, Filter, Download, Eye, Loader2, Trash2, X,
-  ArrowUpDown, ArrowUp, ArrowDown, FileX,
+  ArrowUpDown, ArrowUp, ArrowDown, FileX, AlertTriangle,
 } from 'lucide-react';
+import { useSubscriptionGuard } from '../hooks/useSubscriptionGuard';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Card } from '../components/ui/card';
@@ -224,6 +225,7 @@ export function InvoiceList() {
     currentWorkspace: Workspace;
     currentUser: User;
   }>();
+  const { isLocked } = useSubscriptionGuard();
 
   const [invoices, setInvoices]         = useState<Invoice[]>([]);
   const [total, setTotal]               = useState(0);
@@ -322,10 +324,20 @@ export function InvoiceList() {
               : 'All invoices across your organization'}
           </p>
         </div>
-        <Button asChild>
-          <Link to="/dashboard/upload">Upload Invoice</Link>
+        <Button asChild disabled={isLocked}>
+          <Link to={isLocked ? '#' : '/dashboard/upload'}>Upload Invoice</Link>
         </Button>
       </div>
+
+      {isLocked && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>Your subscription has expired. Renew to continue.</span>
+          <Link to="/dashboard/settings" className="ml-auto font-medium underline underline-offset-2 hover:text-red-800">
+            Renew
+          </Link>
+        </div>
+      )}
 
       {/* Filters */}
       <Card className="p-4">
@@ -443,6 +455,7 @@ export function InvoiceList() {
                                 variant="ghost" size="sm"
                                 className="text-destructive hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
                                 onClick={() => setDeleteTarget(invoice)}
+                                disabled={isLocked}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -485,7 +498,7 @@ export function InvoiceList() {
                           {invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString() : '—'}
                         </p>
                       </div>
-                      {canDelete(invoice) && (
+                      {canDelete(invoice) && !isLocked && (
                         <button
                           className="mt-3 w-full rounded-lg py-1.5 text-xs font-medium text-red-500 border border-red-100 bg-red-50 active:bg-red-100 transition-colors"
                           onClick={e => { e.preventDefault(); setDeleteTarget(invoice); }}

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext, Link } from 'react-router-dom';
 import {
   ArrowLeft, Edit2, Save, AlertCircle, Loader2,
   CheckCircle2, XCircle, FileText, Clock, RefreshCw,
-  ChevronLeft, ChevronRight, ExternalLink, History,
+  ChevronLeft, ChevronRight, ExternalLink, History, AlertTriangle,
 } from 'lucide-react';
+import { useSubscriptionGuard } from '../hooks/useSubscriptionGuard';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -276,12 +277,13 @@ export function InvoiceDetail() {
     return () => { clearInterval(interval); setIsPollingOCR(false); };
   }, [invoice?.ocr_status, id, currentWorkspace?.id]);
 
+  const { isLocked } = useSubscriptionGuard();
   const role = currentWorkspace?.role;
-  const canSubmitForReview = status === 'draft' && (role === 'Employee' || role === 'Director');
-  const canApproveReject   = role === 'Accountant' && status === 'pending_review';
-  const canEditOCR         = status === 'draft' && (role === 'Director' || role === 'Employee' || role === 'Personal') && fields.length > 0;
-  const canEditBasic       = status === 'draft' && (role === 'Employee' || role === 'Director' || role === 'Personal');
-  const canDelete          = role === 'Director' && !['approved', 'paid', 'archived'].includes(status);
+  const canSubmitForReview = !isLocked && status === 'draft' && (role === 'Employee' || role === 'Director');
+  const canApproveReject   = !isLocked && role === 'Accountant' && status === 'pending_review';
+  const canEditOCR         = !isLocked && status === 'draft' && (role === 'Director' || role === 'Employee' || role === 'Personal') && fields.length > 0;
+  const canEditBasic       = !isLocked && status === 'draft' && (role === 'Employee' || role === 'Director' || role === 'Personal');
+  const canDelete          = !isLocked && role === 'Director' && !['approved', 'paid', 'archived'].includes(status);
 
   const handleSyncFromOCR = () => {
     const ocrMap: Record<string, string> = {};
@@ -479,6 +481,16 @@ export function InvoiceDetail() {
     <h1 className="text-2xl font-bold text-foreground">{invoice.invoice_number || 'Untitled Invoice'}</h1>
     <span className={`rounded-full px-3 py-1 text-xs font-medium ${badge.color}`}>{badge.label}</span>
   </div></>
+
+      {isLocked && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>Your subscription has expired. Renew to continue.</span>
+          <Link to="/dashboard/settings" className="ml-auto font-medium underline underline-offset-2 hover:text-red-800">
+            Renew
+          </Link>
+        </div>
+      )}
 
       {['approved', 'paid', 'archived'].includes(status) && (
         <div className="rounded-lg px-4 py-3 text-sm font-medium" style={{ backgroundColor: 'var(--info)', color: 'var(--info-foreground)' }}>

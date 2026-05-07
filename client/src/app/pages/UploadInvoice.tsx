@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext, Link } from 'react-router-dom';
 import {
   Upload, X, CheckCircle2, FileText, Image as ImageIcon,
-  ChevronRight, File,
+  ChevronRight, File, AlertTriangle,
 } from 'lucide-react';
+import { useSubscriptionGuard } from '../hooks/useSubscriptionGuard';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Label } from '../components/ui/label';
@@ -97,6 +98,7 @@ function estimatePdfPages(bytes: number): number {
 export function UploadInvoice() {
   const navigate = useNavigate();
   const { currentWorkspace } = useOutletContext<{ currentWorkspace: Workspace }>();
+  const { isLocked } = useSubscriptionGuard();
 
   const [dragActive, setDragActive]     = useState(false);
   const [dragPulse, setDragPulse]       = useState(false);   // for glow animation
@@ -247,7 +249,17 @@ export function UploadInvoice() {
         <StepIndicator currentStep={step} />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {isLocked && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>Your subscription has expired. Renew to continue.</span>
+          <Link to="/dashboard/settings" className="ml-auto font-medium underline underline-offset-2 hover:text-red-800">
+            Renew
+          </Link>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className={`space-y-6 ${isLocked ? 'pointer-events-none opacity-50' : ''}`}>
 
         {/* ── Drop zone ── */}
         <Card className="p-6">
@@ -530,7 +542,7 @@ export function UploadInvoice() {
           <Button
             type="submit"
             size="lg"
-            disabled={isUploading || entries.length === 0}
+            disabled={isUploading || entries.length === 0 || isLocked}
             className="flex-1"
           >
             {isUploading ? (

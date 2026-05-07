@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, Link } from 'react-router-dom';
 import {
   Users, Check, X, Loader2, Calendar, LogOut, AlertTriangle, RefreshCw,
 } from 'lucide-react';
+import { useSubscriptionGuard } from '../hooks/useSubscriptionGuard';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
@@ -97,9 +98,10 @@ function ConfirmDialog({ dialog, onClose }: { dialog: ConfirmDialog; onClose: ()
 
 // ── MemberRow ──────────────────────────────────────────────────────────────
 
-function MemberRow({ member, onRemove }: {
+function MemberRow({ member, onRemove, isLocked }: {
   member: Member;
   onRemove: (id: string, name: string) => void;
+  isLocked: boolean;
 }) {
   const contractExpired = member.contract_end
     ? new Date(member.contract_end) < new Date()
@@ -126,7 +128,7 @@ function MemberRow({ member, onRemove }: {
         {member.role}
       </span>
       {member.role !== 'Director' && (
-        <Button variant="outline" size="sm" onClick={() => onRemove(member.id, member.name)}>
+        <Button variant="outline" size="sm" disabled={isLocked} onClick={() => onRemove(member.id, member.name)}>
           Remove
         </Button>
       )}
@@ -137,7 +139,7 @@ function MemberRow({ member, onRemove }: {
 // ── InvitationCard ─────────────────────────────────────────────────────────
 
 function InvitationCard({
-  inv, actionLoading, contractDates, setContractDates, onAccept, onReject,
+  inv, actionLoading, contractDates, setContractDates, onAccept, onReject, isLocked,
 }: {
   inv: Invitation;
   actionLoading: string | null;
@@ -145,6 +147,7 @@ function InvitationCard({
   setContractDates: React.Dispatch<React.SetStateAction<Record<string, { start: string; end: string }>>>;
   onAccept: (inv: Invitation) => void;
   onReject: (inv: Invitation) => void;
+  isLocked: boolean;
 }) {
   const isLeave   = inv.type === 'leave_request';
   const isRenewal = inv.type === 'renewal_request';
@@ -249,7 +252,7 @@ function InvitationCard({
           size="sm"
           style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}
           onClick={() => onReject(inv)}
-          disabled={actionLoading === inv.id}
+          disabled={isLocked || actionLoading === inv.id}
         >
           <X className="mr-1.5 h-4 w-4" />
           {isLeave ? 'Deny' : 'Reject'}
@@ -258,7 +261,7 @@ function InvitationCard({
           size="sm"
           style={{ backgroundColor: 'var(--success)', color: 'var(--success-foreground)' }}
           onClick={() => onAccept(inv)}
-          disabled={actionLoading === inv.id}
+          disabled={isLocked || actionLoading === inv.id}
         >
           {actionLoading === inv.id ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -278,6 +281,7 @@ function InvitationCard({
 
 export function TeamManagement() {
   const { currentWorkspace } = useOutletContext<{ currentWorkspace: Workspace }>();
+  const { isLocked } = useSubscriptionGuard();
 
   const [members, setMembers]               = useState<Member[]>([]);
   const [joinRequests, setJoinRequests]     = useState<Invitation[]>([]);
@@ -454,6 +458,16 @@ export function TeamManagement() {
           <p className="mt-1 text-muted-foreground">Manage your company team members and requests</p>
         </div>
 
+        {isLocked && (
+          <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+            <span>Your subscription has expired. Renew to continue.</span>
+            <Link to="/dashboard/settings" className="ml-auto font-medium underline underline-offset-2 hover:text-red-800">
+              Renew
+            </Link>
+          </div>
+        )}
+
         {/* Summary */}
         <Card className="p-6">
           <div className="flex items-center gap-4">
@@ -487,7 +501,7 @@ export function TeamManagement() {
         {director && (
           <Card className="p-6">
             <h3 className="mb-4 font-semibold text-foreground">Director</h3>
-            <MemberRow member={director} onRemove={handleRemoveMember} />
+            <MemberRow member={director} onRemove={handleRemoveMember} isLocked={isLocked} />
           </Card>
         )}
 
@@ -498,7 +512,7 @@ export function TeamManagement() {
             <p className="text-sm text-muted-foreground">No accountants yet.</p>
           ) : (
             <div className="space-y-3">
-              {accountants.map(m => <MemberRow key={m.id} member={m} onRemove={handleRemoveMember} />)}
+              {accountants.map(m => <MemberRow key={m.id} member={m} onRemove={handleRemoveMember} isLocked={isLocked} />)}
             </div>
           )}
         </Card>
@@ -510,7 +524,7 @@ export function TeamManagement() {
             <p className="text-sm text-muted-foreground">No employees yet.</p>
           ) : (
             <div className="space-y-3">
-              {employees.map(m => <MemberRow key={m.id} member={m} onRemove={handleRemoveMember} />)}
+              {employees.map(m => <MemberRow key={m.id} member={m} onRemove={handleRemoveMember} isLocked={isLocked} />)}
             </div>
           )}
         </Card>
@@ -541,7 +555,7 @@ export function TeamManagement() {
               {joinRequests.map(inv => (
                 <InvitationCard key={inv.id} inv={inv} actionLoading={actionLoading}
                   contractDates={contractDates} setContractDates={setContractDates}
-                  onAccept={handleInvitationAccept} onReject={handleInvitationReject} />
+                  onAccept={handleInvitationAccept} onReject={handleInvitationReject} isLocked={isLocked} />
               ))}
             </div>
           )}
@@ -573,7 +587,7 @@ export function TeamManagement() {
               {renewalRequests.map(inv => (
                 <InvitationCard key={inv.id} inv={inv} actionLoading={actionLoading}
                   contractDates={contractDates} setContractDates={setContractDates}
-                  onAccept={handleInvitationAccept} onReject={handleInvitationReject} />
+                  onAccept={handleInvitationAccept} onReject={handleInvitationReject} isLocked={isLocked} />
               ))}
             </div>
           )}
@@ -605,7 +619,7 @@ export function TeamManagement() {
               {leaveRequests.map(inv => (
                 <InvitationCard key={inv.id} inv={inv} actionLoading={actionLoading}
                   contractDates={contractDates} setContractDates={setContractDates}
-                  onAccept={handleInvitationAccept} onReject={handleInvitationReject} />
+                  onAccept={handleInvitationAccept} onReject={handleInvitationReject} isLocked={isLocked} />
               ))}
             </div>
           )}
