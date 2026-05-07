@@ -21,11 +21,18 @@ const { authenticate, authorizeAdmin } = require('./middlewares/auth.middleware'
 
 const app = express();
 
+// CORS — must be first, before helmet, before everything
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-workspace-id');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 app.use(helmet());
-app.use(cors({
-  origin: true,   // reflect request origin — allows localhost, LAN IPs, and phone access
-  credentials: true,
-}));
+app.use(cors({ origin: true, credentials: true }));
 app.use(morgan('dev'));
 app.use(express.json());
 
