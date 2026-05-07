@@ -225,17 +225,16 @@ function CompanyCard({
     : null;
 
   const contractEnd = contract?.contract_end ? new Date(contract.contract_end) : null;
-  const now         = new Date();
-
+  const now = new Date();
   const contractEndFormatted = contractEnd
     ? contractEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : null;
-  const contractExpired  = contractEnd ? contractEnd < now : false;
-  const daysUntilExpiry  = contractEnd
+  const contractExpired = contractEnd ? contractEnd < now : false;
+  const daysUntilExpiry = contractEnd
     ? Math.ceil((contractEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     : null;
-  const canRenew         = daysUntilExpiry !== null && daysUntilExpiry <= 30;
-  const renewableFrom    = contractEnd
+  const canRenew = daysUntilExpiry !== null && daysUntilExpiry <= 30;
+  const renewableFrom = contractEnd
     ? new Date(contractEnd.getTime() - 30 * 24 * 60 * 60 * 1000)
         .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
@@ -243,7 +242,6 @@ function CompanyCard({
   const displayName = companyDetails?.name ?? workspace.name;
   const displayRole = role ?? workspace.role;
 
-  // Description shown under "Membership Actions"
   const membershipActionDesc = (() => {
     if (!contractEnd) return 'Request a contract renewal or leave the company.';
     if (contractExpired) return 'Your contract has expired. Request a renewal to stay in the company.';
@@ -253,7 +251,6 @@ function CompanyCard({
 
   return (
     <Card className="overflow-hidden">
-      {/* Accordion header */}
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -267,17 +264,13 @@ function CompanyCard({
             <div className="flex items-center gap-2">
               <span className="font-semibold text-foreground">{displayName}</span>
               {isActive && (
-                <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                  Active
-                </span>
+                <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Active</span>
               )}
             </div>
             <span className="text-xs text-muted-foreground capitalize">{displayRole}</span>
           </div>
         </div>
-        <ChevronDown
-          className={`h-4 w-4 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180' : ''}`}
-        />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -325,18 +318,8 @@ function CompanyCard({
                   <div className="rounded-lg bg-muted/40 p-3 sm:col-span-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Plan Limits</p>
                     <div className="flex gap-6">
-                      {sub.max_invoices && (
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{sub.max_invoices.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">Max invoices/mo</p>
-                        </div>
-                      )}
-                      {sub.max_users && (
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{sub.max_users}</p>
-                          <p className="text-xs text-muted-foreground">Max users</p>
-                        </div>
-                      )}
+                      {sub.max_invoices && <div><p className="text-sm font-semibold text-foreground">{sub.max_invoices.toLocaleString()}</p><p className="text-xs text-muted-foreground">Max invoices/mo</p></div>}
+                      {sub.max_users    && <div><p className="text-sm font-semibold text-foreground">{sub.max_users}</p><p className="text-xs text-muted-foreground">Max users</p></div>}
                     </div>
                   </div>
                 )}
@@ -356,7 +339,7 @@ function CompanyCard({
             </Section>
           )}
 
-          {/* Contract + leave + renew — Accountants only */}
+          {/* Contract + actions — Accountants only */}
           {isAccountant && (
             <Section>
               <div className="flex items-center gap-3 mb-4">
@@ -368,15 +351,12 @@ function CompanyCard({
                   <p className="text-xs text-muted-foreground">Contract dates and membership</p>
                 </div>
               </div>
-
               <div className="grid gap-3 sm:grid-cols-2">
                 {contract?.contract_start && (
                   <div className="rounded-lg bg-muted/40 p-3">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Start Date</p>
                     <p className="mt-1 text-sm font-medium text-foreground">
-                      {new Date(contract.contract_start).toLocaleDateString('en-US', {
-                        year: 'numeric', month: 'long', day: 'numeric',
-                      })}
+                      {new Date(contract.contract_start).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                   </div>
                 )}
@@ -385,9 +365,7 @@ function CompanyCard({
                   {contractEndFormatted ? (
                     <div className="mt-1 flex items-center gap-1.5">
                       {contractExpired && <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />}
-                      <p className={`text-sm font-medium ${contractExpired ? 'text-red-700' : 'text-foreground'}`}>
-                        {contractEndFormatted}
-                      </p>
+                      <p className={`text-sm font-medium ${contractExpired ? 'text-red-700' : 'text-foreground'}`}>{contractEndFormatted}</p>
                     </div>
                   ) : (
                     <p className="mt-1 text-sm text-muted-foreground">Not specified</p>
@@ -395,22 +373,17 @@ function CompanyCard({
                   {contractExpired && <p className="text-xs text-red-500 mt-0.5">Contract has expired</p>}
                 </div>
               </div>
-
-              {/* Expired warning banner */}
               {contractExpired && (
                 <div className="mt-3 flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 p-3">
                   <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-red-800">Contract expired</p>
                     <p className="text-xs text-red-600 mt-0.5">
-                      Your contract expired on {contractEndFormatted}. You will be automatically
-                      removed from this company unless your director renews it.
+                      Your contract expired on {contractEndFormatted}. You will be automatically removed unless your director renews it.
                     </p>
                   </div>
                 </div>
               )}
-
-              {/* Actions row */}
               <div className="mt-4 pt-4 border-t">
                 {leavePending ? (
                   <div className="flex items-center gap-3 rounded-lg bg-yellow-50 border border-yellow-200 p-3">
@@ -423,21 +396,12 @@ function CompanyCard({
                 ) : showLeaveConfirm ? (
                   <div className="rounded-lg border border-red-200 bg-red-50 p-4">
                     <p className="text-sm font-medium text-red-800">Are you sure?</p>
-                    <p className="text-xs text-red-600 mt-1">
-                      Your request will be sent to the director. You will only be removed once they approve.
-                    </p>
+                    <p className="text-xs text-red-600 mt-1">Your request will be sent to the director. You will only be removed once they approve.</p>
                     <div className="mt-3 flex gap-2">
-                      <Button
-                        size="sm"
-                        style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}
-                        onClick={confirmLeaveRequest}
-                        disabled={submittingLeave} // ← was wrongly submittingRenewal
-                      >
+                      <Button size="sm" style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }} onClick={confirmLeaveRequest} disabled={submittingLeave}>
                         {submittingLeave ? 'Submitting…' : 'Yes, send request'}
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => setShowLeaveConfirm(false)}>
-                        Cancel
-                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setShowLeaveConfirm(false)}>Cancel</Button>
                     </div>
                   </div>
                 ) : (
@@ -453,9 +417,7 @@ function CompanyCard({
                           <p className="text-xs font-medium text-blue-700">Renewal pending</p>
                         </div>
                       ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
+                        <Button variant="outline" size="sm"
                           className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={handleRenewalRequest}
                           disabled={!canRenew || submittingRenewal}
@@ -465,9 +427,7 @@ function CompanyCard({
                           {submittingRenewal ? 'Submitting…' : 'Renew'}
                         </Button>
                       )}
-                      <Button
-                        variant="outline"
-                        size="sm"
+                      <Button variant="outline" size="sm"
                         className="gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
                         onClick={() => setShowLeaveConfirm(true)}
                         disabled={submittingLeave}
@@ -491,9 +451,7 @@ function CompanyCard({
                 </div>
                 <div>
                   <p className="font-semibold text-foreground text-sm">Company Details</p>
-                  <p className="text-xs text-muted-foreground">
-                    {isEditing ? 'Update company information' : 'Company information'}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{isEditing ? 'Update company information' : 'Company information'}</p>
                 </div>
               </div>
               {isDirector && !isEditing && (
@@ -502,7 +460,6 @@ function CompanyCard({
                 </Button>
               )}
             </div>
-
             {isEditing ? (
               <form onSubmit={handleSave} className="space-y-4">
                 <div className="space-y-2">
@@ -513,31 +470,23 @@ function CompanyCard({
                   <Label>Company Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input type="email" className="pl-10" value={form.email}
-                      onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+                    <Input type="email" className="pl-10" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Phone</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input type="tel" className="pl-10" value={form.phone}
-                      onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+                    <Input type="tel" className="pl-10" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Address</Label>
-                  <Textarea rows={3} value={form.address}
-                    onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
+                  <Textarea rows={3} value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
                 </div>
                 <div className="flex gap-3">
-                  <Button type="submit" className="flex-1" disabled={saving}>
-                    <Save className="mr-2 h-4 w-4" />
-                    {saving ? 'Saving…' : 'Save Changes'}
-                  </Button>
-                  <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditing(false)}>
-                    Cancel
-                  </Button>
+                  <Button type="submit" className="flex-1" disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? 'Saving…' : 'Save Changes'}</Button>
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditing(false)}>Cancel</Button>
                 </div>
               </form>
             ) : (
@@ -569,13 +518,8 @@ function CompanyCard({
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Code</p>
                     <div className="mt-1 flex items-center gap-3">
                       <code className="text-lg font-bold tracking-widest text-blue-600">{companyDetails.code}</code>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(companyDetails?.code ?? '');
-                          toast.success('Company code copied!');
-                        }}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline"
-                      >
+                      <button onClick={() => { navigator.clipboard.writeText(companyDetails?.code ?? ''); toast.success('Company code copied!'); }}
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline">
                         <Copy className="h-3 w-3" /> Copy
                       </button>
                     </div>
@@ -675,7 +619,11 @@ export function Settings() {
   };
 
   const companyWorkspaces = workspaces?.filter(w => w.type === 'company') ?? [];
-  const tabContentClass   = 'space-y-6';
+
+  // Determine which tabs to show. We always render ALL TabsContent nodes so
+  // Radix never remounts them (remounting causes width recalculation = twitch).
+  // We just hide the trigger for tabs the user shouldn't see.
+  const showCompanyTab = !isAdmin;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -685,195 +633,192 @@ export function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        {isAdmin ? (
-          <TabsList className="bg-background grid w-full grid-cols-3">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          </TabsList>
-        ) : (
-          <TabsList className="bg-background grid w-full grid-cols-4">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="company">Company</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          </TabsList>
-        )}
+        <TabsList className={`bg-background grid w-full ${showCompanyTab ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          {showCompanyTab && <TabsTrigger value="company">Company</TabsTrigger>}
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+        </TabsList>
 
         {/* ── Profile ── */}
-        <TabsContent value="profile" className={tabContentClass}>
-          <Card className="overflow-hidden">
-            <div style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', height: 72 }} />
-            <div className="px-6 pb-6">
-              <div className="flex items-end gap-4 -mt-9 mb-5">
-                <Avatar name={name} size={72} />
-                <div className="pb-1">
-                  <h2 className="text-lg font-semibold text-foreground">{name}</h2>
-                  <p className="text-sm capitalize text-muted-foreground">{currentUser?.role ?? ''}</p>
+        <TabsContent value="profile">
+          <div className="space-y-6">
+            <Card className="overflow-hidden">
+              <div style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', height: 72 }} />
+              <div className="px-6 pb-6">
+                <div className="flex items-end gap-4 -mt-9 mb-5">
+                  <Avatar name={name} size={72} />
+                  <div className="pb-1">
+                    <h2 className="text-lg font-semibold text-foreground">{name}</h2>
+                    <p className="text-sm capitalize text-muted-foreground">{currentUser?.role ?? ''}</p>
+                  </div>
                 </div>
+                <form onSubmit={handleSaveProfile} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <div className="relative">
+                      <UserIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input id="name" value={name} onChange={e => setName(e.target.value)} className="pl-10" required />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="pl-10" required />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Input id="role" value={currentUser?.role ?? ''} disabled className="capitalize" />
+                    <p className="text-xs text-muted-foreground">Contact your administrator to change your role</p>
+                  </div>
+                  <Button type="submit" className="w-full" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', color: 'white' }} disabled={savingProfile}>
+                    <Save className="mr-2 h-4 w-4" />{savingProfile ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                </form>
               </div>
-              <form onSubmit={handleSaveProfile} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <div className="relative">
-                    <UserIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input id="name" value={name} onChange={e => setName(e.target.value)} className="pl-10" required />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="pl-10" required />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Input id="role" value={currentUser?.role ?? ''} disabled className="capitalize" />
-                  <p className="text-xs text-muted-foreground">Contact your administrator to change your role</p>
-                </div>
-                <Button type="submit" className="w-full" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', color: 'white' }} disabled={savingProfile}>
-                  <Save className="mr-2 h-4 w-4" />
-                  {savingProfile ? 'Saving…' : 'Save Changes'}
-                </Button>
-              </form>
-            </div>
-          </Card>
+            </Card>
+          </div>
         </TabsContent>
 
-        {/* ── Company ── */}
-        {!isAdmin && (
-          <TabsContent value="company" className={tabContentClass}>
-            {isPersonalOnly && <JoinCompany userRole={currentUser.role} />}
-            {isAccountant    && <JoinCompany userRole="accountant" lockedRole />}
-            {companyWorkspaces.length === 0 ? (
-              <Card className="p-6">
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 mb-3">
-                    <Building2 className="h-7 w-7 text-blue-600" />
-                  </div>
-                  <p className="font-medium text-foreground">No company yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">You are not currently part of any company.</p>
-                </div>
-              </Card>
-            ) : (
-              companyWorkspaces.map(workspace => (
-                <CompanyCard
-                  key={workspace.id}
-                  workspace={workspace}
-                  isActive={workspace.id === currentWorkspace?.id}
-                  currentUser={currentUser}
-                />
-              ))
-            )}
-          </TabsContent>
-        )}
+        {/* ── Company — always mounted, shown only for non-admins ── */}
+        <TabsContent value="company">
+          <div className="space-y-4">
+            {showCompanyTab ? (
+              <>
+                {isPersonalOnly && <JoinCompany userRole={currentUser.role} />}
+                {isAccountant   && <JoinCompany userRole="accountant" lockedRole />}
+                {companyWorkspaces.length === 0 ? (
+                  <Card className="p-6">
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 mb-3">
+                        <Building2 className="h-7 w-7 text-blue-600" />
+                      </div>
+                      <p className="font-medium text-foreground">No company yet</p>
+                      <p className="text-sm text-muted-foreground mt-1">You are not currently part of any company.</p>
+                    </div>
+                  </Card>
+                ) : (
+                  companyWorkspaces.map(workspace => (
+                    <CompanyCard
+                      key={workspace.id}
+                      workspace={workspace}
+                      isActive={workspace.id === currentWorkspace?.id}
+                      currentUser={currentUser}
+                    />
+                  ))
+                )}
+              </>
+            ) : null}
+          </div>
+        </TabsContent>
 
         {/* ── Security ── */}
-        <TabsContent value="security" className={tabContentClass}>
-          <Card className="p-6">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
-                <Shield className="h-5 w-5 text-orange-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">Password & Security</h3>
-                <p className="text-sm text-muted-foreground">Update your password</p>
-              </div>
-            </div>
-            <form onSubmit={handleSavePassword} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input id="currentPassword" type="password" placeholder="Enter current password"
-                    value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="pl-10" required />
+        <TabsContent value="security">
+          <div className="space-y-6">
+            <Card className="p-6">
+              <div className="mb-6 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
+                  <Shield className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Password & Security</h3>
+                  <p className="text-sm text-muted-foreground">Update your password</p>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input id="newPassword" type="password" placeholder="At least 8 characters"
-                    value={newPassword} onChange={e => setNewPassword(e.target.value)} className="pl-10" required />
-                </div>
-                {newPassword && (
-                  <div className="space-y-1">
-                    <div className="flex gap-1">
-                      {[1,2,3].map(i => (
-                        <div key={i} className="h-1.5 flex-1 rounded-full transition-all duration-300"
-                          style={{ background: passwordStrength(newPassword) >= i ? STRENGTH_COLOR[passwordStrength(newPassword)] : '#e2e8f0' }} />
-                      ))}
-                    </div>
-                    <p className="text-xs font-medium" style={{ color: STRENGTH_COLOR[passwordStrength(newPassword)] }}>
-                      {STRENGTH_LABEL[passwordStrength(newPassword)]}
-                    </p>
+              <form onSubmit={handleSavePassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input id="currentPassword" type="password" placeholder="Enter current password"
+                      value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="pl-10" required />
                   </div>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input id="confirmPassword" type="password" placeholder="Repeat new password"
-                    value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="pl-10" required />
                 </div>
-                {confirmPassword && newPassword && (
-                  <p className={`text-xs font-medium flex items-center gap-1 ${confirmPassword === newPassword ? 'text-green-600' : 'text-red-500'}`}>
-                    {confirmPassword === newPassword
-                      ? <><Check className="h-3 w-3" /> Passwords match</>
-                      : '✗ Passwords do not match'}
-                  </p>
-                )}
-              </div>
-              <Button type="submit" className="w-full" style={{ background: 'linear-gradient(135deg,#ea580c,#f97316)', color: 'white' }} disabled={savingPassword}>
-                <Lock className="mr-2 h-4 w-4" />
-                {savingPassword ? 'Updating…' : 'Update Password'}
-              </Button>
-            </form>
-          </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input id="newPassword" type="password" placeholder="At least 8 characters"
+                      value={newPassword} onChange={e => setNewPassword(e.target.value)} className="pl-10" required />
+                  </div>
+                  {newPassword && (
+                    <div className="space-y-1">
+                      <div className="flex gap-1">
+                        {[1,2,3].map(i => (
+                          <div key={i} className="h-1.5 flex-1 rounded-full transition-all duration-300"
+                            style={{ background: passwordStrength(newPassword) >= i ? STRENGTH_COLOR[passwordStrength(newPassword)] : '#e2e8f0' }} />
+                        ))}
+                      </div>
+                      <p className="text-xs font-medium" style={{ color: STRENGTH_COLOR[passwordStrength(newPassword)] }}>
+                        {STRENGTH_LABEL[passwordStrength(newPassword)]}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input id="confirmPassword" type="password" placeholder="Repeat new password"
+                      value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="pl-10" required />
+                  </div>
+                  {confirmPassword && newPassword && (
+                    <p className={`text-xs font-medium flex items-center gap-1 ${confirmPassword === newPassword ? 'text-green-600' : 'text-red-500'}`}>
+                      {confirmPassword === newPassword ? <><Check className="h-3 w-3" /> Passwords match</> : '✗ Passwords do not match'}
+                    </p>
+                  )}
+                </div>
+                <Button type="submit" className="w-full" style={{ background: 'linear-gradient(135deg,#ea580c,#f97316)', color: 'white' }} disabled={savingPassword}>
+                  <Lock className="mr-2 h-4 w-4" />{savingPassword ? 'Updating…' : 'Update Password'}
+                </Button>
+              </form>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* ── Notifications ── */}
-        <TabsContent value="notifications" className={tabContentClass}>
-          <Card className="p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                <Bell className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">Notification Preferences</h3>
-                <p className="text-sm text-muted-foreground">Choose what you want to be notified about</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {getNotificationOptions(currentWorkspace?.role, isAdmin).map(({ key, label, desc }) => (
-                <div
-                  key={key}
-                  onClick={() => setNotifications(prev => ({ ...prev, [key]: !prev[key] }))}
-                  className="flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all hover:border-purple-200 hover:bg-purple-50/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`h-2 w-2 rounded-full flex-shrink-0 ${notifications[key] ? 'bg-purple-500' : 'bg-gray-300'}`} />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{label}</p>
-                      <p className="text-xs text-muted-foreground">{desc}</p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={notifications[key]}
-                    onCheckedChange={val => setNotifications(prev => ({ ...prev, [key]: val }))}
-                    onClick={e => e.stopPropagation()}
-                  />
+        <TabsContent value="notifications">
+          <div className="space-y-6">
+            <Card className="p-6">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                  <Bell className="h-5 w-5 text-blue-600" />
                 </div>
-              ))}
-              <Button onClick={handleSaveNotifications} className="w-full mt-1" style={{ background: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', color: 'white' }}>
-                <Save className="mr-2 h-4 w-4" />
-                Save Preferences
-              </Button>
-            </div>
-          </Card>
+                <div>
+                  <h3 className="font-semibold text-foreground">Notification Preferences</h3>
+                  <p className="text-sm text-muted-foreground">Choose what you want to be notified about</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {getNotificationOptions(currentWorkspace?.role, isAdmin).map(({ key, label, desc }) => (
+                  <div key={key}
+                    onClick={() => setNotifications(prev => ({ ...prev, [key]: !prev[key] }))}
+                    className="flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all hover:border-purple-200 hover:bg-purple-50/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`h-2 w-2 rounded-full flex-shrink-0 ${notifications[key] ? 'bg-purple-500' : 'bg-gray-300'}`} />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{label}</p>
+                        <p className="text-xs text-muted-foreground">{desc}</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={notifications[key]}
+                      onCheckedChange={val => setNotifications(prev => ({ ...prev, [key]: val }))}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </div>
+                ))}
+                <Button onClick={handleSaveNotifications} className="w-full mt-1" style={{ background: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', color: 'white' }}>
+                  <Save className="mr-2 h-4 w-4" />Save Preferences
+                </Button>
+              </div>
+            </Card>
+          </div>
         </TabsContent>
+
       </Tabs>
     </div>
   );

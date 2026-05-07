@@ -137,6 +137,14 @@
   html {
     font-size: var(--font-size);
   }
+  main {
+  scrollbar-gutter: stable;
+  scrollbar-width: none; /* Firefox — hides track but keeps gutter */
+  }
+  
+  main::-webkit-scrollbar {
+    width: 0px; /* Chrome/Safari — hides track but keeps gutter */
+  }
 
   h1 {
     font-size: var(--text-2xl);
