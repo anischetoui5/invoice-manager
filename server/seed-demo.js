@@ -73,7 +73,10 @@ async function main() {
       const { rows } = await client.query(
         `INSERT INTO users (name, email, password_hash, is_verified)
          VALUES ($1,$2,$3,true)
-         ON CONFLICT (email) DO UPDATE SET name=EXCLUDED.name
+         ON CONFLICT (email) DO UPDATE SET
+           name          = EXCLUDED.name,
+           password_hash = EXCLUDED.password_hash,
+           is_verified   = true
          RETURNING id`,
         [name, email, pw]
       );

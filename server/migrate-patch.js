@@ -73,6 +73,11 @@ const patches = [
     name: 'invoice_status seed',
     sql: `INSERT INTO invoice_status (code) VALUES ('draft'),('pending_review'),('approved'),('rejected'),('paid'),('archived') ON CONFLICT DO NOTHING`,
   },
+  {
+    // Users created before is_verified column was added get DEFAULT false — mark them verified
+    name: 'mark existing users verified',
+    sql: `UPDATE users SET is_verified = true WHERE is_verified = false`,
+  },
 ];
 
 async function run() {
