@@ -1,4 +1,3 @@
-// Layout.tsx
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Outlet, useNavigate } from 'react-router-dom';
@@ -32,32 +31,31 @@ export function Layout({
 }: LayoutProps) {
   const navigate = useNavigate();
   const [activeEnterpriseId, setActiveEnterpriseId] = useState(currentUser.enterpriseId);
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(initialWorkspace);
+  const [notifications, setNotifications]           = useState<Notification[]>(initialNotifications);
+  const [showNotifications, setShowNotifications]   = useState(false);
+  const [currentWorkspace, setCurrentWorkspace]     = useState<Workspace>(initialWorkspace);
   const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const unreadCount = notifications.filter(n => !n.read).length;
+  const pollingRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
       const { data } = await api.get('/notifications');
       setNotifications(data.notifications ?? []);
     } catch {
-      // silently ignore — user may not be authenticated yet
+      // silently ignore
     }
   }, []);
 
   useEffect(() => {
     fetchNotifications();
     pollingRef.current = setInterval(fetchNotifications, 30_000);
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [fetchNotifications]);
 
   useEffect(() => {
+    if (!currentWorkspace?.id) return;
     const fetchSubscription = async () => {
       try {
         const isCompany = currentWorkspace?.type === 'company';
@@ -70,54 +68,43 @@ export function Layout({
           plan: sub.plan_name,
           price: parseFloat(sub.price),
           startDate: sub.billing_start,
-          invoiceUsed: parseInt(sub.invoice_used) || 0,
+          invoiceUsed:  parseInt(sub.invoice_used) || 0,
           invoiceLimit: sub.max_invoices ?? 0,
-          userCount: parseInt(sub.user_count) || 0,
-          userLimit: sub.max_users ?? 0,
+          userCount:    parseInt(sub.user_count) || 0,
+          userLimit:    sub.max_users ?? 0,
         } : null);
-      } catch (err) {
-        console.error('Failed to load subscription');
+      } catch {
+        // ignore
       }
     };
-
-    if (currentWorkspace?.id) fetchSubscription();
+    fetchSubscription();
   }, [currentWorkspace?.id]);
 
   const handleMarkAsRead = async (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    try {
-      await api.patch(`/notifications/${id}/read`);
-    } catch { /* ignore */ }
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    try { await api.patch(`/notifications/${id}/read`); } catch { /* ignore */ }
   };
 
   const handleMarkAllAsRead = async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    try {
-      await api.patch('/notifications/read-all');
-    } catch { /* ignore */ }
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try { await api.patch('/notifications/read-all'); } catch { /* ignore */ }
   };
 
-  const handleLogout = () => {
-    navigate('/login');
-  };
+  const handleLogout = () => navigate('/login');
 
   const handleSwitchWorkspace = async (workspaceId: string) => {
     await api.patch('/auth/switch-workspace', { workspaceId });
-
     const workspace = workspaces.find(w => w.id === workspaceId);
     if (workspace) {
       setCurrentWorkspace(workspace);
       onWorkspaceChange(workspace);
       toast.success(`Switched to ${workspace.name}`);
     }
-
-    if (!window.location.pathname.startsWith('/dashboard')) {
-      navigate('/dashboard');
-    }
+    if (!window.location.pathname.startsWith('/dashboard')) navigate('/dashboard');
   };
 
   return (
-    <div className="flex overflow-hidden" style={{ height: '100dvh', background: 'var(--gradient-page)' }}>
+    <div className="flex overflow-hidden bg-background" style={{ height: '100dvh' }}>
       {/* Sidebar — hidden on mobile */}
       <div className="hidden md:flex">
         <Sidebar currentWorkspace={currentWorkspace} />
@@ -130,55 +117,55 @@ export function Layout({
           notificationCount={unreadCount}
           onNotificationsClick={() => setShowNotifications(true)}
           onLogout={handleLogout}
-          onEnterpriseSwitch={(id) => setActiveEnterpriseId(id)}
+          onEnterpriseSwitch={id => setActiveEnterpriseId(id)}
           workspaces={workspaces}
           currentWorkspace={currentWorkspace}
           onSwitchWorkspace={handleSwitchWorkspace}
         />
 
-        {/* Extra bottom padding on mobile so content clears the nav bar */}
         <main className="flex-1 overflow-y-auto overscroll-y-none p-4 md:p-8 pb-20 md:pb-8">
-            {/* Subscription expired banner */}
-            {currentWorkspace?.type === 'company' && currentSubscription?.status === 'expired' && (
-              <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
-                <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-red-800">Subscription expired</p>
-                  <p className="text-xs text-red-600 mt-0.5">
-                    Your workspace is in read-only mode. Renew your subscription to continue.
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-red-300 text-red-700 hover:bg-red-100 flex-shrink-0"
-                  onClick={() => navigate('/dashboard/settings')}
-                >
-                  Renew
-                </Button>
+          {/* Subscription expired banner */}
+          {currentWorkspace?.type === 'company' && currentSubscription?.status === 'expired' && (
+            <div className="mb-4 flex items-center gap-3 rounded-md border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/50 px-4 py-3">
+              <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800 dark:text-red-300">Subscription expired</p>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
+                  Your workspace is in read-only mode. Renew to continue.
+                </p>
               </div>
-            )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30 flex-shrink-0"
+                onClick={() => navigate('/dashboard/settings')}
+              >
+                Renew
+              </Button>
+            </div>
+          )}
 
-            {/* Payment past due banner */}
-            {currentWorkspace?.type === 'company' && currentSubscription?.status === 'past_due' && (
-              <div className="mb-4 flex items-center gap-3 rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3">
-                <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-yellow-800">Payment past due</p>
-                  <p className="text-xs text-yellow-600 mt-0.5">
-                    Please update your billing to avoid service interruption.
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-yellow-300 text-yellow-700 hover:bg-yellow-100 flex-shrink-0"
-                  onClick={() => navigate('/dashboard/settings')}
-                >
-                  Update Billing
-                </Button>
+          {/* Payment past due banner */}
+          {currentWorkspace?.type === 'company' && currentSubscription?.status === 'past_due' && (
+            <div className="mb-4 flex items-center gap-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/50 px-4 py-3">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Payment past due</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                  Update your billing to avoid service interruption.
+                </p>
               </div>
-            )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/30 flex-shrink-0"
+                onClick={() => navigate('/dashboard/settings')}
+              >
+                Update Billing
+              </Button>
+            </div>
+          )}
+
           <Outlet context={{
             activeEnterpriseId,
             currentUser,
@@ -199,6 +186,7 @@ export function Layout({
       />
 
       <AiChat workspaceId={currentWorkspace.id} />
+
       <div className="md:hidden">
         <MobileNav />
       </div>

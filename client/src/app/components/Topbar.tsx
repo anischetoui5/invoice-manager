@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { Bell, Search, ChevronDown, LogOut, User as UserIcon, Building2, Check, CheckCircle, Sun, Moon } from 'lucide-react';
+import {
+  Bell, Search, ChevronDown, LogOut, User as UserIcon,
+  Building2, Check, CheckCircle, Sun, Moon,
+} from 'lucide-react';
 import { useTheme } from 'next-themes';
 import type { User, Enterprise, Workspace } from '../types';
 import {
@@ -53,10 +56,6 @@ export function TopBar({
     onEnterpriseSwitch?.(enterpriseId);
   };
 
-  const handleWorkspaceSwitch = (workspaceId: string) => {
-    onSwitchWorkspace(workspaceId);
-  };
-
   const initials = user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   const roleBadgeStyle = (role: string): string => {
@@ -73,20 +72,20 @@ export function TopBar({
     <header className="glass-panel flex h-16 shrink-0 items-center justify-between px-4 md:px-6">
       {/* ── Left: search + enterprise switcher ── */}
       <div className="flex flex-1 items-center gap-3">
-        <div className="relative hidden md:block w-80">
+        <div className="relative hidden md:block w-72">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search invoices, vendors…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-xl border border-border bg-muted/50 py-2 pl-9 pr-4 text-sm placeholder:text-muted-foreground/60 transition-all duration-200 focus:border-primary focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-9 w-full rounded-lg border border-border bg-input-background py-2 pl-9 pr-4 text-sm placeholder:text-muted-foreground/60 transition-colors focus:border-primary focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
         {user.role === 'accountant' && userEnterprises.length > 1 && (
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm font-medium transition-all hover:bg-muted focus:outline-none">
+            <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg border border-border bg-input-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted focus:outline-none">
               <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-foreground">{currentEnterprise?.name}</span>
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -115,27 +114,27 @@ export function TopBar({
       </div>
 
       {/* ── Right: theme + bell + user ── */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         {/* Theme toggle */}
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           title="Toggle theme"
         >
-          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === 'dark'
+            ? <Sun className="h-4 w-4" />
+            : <Moon className="h-4 w-4" />
+          }
         </button>
 
         {/* Notifications */}
         <button
           onClick={onNotificationsClick}
-          className="relative flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground"
+          className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Bell className="h-4 w-4" />
           {notificationCount > 0 && (
-            <span
-              className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: '0 2px 6px rgba(239,68,68,0.5)' }}
-            >
+            <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white">
               {notificationCount > 9 ? '9+' : notificationCount}
             </span>
           )}
@@ -143,11 +142,8 @@ export function TopBar({
 
         {/* User menu */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-all duration-200 hover:bg-muted focus:outline-none">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
-              style={{ background: 'var(--gradient-brand)', boxShadow: '0 2px 8px rgba(37,99,235,0.3)' }}
-            >
+          <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted focus:outline-none ml-1">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
               {initials}
             </div>
             <div className="hidden text-left md:block">
@@ -163,10 +159,7 @@ export function TopBar({
             <DropdownMenuLabel>
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2.5">
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
-                    style={{ background: 'var(--gradient-brand)' }}
-                  >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
                     {initials}
                   </div>
                   <div className="min-w-0">
@@ -195,7 +188,7 @@ export function TopBar({
             {workspaces.map((workspace) => (
               <DropdownMenuItem
                 key={workspace.id}
-                onClick={() => handleWorkspaceSwitch(workspace.id)}
+                onClick={() => onSwitchWorkspace(workspace.id)}
                 className="flex items-center justify-between gap-2"
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -226,7 +219,10 @@ export function TopBar({
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={onLogout} className="flex items-center gap-2 text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onClick={onLogout}
+              className="flex items-center gap-2 text-destructive focus:text-destructive"
+            >
               <LogOut className="h-3.5 w-3.5" />
               Log out
             </DropdownMenuItem>

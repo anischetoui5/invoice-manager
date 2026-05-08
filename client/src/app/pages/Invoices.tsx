@@ -20,8 +20,6 @@ import {
 import type { Workspace, User } from '../types';
 import api from '../../lib/api';
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
 interface Invoice {
   id: string;
   invoice_number: string;
@@ -39,49 +37,29 @@ interface Invoice {
 type SortKey = 'invoice_number' | 'vendor_name' | 'amount' | 'invoice_date' | 'due_date' | 'current_status';
 type SortDir = 'asc' | 'desc';
 
-// ── Status config — includes row accent color ──────────────────────────────
-
 const STATUS_CONFIG: Record<string, { pill: string; label: string; row: string; border: string }> = {
-  draft:          { pill: 'bg-gray-100 text-gray-600',     label: 'Draft',          row: '',                   border: 'border-l-gray-300' },
-  pending_review: { pill: 'bg-amber-100 text-amber-700',   label: 'Pending Review', row: 'bg-amber-50/40',     border: 'border-l-amber-400' },
-  approved:       { pill: 'bg-emerald-100 text-emerald-700', label: 'Approved',     row: 'bg-emerald-50/30',   border: 'border-l-emerald-500' },
-  rejected:       { pill: 'bg-red-100 text-red-600',       label: 'Rejected',       row: 'bg-red-50/30',       border: 'border-l-red-400' },
+  draft:          { pill: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',          label: 'Draft',          row: '',                                    border: 'border-l-slate-300 dark:border-l-slate-600' },
+  pending_review: { pill: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',       label: 'Pending Review', row: 'bg-amber-50/40 dark:bg-amber-900/10',  border: 'border-l-amber-400' },
+  approved:       { pill: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', label: 'Approved',     row: 'bg-emerald-50/30 dark:bg-emerald-900/10', border: 'border-l-emerald-500' },
+  rejected:       { pill: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',               label: 'Rejected',       row: 'bg-red-50/30 dark:bg-red-900/10',      border: 'border-l-red-400' },
 };
 
-// ── Empty state illustration ───────────────────────────────────────────────
-
-function EmptyState({ hasFilters, onUpload }: { hasFilters: boolean; onUpload?: () => void }) {
+function EmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-      <div className="relative mb-6">
-        {/* Stacked document illustration */}
-        <div className="relative mx-auto w-32 h-36">
-          {/* Back doc */}
-          <div className="absolute top-3 left-3 w-24 h-30 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 rotate-6" style={{ height: '7rem' }} />
-          {/* Mid doc */}
-          <div className="absolute top-1.5 left-1.5 w-24 rounded-xl border-2 border-dashed border-slate-300 bg-slate-100 -rotate-3" style={{ height: '7rem' }} />
-          {/* Front doc */}
-          <div className="absolute top-0 left-0 w-24 rounded-xl border-2 border-slate-200 bg-white shadow-md flex flex-col items-center justify-center gap-2" style={{ height: '7rem' }}>
-            <FileX className="h-8 w-8 text-slate-300" />
-            <div className="space-y-1 w-14">
-              <div className="h-1.5 rounded-full bg-slate-200" />
-              <div className="h-1.5 rounded-full bg-slate-200 w-10" />
-              <div className="h-1.5 rounded-full bg-slate-200 w-8" />
-            </div>
-          </div>
-        </div>
+      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-muted mb-4">
+        <FileX className="h-8 w-8 text-muted-foreground" />
       </div>
-
       <h3 className="text-base font-semibold text-foreground mb-1">
         {hasFilters ? 'No matching invoices' : 'No invoices yet'}
       </h3>
       <p className="text-sm text-muted-foreground max-w-xs mb-6">
         {hasFilters
-          ? 'Try adjusting your filters or search query to find what you\'re looking for.'
+          ? 'Try adjusting your filters or search query.'
           : 'Upload your first invoice and it will appear here once processed.'}
       </p>
       {!hasFilters && (
-        <Button asChild>
+        <Button asChild size="sm">
           <Link to="/dashboard/upload">Upload Invoice</Link>
         </Button>
       )}
@@ -89,23 +67,13 @@ function EmptyState({ hasFilters, onUpload }: { hasFilters: boolean; onUpload?: 
   );
 }
 
-// ── Sortable column header ─────────────────────────────────────────────────
-
-function SortableHead({
-  label, sortKey, currentKey, currentDir, onSort,
-}: {
-  label: string;
-  sortKey: SortKey;
-  currentKey: SortKey | null;
-  currentDir: SortDir;
-  onSort: (key: SortKey) => void;
+function SortableHead({ label, sortKey, currentKey, currentDir, onSort }: {
+  label: string; sortKey: SortKey; currentKey: SortKey | null;
+  currentDir: SortDir; onSort: (key: SortKey) => void;
 }) {
   const active = currentKey === sortKey;
   return (
-    <TableHead
-      className="cursor-pointer select-none whitespace-nowrap"
-      onClick={() => onSort(sortKey)}
-    >
+    <TableHead className="cursor-pointer select-none whitespace-nowrap" onClick={() => onSort(sortKey)}>
       <div className="flex items-center gap-1 group">
         <span className={active ? 'text-foreground font-semibold' : ''}>{label}</span>
         {active ? (
@@ -115,44 +83,34 @@ function SortableHead({
         ) : (
           <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
         )}
-        {/* Hint: clicking a desc-sorted column a third time resets it */}
-        {active && currentDir === 'desc' && (
-          <span className="text-[10px] text-muted-foreground/50 leading-none">↺</span>
-        )}
       </div>
     </TableHead>
   );
 }
 
-// ── Delete confirm modal ───────────────────────────────────────────────────
-
 function DeleteConfirmModal({ invoice, onClose, onConfirm, deleting }: {
-  invoice: Invoice;
-  onClose: () => void;
-  onConfirm: () => void;
-  deleting: boolean;
+  invoice: Invoice; onClose: () => void; onConfirm: () => void; deleting: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 mx-4">
+      <div className="bg-background rounded-xl border border-border shadow-xl w-full max-w-md p-6 mx-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-destructive">Delete Invoice</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="h-5 w-5" />
+          <h2 className="text-base font-semibold text-foreground">Delete Invoice</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X className="h-4 w-4" />
           </button>
         </div>
         <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 mb-6">
           <p className="text-sm font-medium text-destructive mb-1">This action is irreversible.</p>
           <p className="text-sm text-muted-foreground">
-            Deleting <span className="font-semibold text-foreground">
-              {invoice.invoice_number || 'this invoice'}
-            </span> will permanently remove the invoice, all documents and its history.
+            Deleting <span className="font-semibold text-foreground">{invoice.invoice_number || 'this invoice'}</span> will
+            permanently remove the invoice, all documents and its history.
           </p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={deleting}>Cancel</Button>
           <Button
-            className="flex-1 transition-opacity hover:opacity-80"
+            className="flex-1"
             style={{ backgroundColor: 'var(--destructive)', color: 'var(--destructive-foreground)' }}
             onClick={onConfirm}
             disabled={deleting}
@@ -165,8 +123,6 @@ function DeleteConfirmModal({ invoice, onClose, onConfirm, deleting }: {
     </div>
   );
 }
-
-// ── PDF export ─────────────────────────────────────────────────────────────
 
 function exportToPDF(invoices: Invoice[], workspaceName: string) {
   const doc = new jsPDF();
@@ -197,8 +153,6 @@ function exportToPDF(invoices: Invoice[], workspaceName: string) {
   doc.save(`invoices-${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
-// ── Client-side sort ───────────────────────────────────────────────────────
-
 function sortInvoices(invoices: Invoice[], key: SortKey | null, dir: SortDir): Invoice[] {
   if (!key) return invoices;
   return [...invoices].sort((a, b) => {
@@ -218,13 +172,8 @@ function sortInvoices(invoices: Invoice[], key: SortKey | null, dir: SortDir): I
   });
 }
 
-// ── Main component ─────────────────────────────────────────────────────────
-
 export function InvoiceList() {
-  const { currentWorkspace, currentUser } = useOutletContext<{
-    currentWorkspace: Workspace;
-    currentUser: User;
-  }>();
+  const { currentWorkspace, currentUser } = useOutletContext<{ currentWorkspace: Workspace; currentUser: User }>();
   const { isLocked } = useSubscriptionGuard();
 
   const [invoices, setInvoices]         = useState<Invoice[]>([]);
@@ -239,9 +188,9 @@ export function InvoiceList() {
   const [sortKey, setSortKey]           = useState<SortKey | null>(null);
   const [sortDir, setSortDir]           = useState<SortDir>('asc');
 
-  const limit = 20;
+  const limit   = 20;
   const isAdmin = currentWorkspace?.role === 'Admin';
-  const role = currentWorkspace?.role;
+  const role    = currentWorkspace?.role;
 
   const canDelete = (invoice: Invoice) => {
     if (role === 'Director' && !['approved', 'paid', 'archived'].includes(invoice.current_status)) return true;
@@ -250,25 +199,15 @@ export function InvoiceList() {
   };
 
   const handleSort = (key: SortKey) => {
-    if (sortKey !== key) {
-      // New column — start asc
-      setSortKey(key);
-      setSortDir('asc');
-    } else if (sortDir === 'asc') {
-      // Second click — go desc
-      setSortDir('desc');
-    } else {
-      // Third click — clear sort, back to default order
-      setSortKey(null);
-      setSortDir('asc');
-    }
+    if (sortKey !== key) { setSortKey(key); setSortDir('asc'); }
+    else if (sortDir === 'asc') { setSortDir('desc'); }
+    else { setSortKey(null); setSortDir('asc'); }
   };
 
   useEffect(() => {
     if (!currentWorkspace?.id) return;
     const fetch = async () => {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true); setError(null);
       try {
         const params: Record<string, any> = { role, page, limit };
         if (statusFilter !== 'all') params.status = statusFilter;
@@ -308,53 +247,49 @@ export function InvoiceList() {
     }
   };
 
-  const totalPages = Math.ceil(total / limit);
-  const hasFilters = statusFilter !== 'all' || searchQuery.trim() !== '';
+  const totalPages        = Math.ceil(total / limit);
+  const hasFilters        = statusFilter !== 'all' || searchQuery.trim() !== '';
   const displayedInvoices = sortInvoices(invoices, sortKey, sortDir);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 page-enter">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Invoices</h1>
-          <p className="mt-1 text-muted-foreground">
-            {role === 'Employee' || role === 'Personal'
-              ? 'Your submitted invoices'
-              : 'All invoices across your organization'}
+          <h1 className="text-xl font-semibold text-foreground">Invoices</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {role === 'Employee' || role === 'Personal' ? 'Your submitted invoices' : 'All invoices across your organization'}
           </p>
         </div>
-        <Button asChild disabled={isLocked}>
+        <Button asChild size="sm" disabled={isLocked}>
           <Link to={isLocked ? '#' : '/dashboard/upload'}>Upload Invoice</Link>
         </Button>
       </div>
 
       {isLocked && (
-        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
           <span>Your subscription has expired. Renew to continue.</span>
-          <Link to="/dashboard/settings" className="ml-auto font-medium underline underline-offset-2 hover:text-red-800">
-            Renew
-          </Link>
+          <Link to="/dashboard/settings" className="ml-auto font-medium underline underline-offset-2">Renew</Link>
         </div>
       )}
 
       {/* Filters */}
-      <Card className="p-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="erp-card rounded-lg p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by vendor name..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-9 h-9"
             />
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="mr-2 h-4 w-4" />
+              <SelectTrigger className="w-[160px] h-9">
+                <Filter className="mr-2 h-3.5 w-3.5" />
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -365,35 +300,33 @@ export function InvoiceList() {
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={() => exportToPDF(invoices, currentWorkspace?.name ?? 'Workspace')}>
-              <Download className="mr-2 h-4 w-4" />
-              Export PDF
+            <Button variant="outline" size="sm" onClick={() => exportToPDF(invoices, currentWorkspace?.name ?? 'Workspace')}>
+              <Download className="mr-2 h-3.5 w-3.5" />Export PDF
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Table */}
-      <Card className="overflow-hidden">
+      <div className="erp-card rounded-lg overflow-hidden">
         {isLoading ? (
           <div className="flex h-64 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : error ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-2 text-destructive">
-            <p>{error}</p>
+          <div className="flex h-64 flex-col items-center justify-center gap-3 text-destructive">
+            <p className="text-sm">{error}</p>
             <Button variant="outline" size="sm" onClick={() => setPage(1)}>Retry</Button>
           </div>
         ) : invoices.length === 0 ? (
           <EmptyState hasFilters={hasFilters} />
         ) : (
           <>
-            {/* ── Desktop table ── */}
+            {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    {/* Left border spacer column */}
+                  <TableRow className="hover:bg-transparent border-b border-border">
                     <TableHead className="w-1 p-0" />
                     <SortableHead label="Invoice #"    sortKey="invoice_number" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                     {isAdmin && <TableHead>Company</TableHead>}
@@ -403,64 +336,60 @@ export function InvoiceList() {
                     <SortableHead label="Invoice Date" sortKey="invoice_date"   currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHead label="Due Date"     sortKey="due_date"       currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHead label="Status"       sortKey="current_status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-                    <TableHead className="w-[140px]">Actions</TableHead>
+                    <TableHead className="w-[120px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {displayedInvoices.map(invoice => {
                     const cfg = STATUS_CONFIG[invoice.current_status] ?? {
-                      pill: 'bg-gray-100 text-gray-600', label: invoice.current_status,
-                      row: '', border: 'border-l-gray-300',
+                      pill: 'bg-slate-100 text-slate-600', label: invoice.current_status,
+                      row: '', border: 'border-l-slate-300',
                     };
                     return (
-                      <TableRow
-                        key={invoice.id}
-                        className={`border-l-4 ${cfg.border} ${cfg.row} transition-colors`}
-                      >
-                        {/* Invisible spacer so border-l shows on the row itself */}
+                      <TableRow key={invoice.id} className={`border-l-4 ${cfg.border} ${cfg.row} transition-colors hover:bg-muted/30`}>
                         <TableCell className="w-0 p-0" />
-                        <TableCell className="font-medium">{invoice.invoice_number ?? '—'}</TableCell>
+                        <TableCell className="font-medium text-sm">{invoice.invoice_number ?? '—'}</TableCell>
                         {isAdmin && (
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="text-sm text-muted-foreground">
                             {(invoice as any).company_name ?? (invoice as any).workspace_name}
                           </TableCell>
                         )}
-                        <TableCell>{invoice.vendor_name ?? '—'}</TableCell>
+                        <TableCell className="text-sm">{invoice.vendor_name ?? '—'}</TableCell>
                         {role !== 'Employee' && role !== 'Personal' && (
-                          <TableCell className="text-muted-foreground">{invoice.created_by_name}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{invoice.created_by_name}</TableCell>
                         )}
-                        <TableCell className="font-medium tabular-nums">
+                        <TableCell className="text-sm font-medium tabular-nums">
                           {invoice.currency} {Number(invoice.amount ?? 0).toLocaleString()}
                         </TableCell>
-                        <TableCell className="text-muted-foreground tabular-nums">
+                        <TableCell className="text-sm text-muted-foreground tabular-nums">
                           {invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString() : '—'}
                         </TableCell>
-                        <TableCell className="text-muted-foreground tabular-nums">
+                        <TableCell className="text-sm text-muted-foreground tabular-nums">
                           {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '—'}
                         </TableCell>
                         <TableCell>
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${cfg.pill}`}>
+                          <span className={`rounded px-2 py-0.5 text-[11px] font-medium ${cfg.pill}`}>
                             {cfg.label}
                           </span>
                         </TableCell>
-                        <TableCell className="w-[140px]">
-                          <div className="flex items-center gap-2">
-                            <Button asChild variant="ghost" size="sm" className={`${canDelete(invoice) ? '' : 'w-full justify-center'}`}>
+                        <TableCell className="w-[120px]">
+                          <div className="flex items-center gap-1">
+                            <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
                               <Link to={`/dashboard/invoices/${invoice.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />View
+                                <Eye className="mr-1.5 h-3.5 w-3.5" />View
                               </Link>
                             </Button>
                             {canDelete(invoice) ? (
                               <Button
                                 variant="ghost" size="sm"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                 onClick={() => setDeleteTarget(invoice)}
                                 disabled={isLocked}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             ) : (
-                              <div className="w-9 flex-shrink-0" />
+                              <div className="w-7" />
                             )}
                           </div>
                         </TableCell>
@@ -471,27 +400,27 @@ export function InvoiceList() {
               </Table>
             </div>
 
-            {/* ── Mobile cards ── */}
-            <div className="flex flex-col gap-3 p-3 md:hidden">
+            {/* Mobile cards */}
+            <div className="flex flex-col gap-2 p-3 md:hidden">
               {displayedInvoices.map(invoice => {
                 const cfg = STATUS_CONFIG[invoice.current_status] ?? {
-                  pill: 'bg-gray-100 text-gray-600', label: invoice.current_status,
-                  row: '', border: 'border-l-gray-300',
+                  pill: 'bg-slate-100 text-slate-600', label: invoice.current_status,
+                  row: '', border: 'border-l-slate-300',
                 };
                 return (
-                  <Link key={invoice.id} to={`/dashboard/invoices/${invoice.id}`} style={{ textDecoration: 'none' }}>
-                    <div className={`rounded-xl border-l-4 ${cfg.border} border border-border bg-background p-4 shadow-sm active:scale-95 transition-transform ${cfg.row}`}>
-                      <div className="flex items-start justify-between gap-2 mb-3">
+                  <Link key={invoice.id} to={`/dashboard/invoices/${invoice.id}`}>
+                    <div className={`rounded-lg border-l-4 ${cfg.border} border border-border bg-background p-4 transition-colors active:bg-muted/50 ${cfg.row}`}>
+                      <div className="flex items-start justify-between gap-2 mb-2">
                         <div>
-                          <p className="font-semibold text-foreground text-sm">{invoice.vendor_name || 'Unknown vendor'}</p>
+                          <p className="font-medium text-foreground text-sm">{invoice.vendor_name || 'Unknown vendor'}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">#{invoice.invoice_number ?? '—'}</p>
                         </div>
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium flex-shrink-0 ${cfg.pill}`}>
+                        <span className={`rounded px-2 py-0.5 text-[11px] font-medium flex-shrink-0 ${cfg.pill}`}>
                           {cfg.label}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <p className="text-lg font-bold text-foreground tabular-nums">
+                        <p className="text-base font-semibold text-foreground tabular-nums">
                           {invoice.currency} {Number(invoice.amount ?? 0).toLocaleString()}
                         </p>
                         <p className="text-xs text-muted-foreground tabular-nums">
@@ -500,7 +429,7 @@ export function InvoiceList() {
                       </div>
                       {canDelete(invoice) && !isLocked && (
                         <button
-                          className="mt-3 w-full rounded-lg py-1.5 text-xs font-medium text-red-500 border border-red-100 bg-red-50 active:bg-red-100 transition-colors"
+                          className="mt-3 w-full rounded-md py-1.5 text-xs font-medium text-destructive border border-destructive/20 bg-destructive/5 transition-colors"
                           onClick={e => { e.preventDefault(); setDeleteTarget(invoice); }}
                         >
                           Delete
@@ -513,18 +442,14 @@ export function InvoiceList() {
             </div>
           </>
         )}
-      </Card>
+      </div>
 
       {/* Pagination */}
       {invoices.length > 0 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Showing {invoices.length} of {total} invoices
-            {sortKey && (
-              <span className="ml-2 text-xs text-muted-foreground">
-                · sorted by {sortKey.replace('_', ' ')} ({sortDir})
-              </span>
-            )}
+            {sortKey && <span className="ml-2">· sorted by {sortKey.replace('_', ' ')} ({sortDir})</span>}
           </p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>

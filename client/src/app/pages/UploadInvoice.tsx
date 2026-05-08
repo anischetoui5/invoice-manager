@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useOutletContext, Link } from 'react-router-dom';
 import {
-  Upload, X, CheckCircle2, FileText, Image as ImageIcon,
-  ChevronRight, File, AlertTriangle,
+  Upload, X, CheckCircle2, FileText, Image as ImageIcon, AlertTriangle,
 } from 'lucide-react';
 import { useSubscriptionGuard } from '../hooks/useSubscriptionGuard';
 import { Card } from '../components/ui/card';
@@ -15,19 +14,14 @@ import {
 import { toast } from 'sonner';
 import type { Workspace } from '../types';
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
 interface FileEntry {
   file: File;
   objectUrl: string;
   isPdf: boolean;
-  // enriched metadata
-  pageCount?: number;       // PDFs only (estimated from size or from API if available)
-  dimensions?: string;      // Images: "1200 × 900"
+  pageCount?: number;
+  dimensions?: string;
   metaLoading: boolean;
 }
-
-// ── Step indicator ─────────────────────────────────────────────────────────
 
 const STEPS = [
   { id: 1, label: 'Select Files' },
@@ -37,36 +31,27 @@ const STEPS = [
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
-    <div className="flex items-center gap-0 w-full max-w-sm mx-auto">
+    <div className="flex items-center w-full max-w-xs mx-auto">
       {STEPS.map((step, i) => {
-        const done    = currentStep > step.id;
-        const active  = currentStep === step.id;
+        const done   = currentStep > step.id;
+        const active = currentStep === step.id;
         return (
           <div key={step.id} className="flex items-center flex-1 last:flex-none">
-            {/* Circle */}
             <div className="flex flex-col items-center gap-1">
               <div className={`
-                flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold
-                border-2 transition-all duration-300
+                flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold border-2 transition-all duration-300
                 ${done   ? 'bg-primary border-primary text-primary-foreground'
                          : active ? 'bg-background border-primary text-primary'
-                         : 'bg-background border-muted-foreground/30 text-muted-foreground'}
+                         : 'bg-background border-border text-muted-foreground'}
               `}>
-                {done ? <CheckCircle2 className="h-4 w-4" /> : step.id}
+                {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : step.id}
               </div>
-              <span className={`text-xs whitespace-nowrap font-medium transition-colors ${
-                active ? 'text-primary' : done ? 'text-foreground' : 'text-muted-foreground'
-              }`}>
+              <span className={`text-[11px] whitespace-nowrap font-medium ${active ? 'text-primary' : done ? 'text-foreground' : 'text-muted-foreground'}`}>
                 {step.label}
               </span>
             </div>
-
-            {/* Connector line */}
             {i < STEPS.length - 1 && (
-              <div className={`
-                flex-1 h-0.5 mb-5 mx-1 transition-all duration-500
-                ${done ? 'bg-primary' : 'bg-muted-foreground/20'}
-              `} />
+              <div className={`flex-1 h-px mb-5 mx-1 transition-all duration-500 ${done ? 'bg-primary' : 'bg-border'}`} />
             )}
           </div>
         );
@@ -74,8 +59,6 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
     </div>
   );
 }
-
-// ── File metadata helpers ──────────────────────────────────────────────────
 
 function loadImageDimensions(url: string): Promise<string> {
   return new Promise(resolve => {
@@ -86,14 +69,9 @@ function loadImageDimensions(url: string): Promise<string> {
   });
 }
 
-// PDFs: we can't read page count client-side without a library,
-// so we estimate from file size as a rough proxy and mark it clearly.
 function estimatePdfPages(bytes: number): number {
-  // rough average: ~100 KB per page for scanned invoices
   return Math.max(1, Math.round(bytes / 100_000));
 }
-
-// ── Main component ─────────────────────────────────────────────────────────
 
 export function UploadInvoice() {
   const navigate = useNavigate();
@@ -101,61 +79,39 @@ export function UploadInvoice() {
   const { isLocked } = useSubscriptionGuard();
 
   const [dragActive, setDragActive]     = useState(false);
-  const [dragPulse, setDragPulse]       = useState(false);   // for glow animation
   const [entries, setEntries]           = useState<FileEntry[]>([]);
   const [category, setCategory]         = useState('');
   const [vendor, setVendor]             = useState('');
   const [notes, setNotes]               = useState('');
   const [isUploading, setIsUploading]   = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  
-  // Step derived from state
+
   const step = entries.length === 0 ? 1 : isUploading ? 3 : 2;
 
-  // Revoke object URLs on unmount
   useEffect(() => {
     return () => { entries.forEach(e => URL.revokeObjectURL(e.objectUrl)); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Pulse animation while dragging
-  useEffect(() => {
-    if (!dragActive) { setDragPulse(false); return; }
-    const id = setInterval(() => setDragPulse(p => !p), 600);
-    return () => clearInterval(id);
-  }, [dragActive]);
 
   const enrichEntry = async (entry: FileEntry): Promise<FileEntry> => {
     if (entry.isPdf) {
-      const pages = estimatePdfPages(entry.file.size);
-      return { ...entry, pageCount: pages, metaLoading: false };
-    } else {
-      const dimensions = await loadImageDimensions(entry.objectUrl);
-      return { ...entry, dimensions, metaLoading: false };
+      return { ...entry, pageCount: estimatePdfPages(entry.file.size), metaLoading: false };
     }
+    const dimensions = await loadImageDimensions(entry.objectUrl);
+    return { ...entry, dimensions, metaLoading: false };
   };
 
   const addFiles = async (incoming: File[]) => {
-    const valid = incoming.filter(
-      f => f.type === 'application/pdf' || f.type.startsWith('image/')
-    );
+    const valid = incoming.filter(f => f.type === 'application/pdf' || f.type.startsWith('image/'));
     if (!valid.length) return;
-
     const newEntries: FileEntry[] = valid.map(f => ({
-      file: f,
-      objectUrl: URL.createObjectURL(f),
-      isPdf: f.type === 'application/pdf',
-      metaLoading: true,
+      file: f, objectUrl: URL.createObjectURL(f),
+      isPdf: f.type === 'application/pdf', metaLoading: true,
     }));
-
     setEntries(prev => [...prev, ...newEntries]);
     setPreviewIndex(prev => prev === null ? 0 : prev);
-
-    // Enrich metadata asynchronously
     const enriched = await Promise.all(newEntries.map(enrichEntry));
     setEntries(prev => {
       const updated = [...prev];
-      // Replace the last N entries (the ones we just added)
       const startIdx = updated.length - enriched.length;
       enriched.forEach((e, i) => { updated[startIdx + i] = e; });
       return updated;
@@ -197,18 +153,13 @@ export function UploadInvoice() {
     try {
       const token = localStorage.getItem('token');
       const workspaceId = currentWorkspace.id;
-
-      const invoiceRes = await fetch(
-        `http://localhost:3000/api/workspaces/${workspaceId}/invoices`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ vendor_name: vendor || 'Unknown Vendor', notes: notes || null }),
-        }
-      );
+      const invoiceRes = await fetch(`http://localhost:3000/api/workspaces/${workspaceId}/invoices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ vendor_name: vendor || 'Unknown Vendor', notes: notes || null }),
+      });
       const invoiceData = await invoiceRes.json();
       if (!invoiceRes.ok) { toast.error(invoiceData.error || 'Failed to create invoice'); setIsUploading(false); return; }
-
       const invoiceId = invoiceData.invoice.id;
       for (let i = 0; i < entries.length; i++) {
         const fd = new FormData();
@@ -221,15 +172,12 @@ export function UploadInvoice() {
         const uploadData = await uploadRes.json();
         if (!uploadRes.ok) {
           toast.error(`Failed to upload ${entries[i].file.name}: ${uploadData.error}`);
-          setIsUploading(false);
-          return;
+          setIsUploading(false); return;
         }
       }
-
       toast.success('Invoice uploaded successfully!');
       navigate('/dashboard/invoices');
     } catch (err) {
-      console.error(err);
       toast.error('Something went wrong. Please try again.');
       setIsUploading(false);
     }
@@ -239,258 +187,167 @@ export function UploadInvoice() {
   const activeEntry = previewIndex !== null ? entries[previewIndex] : null;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      {/* Header + step indicator */}
+    <div className="mx-auto max-w-5xl space-y-5 page-enter">
       <div className="space-y-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Upload Invoice</h1>
-          <p className="mt-1 text-muted-foreground">Upload PDF or image files for automatic OCR processing</p>
+          <h1 className="text-xl font-semibold text-foreground">Upload Invoice</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Upload PDF or image files for automatic OCR processing</p>
         </div>
         <StepIndicator currentStep={step} />
       </div>
 
       {isLocked && (
-        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-          <span>Your subscription has expired. Renew to continue.</span>
-          <Link to="/dashboard/settings" className="ml-auto font-medium underline underline-offset-2 hover:text-red-800">
-            Renew
-          </Link>
+          <span>Your subscription has expired. Renew to upload invoices.</span>
+          <Link to="/dashboard/settings" className="ml-auto font-medium underline underline-offset-2">Renew</Link>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className={`space-y-6 ${isLocked ? 'pointer-events-none opacity-50' : ''}`}>
-
-        {/* ── Drop zone ── */}
-        <Card className="p-6">
-          {/* Animated drop area */}
+      <form onSubmit={handleSubmit} className={`space-y-5 ${isLocked ? 'pointer-events-none opacity-50' : ''}`}>
+        {/* Drop zone */}
+        <div className="erp-card rounded-lg p-5">
           <div
-            className={`
-              relative rounded-xl border-2 border-dashed p-10 text-center
-              transition-all duration-300 cursor-pointer
-              ${dragActive
-                ? 'border-blue-500 scale-[1.01]'
-                : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50/30'}
-            `}
-            style={dragActive ? {
-              background: dragPulse
-                ? 'radial-gradient(ellipse at center, rgba(59,130,246,0.12) 0%, rgba(59,130,246,0.04) 100%)'
-                : 'radial-gradient(ellipse at center, rgba(59,130,246,0.06) 0%, transparent 100%)',
-              boxShadow: dragPulse
-                ? '0 0 0 4px rgba(59,130,246,0.15), inset 0 0 30px rgba(59,130,246,0.05)'
-                : '0 0 0 2px rgba(59,130,246,0.1)',
-              transition: 'all 0.3s ease',
-            } : {}}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
+            className={`relative rounded-lg border-2 border-dashed p-10 text-center transition-all duration-200 cursor-pointer
+              ${dragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/30'}`}
+            onDragEnter={handleDrag} onDragLeave={handleDrag}
+            onDragOver={handleDrag} onDrop={handleDrop}
           >
             <input type="file" id="file-upload" className="hidden" multiple accept=".pdf,image/*" onChange={handleFileInput} />
             <input type="file" id="camera-capture" className="hidden" accept="image/*" capture="environment" onChange={handleFileInput} />
-
-            <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-4">
-              {/* Animated icon */}
-              <div className={`
-                flex h-16 w-16 items-center justify-center rounded-full
-                transition-all duration-300
-                ${dragActive ? 'bg-blue-500 scale-110' : 'bg-blue-100'}
-              `}>
-                <Upload className={`h-8 w-8 transition-colors duration-300 ${dragActive ? 'text-white' : 'text-blue-600'}`} />
+            <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-3">
+              <div className={`flex h-14 w-14 items-center justify-center rounded-lg transition-all duration-200 ${dragActive ? 'bg-primary' : 'bg-primary/10'}`}>
+                <Upload className={`h-7 w-7 transition-colors duration-200 ${dragActive ? 'text-white' : 'text-primary'}`} />
               </div>
-
               <div>
-                <p className={`text-lg font-medium transition-colors duration-200 ${dragActive ? 'text-blue-600' : 'text-foreground'}`}>
+                <p className={`text-base font-medium transition-colors duration-200 ${dragActive ? 'text-primary' : 'text-foreground'}`}>
                   {dragActive ? 'Release to add files' : 'Drop your invoice files here'}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  or <span className="font-medium text-blue-600 hover:text-blue-700">browse files</span>
+                  or <span className="font-medium text-primary">browse files</span>
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground">Supports: PDF, JPG, PNG · Max 10 MB per file</p>
+              <p className="text-xs text-muted-foreground">PDF, JPG, PNG · Max 10 MB per file</p>
             </label>
-
-            {/* Mobile camera button */}
             <label
               htmlFor="camera-capture"
-              className="md:hidden mt-4 inline-flex items-center gap-2 cursor-pointer rounded-xl px-5 py-3 text-sm font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 4px 14px rgba(37,99,235,0.4)' }}
+              className="md:hidden mt-4 inline-flex items-center gap-2 cursor-pointer rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                 <circle cx="12" cy="13" r="4"/>
               </svg>
-              Take Photo of Invoice
+              Take Photo
             </label>
           </div>
 
-          {/* ── File list + preview ── */}
           {entries.length > 0 && (
-            <div className="mt-6 flex gap-4">
-
-              {/* Left: file list */}
-              <div className="w-64 flex-shrink-0 space-y-2">
-                <h3 className="text-sm font-medium text-slate-700">
-                  Selected Files <span className="text-muted-foreground font-normal">({entries.length})</span>
-                </h3>
+            <div className="mt-5 flex gap-4">
+              {/* File list */}
+              <div className="w-60 flex-shrink-0 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Selected Files ({entries.length})
+                </p>
                 {entries.map((entry, index) => (
                   <div
                     key={index}
                     onClick={() => setPreviewIndex(index)}
-                    className={`
-                      flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-all
-                      ${previewIndex === index
-                        ? 'border-blue-500 bg-blue-50 shadow-sm'
-                        : 'border-border bg-background hover:bg-muted/50'}
-                    `}
+                    className={`flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-all
+                      ${previewIndex === index ? 'border-primary bg-primary/5' : 'border-border bg-background hover:bg-muted/50'}`}
                   >
-                    {/* Thumbnail */}
-                    <div className="h-12 w-10 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
+                    <div className="h-10 w-9 flex-shrink-0 overflow-hidden rounded-md bg-muted">
                       {entry.isPdf ? (
-                        <div className="flex h-full w-full items-center justify-center bg-red-50">
-                          <FileText className="h-5 w-5 text-red-500" />
+                        <div className="flex h-full w-full items-center justify-center bg-red-50 dark:bg-red-950/30">
+                          <FileText className="h-4 w-4 text-red-500" />
                         </div>
                       ) : (
                         <img src={entry.objectUrl} alt={entry.file.name} className="h-full w-full object-cover" />
                       )}
                     </div>
-
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-foreground leading-tight">{entry.file.name}</p>
-
-                      {/* File type + size */}
+                      <p className="truncate text-xs font-medium text-foreground">{entry.file.name}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {entry.isPdf ? 'PDF' : 'Image'} · {(entry.file.size / 1024 / 1024).toFixed(2)} MB
                       </p>
-
-                      {/* Enriched metadata */}
                       {entry.metaLoading ? (
-                        <p className="text-xs text-muted-foreground/60 mt-0.5 animate-pulse">Loading info…</p>
+                        <p className="text-xs text-muted-foreground/50 mt-0.5 animate-pulse">Loading…</p>
                       ) : entry.isPdf && entry.pageCount ? (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          ~{entry.pageCount} page{entry.pageCount !== 1 ? 's' : ''}
-                          <span className="text-muted-foreground/50 ml-1">(est.)</span>
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">~{entry.pageCount}p (est.)</p>
                       ) : entry.dimensions ? (
-                        <p className="text-xs text-muted-foreground mt-0.5">{entry.dimensions} px</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{entry.dimensions}</p>
                       ) : null}
                     </div>
-
                     <button
                       type="button"
                       onClick={e => { e.stopPropagation(); removeFile(index); }}
-                      className="flex-shrink-0 mt-0.5 rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                      className="flex-shrink-0 mt-0.5 rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ))}
-
-                {/* Add more */}
                 <label
                   htmlFor="file-upload"
-                  className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 p-2 text-xs text-muted-foreground hover:border-blue-400 hover:text-blue-600 transition-colors"
+                  className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-border p-2 text-xs text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
                 >
-                  <Upload className="h-3.5 w-3.5" />
-                  Add more files
+                  <Upload className="h-3.5 w-3.5" /> Add more files
                 </label>
               </div>
 
-              {/* Right: preview */}
+              {/* Preview */}
               {activeEntry && (
-                <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-slate-50">
-                  {/* Preview header */}
+                <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-muted/30">
                   <div className="flex items-center justify-between border-b border-border bg-background px-4 py-2.5">
                     <div className="flex items-center gap-2">
                       {activeEntry.isPdf
-                        ? <FileText className="h-4 w-4 text-red-500 flex-shrink-0" />
-                        : <ImageIcon className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                        ? <FileText className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                        : <ImageIcon className="h-3.5 w-3.5 text-primary flex-shrink-0" />
                       }
-                      <span className="max-w-[200px] truncate text-sm font-medium text-foreground">
-                        {activeEntry.file.name}
-                      </span>
+                      <span className="max-w-[200px] truncate text-sm font-medium text-foreground">{activeEntry.file.name}</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{(activeEntry.file.size / 1024 / 1024).toFixed(2)} MB</span>
-                      {activeEntry.isPdf && activeEntry.pageCount && (
-                        <span>~{activeEntry.pageCount}p</span>
-                      )}
-                      {activeEntry.dimensions && (
-                        <span>{activeEntry.dimensions}</span>
-                      )}
+                      {activeEntry.isPdf && activeEntry.pageCount && <span>~{activeEntry.pageCount}p</span>}
+                      {activeEntry.dimensions && <span>{activeEntry.dimensions}</span>}
                     </div>
                   </div>
-
-                  {/* Preview body */}
-                  <div className="flex flex-1 items-center justify-center overflow-auto bg-slate-100 p-2" style={{ minHeight: '420px' }}>
+                  <div className="flex flex-1 items-center justify-center overflow-auto bg-muted/20 p-2" style={{ minHeight: '380px' }}>
                     {activeEntry.isPdf ? (
-                      <object
-                        data={activeEntry.objectUrl}
-                        type="application/pdf"
-                        className="h-full w-full rounded"
-                        style={{ minHeight: '400px' }}
-                      >
-                        <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
-                          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
-                            <FileText className="h-10 w-10 text-red-500" />
+                      <object data={activeEntry.objectUrl} type="application/pdf" className="h-full w-full rounded" style={{ minHeight: '360px' }}>
+                        <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+                          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/30">
+                            <FileText className="h-8 w-8 text-red-500" />
                           </div>
-                          <div>
-                            <p className="font-medium text-foreground">{activeEntry.file.name}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">PDF preview not available in this browser</p>
-                          </div>
-                          <a
-                            href={activeEntry.objectUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                          >
+                          <p className="font-medium text-foreground text-sm">{activeEntry.file.name}</p>
+                          <a href={activeEntry.objectUrl} target="_blank" rel="noopener noreferrer"
+                            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                             Open PDF
                           </a>
                         </div>
                       </object>
                     ) : (
-                      <img
-                        src={activeEntry.objectUrl}
-                        alt={activeEntry.file.name}
-                        className="max-h-[480px] max-w-full rounded object-contain shadow-sm"
-                      />
+                      <img src={activeEntry.objectUrl} alt={activeEntry.file.name} className="max-h-[440px] max-w-full rounded object-contain shadow-sm" />
                     )}
                   </div>
-
-                  {/* File navigation */}
                   {entries.length > 1 && (
                     <div className="flex items-center justify-center gap-3 border-t border-border bg-background px-4 py-2">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewIndex(p => Math.max(0, (p ?? 0) - 1))}
-                        disabled={previewIndex === 0}
-                        className="rounded px-2 py-1 text-xs text-slate-500 hover:bg-muted disabled:opacity-30 transition-colors"
-                      >
-                        ← Prev
-                      </button>
-                      <span className="text-xs text-muted-foreground">
-                        {(previewIndex ?? 0) + 1} / {entries.length}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewIndex(p => Math.min(entries.length - 1, (p ?? 0) + 1))}
-                        disabled={previewIndex === entries.length - 1}
-                        className="rounded px-2 py-1 text-xs text-slate-500 hover:bg-muted disabled:opacity-30 transition-colors"
-                      >
-                        Next →
-                      </button>
+                      <button type="button" onClick={() => setPreviewIndex(p => Math.max(0, (p ?? 0) - 1))} disabled={previewIndex === 0}
+                        className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors">← Prev</button>
+                      <span className="text-xs text-muted-foreground">{(previewIndex ?? 0) + 1} / {entries.length}</span>
+                      <button type="button" onClick={() => setPreviewIndex(p => Math.min(entries.length - 1, (p ?? 0) + 1))} disabled={previewIndex === entries.length - 1}
+                        className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors">Next →</button>
                     </div>
                   )}
                 </div>
               )}
             </div>
           )}
-        </Card>
+        </div>
 
-        {/* ── Invoice details — only shown once files are selected ── */}
-        <div className={`space-y-6 transition-all duration-300 ${entries.length === 0 ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-          <Card className="p-6">
-            <h3 className="mb-4 font-semibold text-foreground">Invoice Details</h3>
+        {/* Invoice details */}
+        <div className={`space-y-4 transition-all duration-300 ${entries.length === 0 ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+          <div className="erp-card rounded-lg p-5">
+            <h3 className="mb-4 text-sm font-semibold text-foreground">Invoice Details</h3>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
@@ -509,20 +366,19 @@ export function UploadInvoice() {
                 <Label htmlFor="notes">Notes <span className="text-muted-foreground font-normal">(Optional)</span></Label>
                 <textarea
                   id="notes"
-                  className="min-h-[100px] w-full rounded-lg border border-border p-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-background"
+                  className="min-h-[90px] w-full rounded-lg border border-border bg-input-background p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="Add any additional notes or context..."
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                 />
               </div>
             </div>
-          </Card>
+          </div>
 
-          {/* What happens next */}
-          <Card className="p-6">
+          <div className="erp-card rounded-lg p-5">
             <div className="flex items-start gap-3">
-              <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
-                <CheckCircle2 className="h-4 w-4 text-blue-600" />
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
               </div>
               <div>
                 <h4 className="text-sm font-medium text-foreground">What happens next?</h4>
@@ -534,17 +390,12 @@ export function UploadInvoice() {
                 </ul>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
 
-        {/* ── Actions ── */}
+        {/* Actions */}
         <div className="flex gap-3">
-          <Button
-            type="submit"
-            size="lg"
-            disabled={isUploading || entries.length === 0 || isLocked}
-            className="flex-1"
-          >
+          <Button type="submit" disabled={isUploading || entries.length === 0 || isLocked} className="flex-1">
             {isUploading ? (
               <>
                 <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -552,14 +403,12 @@ export function UploadInvoice() {
               </>
             ) : (
               <>
-                <Upload className="mr-2 h-5 w-5" />
+                <Upload className="mr-2 h-4 w-4" />
                 Upload {entries.length > 0 ? `${entries.length} File${entries.length !== 1 ? 's' : ''}` : 'Invoice'}
               </>
             )}
           </Button>
-          <Button type="button" size="lg" variant="outline" onClick={() => navigate('/dashboard/invoices')}>
-            Cancel
-          </Button>
+          <Button type="button" variant="outline" onClick={() => navigate('/dashboard/invoices')}>Cancel</Button>
         </div>
       </form>
     </div>

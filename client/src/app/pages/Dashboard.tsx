@@ -3,31 +3,229 @@ import { toast } from 'sonner';
 import {
   FileText, Upload, CheckCircle2, XCircle, Clock,
   DollarSign, Users, Building2, Shield, CreditCard, ArrowRight,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Progress } from '../components/ui/progress';
 import type { UserRole, Workspace, User } from '../types';
 import { JoinCompany } from '../components/JoinCompany';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../lib/api';
-
-// ── Icon gradient helpers ──────────────────────────────────────────────────────
-const ICON_GRADIENTS = {
-  blue:   'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)',
-  green:  'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-  yellow: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)',
-  red:    'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
-  purple: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)',
-  orange: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)',
-  indigo: 'linear-gradient(135deg, #4338ca 0%, #6366f1 100%)',
-  teal:   'linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)',
-} as const;
-
-type GradientKey = keyof typeof ICON_GRADIENTS;
 
 interface DashboardProps {
   userRole: UserRole;
 }
+
+// ── Status badge config ────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
+  draft:          { bg: 'bg-slate-100 dark:bg-slate-800',        text: 'text-slate-600 dark:text-slate-400',    label: 'Draft' },
+  pending_review: { bg: 'bg-amber-50 dark:bg-amber-900/20',      text: 'text-amber-700 dark:text-amber-400',    label: 'Pending' },
+  approved:       { bg: 'bg-emerald-50 dark:bg-emerald-900/20',  text: 'text-emerald-700 dark:text-emerald-400', label: 'Approved' },
+  rejected:       { bg: 'bg-red-50 dark:bg-red-900/20',         text: 'text-red-600 dark:text-red-400',        label: 'Rejected' },
+};
+
+// ── Activity labels ────────────────────────────────────────────────────────
+const ACTION_CONFIG: Record<string, { label: string; dot: string }> = {
+  'invoice.created':        { label: 'Invoice created',     dot: 'var(--chart-1)' },
+  'invoice.status_changed': { label: 'Status changed',      dot: 'var(--chart-3)' },
+  'invoice.deleted':        { label: 'Invoice deleted',     dot: 'var(--chart-5)' },
+  'invoice.updated':        { label: 'Invoice updated',     dot: 'var(--chart-4)' },
+  'member.joined':          { label: 'Member joined',       dot: 'var(--chart-2)' },
+  'member.left':            { label: 'Member removed',      dot: 'var(--chart-5)' },
+  'invitation.accepted':    { label: 'Invitation accepted', dot: 'var(--chart-2)' },
+  'invitation.rejected':    { label: 'Invitation rejected', dot: 'var(--chart-5)' },
+  'company.updated':        { label: 'Company updated',     dot: 'var(--chart-1)' },
+  'membership.expired':     { label: 'Membership expired',  dot: 'var(--chart-5)' },
+  'contract.renewed':       { label: 'Contract renewed',    dot: 'var(--chart-2)' },
+};
+
+// ── Shared UI primitives ───────────────────────────────────────────────────
+
+// Flat icon container — replaces gradient bubbles
+function IconBox({ icon: Icon, color }: { icon: React.ElementType; color: string }) {
+  const colorMap: Record<string, string> = {
+    blue:   'bg-blue-50   dark:bg-blue-950/40  text-blue-600   dark:text-blue-400',
+    green:  'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400',
+    yellow: 'bg-amber-50  dark:bg-amber-950/40  text-amber-600  dark:text-amber-400',
+    red:    'bg-red-50    dark:bg-red-950/40    text-red-600    dark:text-red-400',
+    purple: 'bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400',
+    orange: 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400',
+    slate:  'bg-slate-100 dark:bg-slate-800     text-slate-600  dark:text-slate-400',
+  };
+  return (
+    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${colorMap[color] ?? colorMap.slate}`}>
+      <Icon className="h-5 w-5" strokeWidth={1.75} />
+    </div>
+  );
+}
+
+// Stat card — stable, no animation class (parent handles page-enter)
+function StatCard({
+  label, value, icon, color, loading,
+}: {
+  label: string;
+  value: React.ReactNode;
+  icon: React.ElementType;
+  color: string;
+  loading?: boolean;
+}) {
+  return (
+    <div className="erp-card rounded-lg p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+          {loading
+            ? <div className="shimmer-skeleton mt-2 h-8 w-16 rounded" />
+            : <p className="mt-1.5 text-2xl font-semibold text-foreground tabular-nums">{value}</p>
+          }
+        </div>
+        <IconBox icon={icon} color={color} />
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      {action}
+    </div>
+  );
+}
+
+function ViewAllLink({ to, label = 'View all' }: { to: string; label?: string }) {
+  return (
+    <Link to={to} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+      {label} <ArrowRight className="h-3 w-3" />
+    </Link>
+  );
+}
+
+// Recent activity — stable inner state, never causes parent flicker
+function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit?: number }) {
+  const [activity, setActivity] = useState<any[]>([]);
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    setLoading(true);
+    api.get(`/workspaces/${workspaceId}/activity`, {
+      params: { limit },
+      headers: { 'x-workspace-id': workspaceId },
+    })
+      .then(({ data }) => setActivity(data.activity ?? []))
+      .catch(() => setActivity([]))
+      .finally(() => setLoading(false));
+  }, [workspaceId, limit]);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="shimmer-skeleton h-2 w-2 shrink-0 rounded-full" />
+            <div className="shimmer-skeleton h-3.5 flex-1 rounded" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (activity.length === 0) {
+    return <p className="text-xs text-muted-foreground">No activity yet.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {activity.map((item: any) => {
+        const cfg = ACTION_CONFIG[item.action] ?? { label: item.action, dot: 'var(--muted-foreground)' };
+        return (
+          <div key={item.id} className="flex items-start gap-2.5">
+            <div
+              className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ background: cfg.dot }}
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-foreground">
+                <span className="font-medium">{cfg.label}</span>
+                {item.user_name && <span className="text-muted-foreground"> · {item.user_name}</span>}
+                {item.metadata?.vendor_name && (
+                  <span className="text-muted-foreground"> · {item.metadata.vendor_name}</span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {new Date(item.created_at).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Invoice preview list
+function InvoicePreview({ invoices, emptyMessage, uploadLink = true }: {
+  invoices: any[];
+  emptyMessage: string;
+  uploadLink?: boolean;
+}) {
+  if (invoices.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-center">
+        <IconBox icon={Upload} color="blue" />
+        <p className="text-sm text-muted-foreground mt-3 mb-4 max-w-xs">{emptyMessage}</p>
+        {uploadLink && (
+          <Link to="/dashboard/upload">
+            <Button size="sm"><Upload className="mr-1.5 h-3.5 w-3.5" />Upload Invoice</Button>
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {invoices.map(invoice => {
+        const badge = STATUS_CONFIG[invoice.current_status] ?? {
+          bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600', label: invoice.current_status,
+        };
+        return (
+          <Link
+            key={invoice.id}
+            to={`/dashboard/invoices/${invoice.id}`}
+            className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2.5 transition-colors hover:bg-muted/50 hover:border-border-strong"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {invoice.vendor_name ?? 'Unknown Vendor'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {invoice.invoice_number ?? '—'} · {invoice.invoice_date
+                    ? new Date(invoice.invoice_date).toLocaleDateString()
+                    : new Date(invoice.created_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 shrink-0 ml-3">
+              <span className="text-sm font-semibold text-foreground tabular-nums">
+                {invoice.currency} {Number(invoice.amount ?? 0).toLocaleString()}
+              </span>
+              <span className={`rounded px-2 py-0.5 text-[11px] font-medium ${badge.bg} ${badge.text}`}>
+                {badge.label}
+              </span>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Main Dashboard ─────────────────────────────────────────────────────────
 
 export function Dashboard({ userRole }: DashboardProps) {
   const { currentWorkspace, currentUser, workspaces, currentSubscription } = useOutletContext<{
@@ -40,20 +238,28 @@ export function Dashboard({ userRole }: DashboardProps) {
   const hasCompanyRole = workspaces?.some(w =>
     w.type === 'company' && ['Employee', 'Director', 'Accountant'].includes(w.role)
   );
-  const isAccountant    = workspaces?.some(w => w.role === 'Accountant');
-  const isPersonalOnly  = !hasCompanyRole && !isAccountant && currentWorkspace?.type === 'personal';
+  const isAccountant   = workspaces?.some(w => w.role === 'Accountant');
+  const isPersonalOnly = !hasCompanyRole && !isAccountant && currentWorkspace?.type === 'personal';
 
-  const [companyCode,    setCompanyCode]    = useState<string | null>(null);
-  const [stats,          setStats]          = useState<any>(null);
-  const [statsLoading,   setStatsLoading]   = useState(false);
+  const [companyCode, setCompanyCode] = useState<string | null>(null);
+  const [stats, setStats]             = useState<any>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // Use a ref to track the workspace ID that was last fetched
+  // This prevents re-fetching (and re-flickering) when unrelated state changes
+  const lastFetchedWorkspace = useRef<string | null>(null);
 
   useEffect(() => {
     if (!currentWorkspace?.id) return;
+    if (lastFetchedWorkspace.current === currentWorkspace.id) return;
+    lastFetchedWorkspace.current = currentWorkspace.id;
+
     setStats(null);
     setStatsLoading(true);
+
     api.get(`/workspaces/${currentWorkspace.id}/invoices/dashboard-stats`)
       .then(({ data }) => setStats(data.stats))
-      .catch((err) => console.error('Dashboard stats error:', err.response?.data ?? err.message))
+      .catch(() => {})
       .finally(() => setStatsLoading(false));
 
     if (currentWorkspace?.type === 'company') {
@@ -61,489 +267,217 @@ export function Dashboard({ userRole }: DashboardProps) {
         .then(({ data }) => setCompanyCode(data.company.code))
         .catch(() => {});
     }
-  }, [currentWorkspace?.id, currentWorkspace?.role]);
+  }, [currentWorkspace?.id]);
+
+  // Reset ref when workspace actually changes so re-fetch happens
+  useEffect(() => {
+    lastFetchedWorkspace.current = null;
+  }, [currentWorkspace?.id]);
 
   const [recentCompanies, setRecentCompanies] = useState<any[]>([]);
   useEffect(() => {
-    if (userRole === 'admin') {
-      api.get('/company')
-        .then(({ data }) => setRecentCompanies(data.companies.slice(0, 4)))
-        .catch(() => {});
-    }
+    if (userRole !== 'admin') return;
+    api.get('/company')
+      .then(({ data }) => setRecentCompanies(data.companies.slice(0, 4)))
+      .catch(() => {});
   }, [userRole]);
 
   const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
   useEffect(() => {
     if (!currentWorkspace?.id) return;
-    if (!['employee', 'accountant'].includes(userRole)) return;
+    const normalizedRole = userRole?.toLowerCase();
+    if (!['employee', 'accountant'].includes(normalizedRole)) return;
     const params: Record<string, any> = { limit: 5, page: 1 };
-    if (userRole === 'accountant') params.status = 'pending_review';
+    if (normalizedRole === 'accountant') params.status = 'pending_review';
     api.get(`/workspaces/${currentWorkspace.id}/invoices`, { params })
       .then(({ data }) => setRecentInvoices(data.invoices ?? []))
       .catch(() => {});
   }, [currentWorkspace?.id, userRole]);
 
-  // ── Sub-components ────────────────────────────────────────────────────────
+  // ── Stat helpers ───────────────────────────────────────────────────────────
 
-  const ACTION_CONFIG: Record<string, { label: string; dot: string }> = {
-    'invoice.created':        { label: 'Invoice created',     dot: '#3b82f6' },
-    'invoice.status_changed': { label: 'Status changed',      dot: '#f59e0b' },
-    'invoice.deleted':        { label: 'Invoice deleted',     dot: '#ef4444' },
-    'invoice.updated':        { label: 'Invoice updated',     dot: '#8b5cf6' },
-    'member.joined':          { label: 'Member joined',       dot: '#10b981' },
-    'member.left':            { label: 'Member removed',      dot: '#ef4444' },
-    'invitation.accepted':    { label: 'Invitation accepted', dot: '#10b981' },
-    'invitation.rejected':    { label: 'Invitation rejected', dot: '#ef4444' },
-    'company.updated':        { label: 'Company updated',     dot: '#3b82f6' },
-    'membership.expired':     { label: 'Membership expired',  dot: '#ef4444' },
-    'contract.renewed':       { label: 'Contract renewed',    dot: '#10b981' },
-  };
+  const S = (key: string, fallback = 0) => Number(stats?.[key] ?? fallback);
+  const sv = (v: number | string) => statsLoading ? undefined : v;
 
-  function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit?: number }) {
-    const [activity, setActivity]   = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-      if (!workspaceId) return;
-      api.get(`/workspaces/${workspaceId}/activity`, {
-        params: { limit },
-        headers: { 'x-workspace-id': workspaceId },
-      })
-        .then(({ data }) => setActivity(data.activity ?? []))
-        .catch(() => setActivity([]))
-        .finally(() => setIsLoading(false));
-    }, [workspaceId, limit]);
-
-    if (isLoading) {
-      return (
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className="shimmer-skeleton h-2 w-2 shrink-0 rounded-full" />
-              <div className="shimmer-skeleton h-4 flex-1 rounded-lg" />
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (activity.length === 0) {
-      return <p className="text-sm text-muted-foreground">No activity yet.</p>;
-    }
-
-    return (
-      <div className="space-y-3">
-        {activity.map((item: any) => {
-          const cfg = ACTION_CONFIG[item.action] ?? { label: item.action, dot: '#94a3b8' };
-          return (
-            <div key={item.id} className="flex items-start gap-3 group">
-              <div
-                className="mt-1.5 h-2 w-2 shrink-0 rounded-full ring-4 ring-transparent group-hover:ring-2 transition-all duration-200"
-                style={{ background: cfg.dot, boxShadow: `0 0 6px ${cfg.dot}60` }}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground">
-                  <span className="font-medium">{cfg.label}</span>
-                  {item.user_name && <span className="text-muted-foreground"> · {item.user_name}</span>}
-                  {item.metadata?.vendor_name && (
-                    <span className="text-muted-foreground"> · {item.metadata.vendor_name}</span>
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {new Date(item.created_at).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
-    draft:          { bg: 'bg-slate-100 dark:bg-slate-800',   text: 'text-slate-600 dark:text-slate-400',  label: 'Draft' },
-    pending_review: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-400',  label: 'Pending' },
-    approved:       { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', label: 'Approved' },
-    rejected:       { bg: 'bg-red-50 dark:bg-red-900/20',    text: 'text-red-700 dark:text-red-400',      label: 'Rejected' },
-  };
-
-  const InvoicePreview = ({ invoices, emptyMessage, uploadLink = true }: {
-    invoices: any[];
-    emptyMessage: string;
-    uploadLink?: boolean;
-  }) => {
-    if (invoices.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center py-10 text-center">
-          <div
-            className="flex h-16 w-16 items-center justify-center rounded-2xl mb-4"
-            style={{ background: ICON_GRADIENTS.blue, boxShadow: '0 8px 24px rgba(37,99,235,0.25)' }}
-          >
-            <Upload className="h-7 w-7 text-white" />
-          </div>
-          <p className="text-sm text-muted-foreground mb-4 max-w-xs">{emptyMessage}</p>
-          {uploadLink && (
-            <Link to="/dashboard/upload">
-              <Button size="sm" style={{ background: 'var(--gradient-brand)', border: 'none' }}>
-                <Upload className="mr-2 h-3.5 w-3.5" />
-                Upload Invoice
-              </Button>
-            </Link>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-2">
-        {invoices.map(invoice => {
-          const badge = STATUS_CONFIG[invoice.current_status] ?? {
-            bg: 'bg-slate-100 dark:bg-slate-800',
-            text: 'text-slate-600',
-            label: invoice.current_status,
-          };
-          return (
-            <Link
-              key={invoice.id}
-              to={`/dashboard/invoices/${invoice.id}`}
-              className="group flex items-center justify-between rounded-xl border border-border bg-background/50 p-3 transition-all duration-200 hover:border-primary/30 hover:bg-accent/30 hover:shadow-sm"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                  style={{ background: ICON_GRADIENTS.blue }}
-                >
-                  <FileText className="h-4 w-4 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">
-                    {invoice.vendor_name ?? 'Unknown Vendor'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {invoice.invoice_number ?? '—'} · {invoice.invoice_date
-                      ? new Date(invoice.invoice_date).toLocaleDateString()
-                      : new Date(invoice.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 ml-3">
-                <span className="text-sm font-semibold text-foreground">
-                  {invoice.currency} {Number(invoice.amount ?? 0).toLocaleString()}
-                </span>
-                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${badge.bg} ${badge.text}`}>
-                  {badge.label}
-                </span>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // ── Shared components ─────────────────────────────────────────────────────
-
-  const StatValue = ({ value }: { value: number | string }) => (
-    statsLoading
-      ? <div className="shimmer-skeleton mt-2 h-9 w-20 rounded-xl" />
-      : <p className="mt-1.5 text-3xl font-bold tracking-tight text-foreground">{value}</p>
-  );
-
-  const StatCard = ({
-    label, value, icon: Icon, gradient, delay = 0,
-  }: {
-    label: string;
-    value: React.ReactNode;
-    icon: React.ElementType;
-    gradient: GradientKey;
-    delay?: number;
-  }) => (
-    <div
-      className="card-premium animate-fade-up rounded-2xl p-5"
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <div className="flex items-start justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
-          {value}
-        </div>
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ml-3"
-          style={{ background: ICON_GRADIENTS[gradient], boxShadow: `0 6px 20px ${ICON_GRADIENTS[gradient].slice(22, 29)}40` }}
-        >
-          <Icon className="h-5 w-5 text-white" strokeWidth={2} />
-        </div>
-      </div>
-    </div>
-  );
-
-  const SectionHeader = ({ title, action }: { title: string; action?: React.ReactNode }) => (
-    <div className="flex items-center justify-between mb-5">
-      <h3 className="font-bold text-foreground tracking-tight">{title}</h3>
-      {action}
-    </div>
-  );
-
-  const ViewAllLink = ({ to, label = 'View all' }: { to: string; label?: string }) => (
-    <Link
-      to={to}
-      className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
-    >
-      {label} <ArrowRight className="h-3 w-3" />
-    </Link>
-  );
-
-  // ── Normal/Personal ────────────────────────────────────────────────────────
+  // ── Normal / Personal ──────────────────────────────────────────────────────
   const renderNormalUserDashboard = () => {
-    const totalInvoices = Number(stats?.total ?? 0);
-    const pending       = Number(stats?.pending ?? 0);
-    const processed     = Number(stats?.processed ?? 0);
-    const failed        = Number(stats?.failed ?? 0);
-    const totalAmount   = Number(stats?.total_amount ?? 0);
-
-    const invoiceLimit  = currentSubscription?.invoiceLimit ?? 0;
-    const invoiceUsed   = currentSubscription?.invoiceUsed ?? 0;
-    const usagePct      = invoiceLimit > 0 ? Math.min((invoiceUsed / invoiceLimit) * 100, 100) : 0;
-    const nearLimit     = invoiceLimit > 0 && (invoiceUsed / invoiceLimit) >= 0.8;
+    const invoiceLimit = currentSubscription?.invoiceLimit ?? 0;
+    const invoiceUsed  = currentSubscription?.invoiceUsed ?? 0;
+    const usagePct     = invoiceLimit > 0 ? Math.min((invoiceUsed / invoiceLimit) * 100, 100) : 0;
+    const nearLimit    = invoiceLimit > 0 && (invoiceUsed / invoiceLimit) >= 0.8;
 
     return (
       <>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Invoices" value={<StatValue value={totalInvoices} />} icon={FileText}    gradient="blue"   delay={0}   />
-          <StatCard label="OCR Processing" value={<StatValue value={pending} />}       icon={Clock}       gradient="yellow" delay={50}  />
-          <StatCard label="Total Amount"   value={<StatValue value={`$${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />} icon={DollarSign} gradient="green" delay={100} />
-          <div className="card-premium animate-fade-up rounded-2xl p-5" style={{ animationDelay: '150ms' }}>
-            <div className="flex items-start justify-between">
+          <StatCard label="Total Invoices" value={sv(S('total'))}   icon={FileText}   color="blue"   loading={statsLoading} />
+          <StatCard label="Processing"     value={sv(S('pending'))} icon={Clock}      color="yellow" loading={statsLoading} />
+          <StatCard label="Total Amount"   value={sv(`$${S('total_amount').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)} icon={DollarSign} color="green" loading={statsLoading} />
+          <div className="erp-card rounded-lg p-5">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Current Plan</p>
-                <p className="mt-1.5 text-3xl font-bold tracking-tight text-foreground">
-                  {currentSubscription?.plan ?? '—'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">${currentSubscription?.price ?? 0}/mo</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan</p>
+                <p className="mt-1.5 text-2xl font-semibold text-foreground">{currentSubscription?.plan ?? '—'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">${currentSubscription?.price ?? 0}/mo</p>
               </div>
-              <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ml-3"
-                style={{ background: ICON_GRADIENTS.purple, boxShadow: '0 6px 20px rgba(124,58,237,0.25)' }}
-              >
-                <CreditCard className="h-5 w-5 text-white" strokeWidth={2} />
-              </div>
+              <IconBox icon={CreditCard} color="purple" />
             </div>
           </div>
         </div>
 
-        {/* Plan usage */}
-        <div className="card-premium animate-fade-up-delay-2 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div className="erp-card rounded-lg p-5">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h3 className="font-bold text-foreground tracking-tight">Plan Usage</h3>
+              <h3 className="text-sm font-semibold text-foreground">Plan Usage</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {invoiceUsed} of {invoiceLimit === -1 ? '∞' : invoiceLimit} invoices used this month
+                {invoiceUsed} of {invoiceLimit === -1 ? 'Unlimited' : invoiceLimit} invoices this month
               </p>
             </div>
             {nearLimit && (
               <Link to="/dashboard/personal-subscription">
-                <Button size="sm" className="text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-900/20" variant="outline">
+                <Button size="sm" variant="outline" className="text-amber-600 border-amber-200 hover:bg-amber-50 dark:hover:bg-amber-900/20">
                   Upgrade
                 </Button>
               </Link>
             )}
           </div>
-          <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width: `${usagePct}%`,
-                background: nearLimit ? ICON_GRADIENTS.orange : ICON_GRADIENTS.blue,
-              }}
-            />
-          </div>
+          <Progress value={usagePct} className="h-2" />
           {nearLimit && (
-            <p className="text-xs text-orange-600 mt-2 font-medium">
-              {Math.round(usagePct)}% used — consider upgrading your plan.
-            </p>
+            <p className="text-xs text-amber-600 mt-2">{Math.round(usagePct)}% used — consider upgrading.</p>
           )}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className={`card-premium rounded-2xl p-5 ${!isPersonalOnly && !isAccountant ? 'lg:col-span-2' : ''}`}>
+          <div className={`erp-card rounded-lg p-5 ${!isPersonalOnly && !isAccountant ? 'lg:col-span-2' : ''}`}>
             <SectionHeader title="My Invoices" action={<ViewAllLink to="/dashboard/invoices" />} />
-            <div className="flex flex-col items-center justify-center py-6 text-center">
-              {totalInvoices === 0 ? (
-                <>
-                  <div
-                    className="flex h-16 w-16 items-center justify-center rounded-2xl mb-4"
-                    style={{ background: ICON_GRADIENTS.blue, boxShadow: '0 8px 24px rgba(37,99,235,0.25)' }}
-                  >
-                    <Upload className="h-7 w-7 text-white" />
+            {S('total') === 0 && !statsLoading ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <IconBox icon={Upload} color="blue" />
+                <p className="text-sm text-muted-foreground mt-3 mb-4">No invoices yet.</p>
+                <Link to="/dashboard/upload"><Button size="sm"><Upload className="mr-1.5 h-3.5 w-3.5" />Upload Invoice</Button></Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: S('pending'),   label: 'Processing', color: 'text-amber-600' },
+                  { value: S('processed'), label: 'Processed',  color: 'text-emerald-600' },
+                  { value: S('failed'),    label: 'Failed',     color: 'text-red-600' },
+                ].map(({ value, label, color }) => (
+                  <div key={label} className="rounded-md bg-muted/50 border border-border p-3 text-center">
+                    <p className={`text-2xl font-semibold tabular-nums ${color}`}>{value}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">No invoices yet. Upload your first invoice.</p>
-                  <Link to="/dashboard/upload">
-                    <Button size="sm" style={{ background: 'var(--gradient-brand)', border: 'none' }}>
-                      <Upload className="mr-2 h-3.5 w-3.5" /> Upload Invoice
-                    </Button>
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <div className="grid grid-cols-3 gap-4 w-full mb-5">
-                    {[
-                      { value: pending,   label: 'Processing', color: '#d97706' },
-                      { value: processed, label: 'Processed',  color: '#059669' },
-                      { value: failed,    label: 'Failed',     color: '#dc2626' },
-                    ].map(({ value, label, color }) => (
-                      <div key={label} className="rounded-xl bg-muted/50 p-3 text-center">
-                        <p className="text-2xl font-bold" style={{ color }}>{value}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <Link to="/dashboard/invoices">
-                    <Button size="sm" style={{ background: 'var(--gradient-brand)', border: 'none' }}>
-                      <FileText className="mr-2 h-3.5 w-3.5" /> View All Invoices
-                    </Button>
-                  </Link>
-                </>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
           {isPersonalOnly && <JoinCompany userRole="normal" />}
-          {isAccountant && <JoinCompany userRole="accountant" lockedRole />}
+          {isAccountant   && <JoinCompany userRole="accountant" lockedRole />}
         </div>
       </>
     );
   };
 
   // ── Employee ───────────────────────────────────────────────────────────────
-  const renderEmployeeDashboard = () => {
-    const total       = Number(stats?.total ?? 0);
-    const pending     = Number(stats?.pending ?? 0);
-    const approved    = Number(stats?.approved ?? 0);
-    const rejected    = Number(stats?.rejected ?? 0);
-    const totalAmount = Number(stats?.total_amount ?? 0);
+  const renderEmployeeDashboard = () => (
+    <>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total Uploaded"  value={sv(S('total'))}    icon={FileText}    color="blue"   loading={statsLoading} />
+        <StatCard label="Pending Review"  value={sv(S('pending'))}  icon={Clock}       color="yellow" loading={statsLoading} />
+        <StatCard label="Approved"        value={sv(S('approved'))} icon={CheckCircle2} color="green" loading={statsLoading} />
+        <StatCard label="Rejected"        value={sv(S('rejected'))} icon={XCircle}     color="red"    loading={statsLoading} />
+      </div>
 
-    return (
-      <>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Uploaded"  value={<StatValue value={total} />}    icon={FileText}    gradient="blue"   delay={0}   />
-          <StatCard label="Pending Review"  value={<StatValue value={pending} />}  icon={Clock}       gradient="yellow" delay={50}  />
-          <StatCard label="Approved"        value={<StatValue value={approved} />} icon={CheckCircle2} gradient="green" delay={100} />
-          <StatCard label="Rejected"        value={<StatValue value={rejected} />} icon={XCircle}     gradient="red"    delay={150} />
-        </div>
+      <div className="erp-card rounded-lg p-5">
+        <SectionHeader title="Recent Invoices" action={<ViewAllLink to="/dashboard/invoices" />} />
+        <InvoicePreview invoices={recentInvoices} emptyMessage="No invoices yet. Upload your first invoice." />
+      </div>
 
-        <div className="card-premium animate-fade-up-delay-2 rounded-2xl p-5">
-          <SectionHeader title="My Recent Invoices" action={<ViewAllLink to="/dashboard/invoices" />} />
-          <InvoicePreview
-            invoices={recentInvoices}
-            emptyMessage="No invoices yet. Upload your first invoice to get started."
-          />
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="card-premium rounded-2xl p-5">
-            <SectionHeader title="Quick Actions" />
-            <div className="space-y-2">
-              <Link to="/dashboard/upload" className="group flex items-center gap-3 rounded-xl border border-border p-3.5 transition-all duration-200 hover:border-primary/30 hover:bg-accent/30">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: ICON_GRADIENTS.blue }}>
-                  <Upload className="h-4 w-4 text-white" />
-                </div>
-                <span className="text-sm font-medium text-foreground">Upload New Invoice</span>
-                <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="erp-card rounded-lg p-5">
+          <SectionHeader title="Quick Actions" />
+          <div className="space-y-2">
+            {[
+              { to: '/dashboard/upload',   icon: Upload,    label: 'Upload New Invoice' },
+              { to: '/dashboard/invoices', icon: FileText,  label: 'View All Invoices'  },
+            ].map(({ to, icon: Icon, label }) => (
+              <Link key={to} to={to} className="flex items-center gap-3 rounded-md border border-border px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50">
+                <Icon className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+                {label}
+                <ArrowRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
               </Link>
-              <Link to="/dashboard/invoices" className="group flex items-center gap-3 rounded-xl border border-border p-3.5 transition-all duration-200 hover:border-primary/30 hover:bg-accent/30">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: ICON_GRADIENTS.indigo }}>
-                  <FileText className="h-4 w-4 text-white" />
-                </div>
-                <span className="text-sm font-medium text-foreground">View All Invoices</span>
-                <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            </div>
+            ))}
           </div>
+        </div>
 
-          <div className="card-premium rounded-2xl p-5">
-            <SectionHeader title="Invoice Summary" />
-            <div className="space-y-3">
-              {[
-                { label: 'Approved', value: approved, color: '#10b981', bar: ICON_GRADIENTS.green },
-                { label: 'Pending',  value: pending,  color: '#f59e0b', bar: ICON_GRADIENTS.yellow },
-                { label: 'Rejected', value: rejected, color: '#ef4444', bar: ICON_GRADIENTS.red },
-              ].map(({ label, value, color, bar }) => (
-                <div key={label} className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
-                    <span className="text-sm text-muted-foreground">{label}</span>
-                  </div>
-                  <span className="font-bold text-foreground">{value}</span>
+        <div className="erp-card rounded-lg p-5">
+          <SectionHeader title="Summary" />
+          <div className="space-y-3">
+            {[
+              { label: 'Approved', value: S('approved'), color: 'bg-emerald-500' },
+              { label: 'Pending',  value: S('pending'),  color: 'bg-amber-500' },
+              { label: 'Rejected', value: S('rejected'), color: 'bg-red-500' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${color}`} />
+                  <span className="text-sm text-muted-foreground">{label}</span>
                 </div>
-              ))}
-              <div className="my-1 h-px bg-border" />
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Total Amount</span>
-                <span className="text-lg font-bold text-foreground">
-                  ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+                <span className="text-sm font-semibold tabular-nums text-foreground">{value}</span>
               </div>
+            ))}
+            <div className="pt-2 border-t border-border flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Total Amount</span>
+              <span className="text-base font-semibold tabular-nums text-foreground">
+                ${S('total_amount').toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </span>
             </div>
           </div>
         </div>
-      </>
-    );
-  };
+      </div>
+    </>
+  );
 
   // ── Accountant ─────────────────────────────────────────────────────────────
   const renderAccountantDashboard = () => {
-    const pendingValidation = Number(stats?.pending_validation ?? 0);
-    const validatedToday    = Number(stats?.validated_today ?? 0);
-    const approved          = Number(stats?.approved ?? 0);
-    const rejected          = Number(stats?.rejected ?? 0);
-    const approvalRate = approved + rejected > 0
-      ? Math.round((approved / (approved + rejected)) * 100)
-      : 0;
+    const approved     = S('approved');
+    const rejected     = S('rejected');
+    const approvalRate = approved + rejected > 0 ? Math.round((approved / (approved + rejected)) * 100) : 0;
 
     return (
       <>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Pending Validation" value={<StatValue value={pendingValidation} />} icon={Clock}        gradient="orange" delay={0}   />
-          <StatCard label="Validated Today"    value={<StatValue value={validatedToday} />}   icon={CheckCircle2} gradient="purple" delay={50}  />
-          <StatCard label="Total Approved"     value={<StatValue value={approved} />}         icon={CheckCircle2} gradient="green"  delay={100} />
-          <StatCard label="Rejected"           value={<StatValue value={rejected} />}         icon={XCircle}      gradient="red"    delay={150} />
+          <StatCard label="Pending Validation" value={sv(S('pending_validation'))} icon={Clock}        color="orange" loading={statsLoading} />
+          <StatCard label="Validated Today"    value={sv(S('validated_today'))}   icon={CheckCircle2} color="purple" loading={statsLoading} />
+          <StatCard label="Approved"           value={sv(approved)}               icon={CheckCircle2} color="green"  loading={statsLoading} />
+          <StatCard label="Rejected"           value={sv(rejected)}               icon={XCircle}      color="red"    loading={statsLoading} />
         </div>
 
-        <div className="card-premium animate-fade-up-delay-2 rounded-2xl p-5">
+        <div className="erp-card rounded-lg p-5">
           <SectionHeader
-            title="Invoices to Validate"
-            action={<ViewAllLink to="/dashboard/invoices?status=pending_review" label={`${pendingValidation} pending`} />}
+            title="Invoices Pending Validation"
+            action={<ViewAllLink to="/dashboard/invoices?status=pending_review" label={`${S('pending_validation')} pending`} />}
           />
-          <p className="text-xs text-muted-foreground -mt-3 mb-4">
-            {pendingValidation} invoice{pendingValidation !== 1 ? 's' : ''} awaiting your review
-          </p>
-          <InvoicePreview
-            invoices={recentInvoices}
-            emptyMessage="All caught up! No invoices pending validation."
-            uploadLink={false}
-          />
+          <InvoicePreview invoices={recentInvoices} emptyMessage="All caught up — no invoices pending validation." uploadLink={false} />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="card-premium rounded-2xl p-5">
+          <div className="erp-card rounded-lg p-5">
             <SectionHeader title="Recent Activity" />
             <RecentActivity workspaceId={currentWorkspace.id} limit={5} />
           </div>
 
-          <div className="card-premium rounded-2xl p-5">
+          <div className="erp-card rounded-lg p-5">
             <SectionHeader title="Validation Stats" />
-            <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">
-                <span className="text-sm text-muted-foreground">Total Validated</span>
-                <span className="text-2xl font-bold text-foreground">{approved + rejected}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3">
-                <span className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">Approval Rate</span>
-                <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{approvalRate}%</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">
-                <span className="text-sm text-muted-foreground">Avg. Review Time</span>
-                <span className="text-2xl font-bold text-foreground">—</span>
-              </div>
+            <div className="space-y-2.5">
+              {[
+                { label: 'Total Validated', value: approved + rejected, highlight: false },
+                { label: 'Approval Rate',   value: `${approvalRate}%`,  highlight: true  },
+              ].map(({ label, value, highlight }) => (
+                <div key={label} className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2.5">
+                  <span className="text-sm text-muted-foreground">{label}</span>
+                  <span className={`text-xl font-semibold tabular-nums ${highlight ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>{value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -555,111 +489,87 @@ export function Dashboard({ userRole }: DashboardProps) {
 
   // ── Director ───────────────────────────────────────────────────────────────
   const renderDirectorDashboard = () => {
-    const total        = Number(stats?.total ?? 0);
-    const approved     = Number(stats?.approved ?? 0);
-    const rejected     = Number(stats?.rejected ?? 0);
-    const pending      = Number(stats?.pending ?? 0);
-    const totalAmount  = Number(stats?.total_amount ?? 0);
-    const approvalRate = Number(stats?.approval_rate ?? 0);
-    const totalMembers = Number(stats?.total_members ?? 0);
+    const total    = S('total');
+    const approved = S('approved');
+    const rejected = S('rejected');
+    const pending  = S('pending');
 
     return (
       <>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Invoices"        value={<StatValue value={total} />}             icon={FileText}    gradient="blue"   delay={0}   />
-          <StatCard label="Approved Amount"        value={<StatValue value={`$${totalAmount.toLocaleString()}`} />} icon={DollarSign} gradient="green" delay={50} />
-          <StatCard label="Approval Rate"          value={<StatValue value={`${approvalRate}%`} />} icon={CheckCircle2} gradient="purple" delay={100} />
-          <StatCard label="Active Members"         value={<StatValue value={totalMembers} />}     icon={Users}       gradient="orange" delay={150} />
+          <StatCard label="Total Invoices"  value={sv(total)}                   icon={FileText}    color="blue"   loading={statsLoading} />
+          <StatCard label="Approved Amount" value={sv(`$${S('total_amount').toLocaleString()}`)} icon={DollarSign} color="green" loading={statsLoading} />
+          <StatCard label="Approval Rate"   value={sv(`${S('approval_rate')}%`)} icon={TrendingUp}  color="purple" loading={statsLoading} />
+          <StatCard label="Team Members"    value={sv(S('total_members'))}       icon={Users}       color="orange" loading={statsLoading} />
         </div>
 
-        {/* Enterprise overview */}
-        <div className="card-premium animate-fade-up-delay-2 rounded-2xl p-5">
-          <div className="mb-5 flex items-start justify-between">
+        {/* Overview panel */}
+        <div className="erp-card rounded-lg p-5">
+          <div className="flex items-start justify-between mb-5">
             <div>
-              <h3 className="font-bold text-foreground tracking-tight">Enterprise Overview</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">All invoices across your organization</p>
+              <h3 className="text-sm font-semibold text-foreground">Organisation Overview</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Invoice activity across all employees</p>
             </div>
             <div className="flex gap-2">
               <Link to="/dashboard/team">
-                <Button variant="outline" size="sm" className="text-xs gap-1.5">
-                  <Users className="h-3.5 w-3.5" /> Manage Team
-                </Button>
+                <Button variant="outline" size="sm"><Users className="mr-1.5 h-3.5 w-3.5" />Team</Button>
               </Link>
               <Link to="subscription">
-                <Button variant="outline" size="sm" className="text-xs">Subscription</Button>
+                <Button variant="outline" size="sm">Subscription</Button>
               </Link>
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3 mb-5">
+          <div className="grid gap-3 md:grid-cols-3 mb-4">
             {[
-              { icon: FileText,    label: 'Total Invoices', value: total,    sub: 'Across all employees', gradient: ICON_GRADIENTS.blue,   bg: 'bg-blue-50 dark:bg-blue-950/30' },
-              { icon: CheckCircle2, label: 'Approved',      value: approved, sub: `${total > 0 ? Math.round((approved / total) * 100) : 0}% of total`, gradient: ICON_GRADIENTS.green,  bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
-              { icon: XCircle,     label: 'Rejected',       value: rejected, sub: 'Needs attention',       gradient: ICON_GRADIENTS.orange, bg: 'bg-orange-50 dark:bg-orange-950/30' },
-            ].map(({ icon: Icon, label, value, sub, gradient, bg }) => (
-              <div key={label} className={`flex items-center gap-3 rounded-xl p-4 ${bg}`}>
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: gradient }}>
-                  <Icon className="h-5 w-5 text-white" strokeWidth={2} />
-                </div>
+              { icon: FileText,    label: 'Total',    value: total,    sub: 'All employees',     color: 'blue' },
+              { icon: CheckCircle2, label: 'Approved', value: approved, sub: `${total > 0 ? Math.round((approved / total) * 100) : 0}% of total`, color: 'green' },
+              { icon: XCircle,     label: 'Rejected', value: rejected, sub: 'Needs attention',  color: 'red' },
+            ].map(({ icon, label, value, sub, color }) => (
+              <div key={label} className="flex items-center gap-3 rounded-md border border-border p-4">
+                <IconBox icon={icon} color={color} />
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                  <p className="text-2xl font-bold text-foreground">{value}</p>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="text-2xl font-semibold tabular-nums text-foreground">{value}</p>
                   <p className="text-xs text-muted-foreground">{sub}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="rounded-xl border border-border p-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Pending Invoices</p>
-            {pending > 0 ? (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: ICON_GRADIENTS.yellow }}>
-                    <Clock className="h-4 w-4 text-white" />
-                  </div>
-                  <span className="text-sm font-medium text-foreground">
-                    {pending} invoice{pending !== 1 ? 's' : ''} awaiting review
-                  </span>
-                </div>
-                <Link to="/dashboard/invoices?status=pending_review">
-                  <Button size="sm" variant="outline" className="text-xs gap-1">
-                    Review <ArrowRight className="h-3 w-3" />
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No pending invoices. All caught up!</p>
+          <div className="rounded-md border border-border p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Clock className="h-4 w-4 text-amber-500" />
+              <span className="text-sm text-foreground">
+                {pending > 0 ? `${pending} invoice${pending !== 1 ? 's' : ''} awaiting review` : 'No pending invoices'}
+              </span>
+            </div>
+            {pending > 0 && (
+              <Link to="/dashboard/invoices?status=pending_review">
+                <Button size="sm" variant="outline" className="text-xs">Review <ArrowRight className="ml-1 h-3 w-3" /></Button>
+              </Link>
             )}
           </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-4">
-          {/* Status breakdown */}
-          <div className="card-premium rounded-2xl p-5 lg:col-span-2">
-            <SectionHeader title="Invoice Status Breakdown" action={<ViewAllLink to="/dashboard/reports" label="Reports" />} />
-            {total === 0 ? (
-              <p className="text-sm text-muted-foreground">No data yet.</p>
-            ) : (
-              <div className="space-y-4">
+          <div className="erp-card rounded-lg p-5 lg:col-span-2">
+            <SectionHeader title="Status Breakdown" action={<ViewAllLink to="/dashboard/reports" label="Reports" />} />
+            {total === 0 ? <p className="text-xs text-muted-foreground">No data yet.</p> : (
+              <div className="space-y-3">
                 {[
-                  { label: 'Approved', value: approved, gradient: ICON_GRADIENTS.green  },
-                  { label: 'Pending',  value: pending,  gradient: ICON_GRADIENTS.yellow },
-                  { label: 'Rejected', value: rejected, gradient: ICON_GRADIENTS.red    },
-                ].map(({ label, value, gradient }) => (
+                  { label: 'Approved', value: approved, color: 'bg-emerald-500' },
+                  { label: 'Pending',  value: pending,  color: 'bg-amber-500' },
+                  { label: 'Rejected', value: rejected, color: 'bg-red-500' },
+                ].map(({ label, value, color }) => (
                   <div key={label}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm text-muted-foreground">{label}</span>
-                      <span className="text-sm font-semibold text-foreground">{value}</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                      <span className="text-xs font-semibold text-foreground tabular-nums">{value}</span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{
-                          width: total > 0 ? `${(value / total) * 100}%` : '0%',
-                          background: gradient,
-                        }}
-                      />
+                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div className={`h-full rounded-full ${color} transition-all duration-500`}
+                        style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%' }} />
                     </div>
                   </div>
                 ))}
@@ -667,37 +577,22 @@ export function Dashboard({ userRole }: DashboardProps) {
             )}
           </div>
 
-          {/* Recent Activity */}
-          <div className="card-premium rounded-2xl p-5">
+          <div className="erp-card rounded-lg p-5">
             <SectionHeader title="Recent Activity" action={<ViewAllLink to="/dashboard/history" />} />
             <RecentActivity workspaceId={currentWorkspace.id} limit={4} />
           </div>
 
-          {/* Company code */}
-          <div className="card-premium rounded-2xl p-5">
+          <div className="erp-card rounded-lg p-5">
             <SectionHeader title="Company Code" />
-            <p className="text-xs text-muted-foreground -mt-3 mb-4">Share with new team members</p>
-            <div
-              className="rounded-xl p-4 text-center mb-3"
-              style={{ background: 'var(--gradient-brand)' }}
-            >
-              <p className="text-xs font-semibold text-white/70 mb-1">Your Code</p>
-              <p className="text-2xl font-extrabold tracking-[0.25em] text-white" style={{ fontFamily: "'Syne', sans-serif" }}>
-                {companyCode ?? '···'}
+            <p className="text-xs text-muted-foreground -mt-2 mb-3">Share to invite team members</p>
+            <div className="rounded-md border border-border bg-muted/30 p-3 text-center mb-3">
+              <p className="text-xs text-muted-foreground mb-1">Code</p>
+              <p className="text-xl font-bold tracking-[0.2em] text-foreground font-mono">
+                {companyCode ?? '———'}
               </p>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full text-xs"
-              disabled={!companyCode}
-              onClick={() => {
-                if (companyCode) {
-                  navigator.clipboard.writeText(companyCode);
-                  toast.success('Company code copied!');
-                }
-              }}
-            >
+            <Button size="sm" variant="outline" className="w-full text-xs" disabled={!companyCode}
+              onClick={() => { if (companyCode) { navigator.clipboard.writeText(companyCode); toast.success('Copied!'); } }}>
               Copy Code
             </Button>
           </div>
@@ -708,82 +603,68 @@ export function Dashboard({ userRole }: DashboardProps) {
 
   // ── Admin ──────────────────────────────────────────────────────────────────
   const renderAdminDashboard = () => {
-    const totalUsers     = Number(stats?.total_users ?? 0);
-    const totalCompanies = Number(stats?.total_companies ?? 0);
-    const totalInvoices  = Number(stats?.total_invoices ?? 0);
-    const roleCounts     = stats?.role_counts ?? {};
-
+    const roleCounts = stats?.role_counts ?? {};
     return (
       <>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Users"     value={<StatValue value={totalUsers} />}     icon={Users}    gradient="blue"   delay={0}   />
-          <StatCard label="Total Companies" value={<StatValue value={totalCompanies} />} icon={Building2} gradient="purple" delay={50}  />
-          <StatCard label="Total Invoices"  value={<StatValue value={totalInvoices} />}  icon={FileText}  gradient="green"  delay={100} />
-          <div className="card-premium animate-fade-up rounded-2xl p-5" style={{ animationDelay: '150ms' }}>
-            <div className="flex items-start justify-between">
+          <StatCard label="Total Users"     value={sv(S('total_users'))}     icon={Users}    color="blue"   loading={statsLoading} />
+          <StatCard label="Total Companies" value={sv(S('total_companies'))} icon={Building2} color="purple" loading={statsLoading} />
+          <StatCard label="Total Invoices"  value={sv(S('total_invoices'))}  icon={FileText}  color="green"  loading={statsLoading} />
+          <div className="erp-card rounded-lg p-5">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Platform Health</p>
-                <p className="mt-1.5 text-3xl font-bold tracking-tight text-emerald-500">99.9%</p>
-                <p className="text-xs text-muted-foreground mt-1">Uptime</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Platform Health</p>
+                <p className="mt-1.5 text-2xl font-semibold text-emerald-600 dark:text-emerald-400">99.9%</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Uptime</p>
               </div>
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ml-3" style={{ background: ICON_GRADIENTS.teal, boxShadow: '0 6px 20px rgba(13,148,136,0.25)' }}>
-                <Shield className="h-5 w-5 text-white" strokeWidth={2} />
-              </div>
+              <IconBox icon={Shield} color="green" />
             </div>
           </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          {/* Recent companies */}
-          <div className="card-premium rounded-2xl p-5">
+          <div className="erp-card rounded-lg p-5">
             <SectionHeader title="Recent Companies" action={<ViewAllLink to="/dashboard/companies" />} />
-            {recentCompanies.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No companies yet.</p>
-            ) : (
-              <div className="space-y-2">
+            {recentCompanies.length === 0 ? <p className="text-xs text-muted-foreground">No companies yet.</p> : (
+              <div className="space-y-1.5">
                 {recentCompanies.map(company => (
-                  <div key={company.id} className="flex items-center justify-between rounded-xl border border-border p-3 hover:border-primary/30 hover:bg-accent/20 transition-all duration-200">
+                  <div key={company.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
                     <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold text-white"
-                        style={{ background: ICON_GRADIENTS.blue }}
-                      >
+                      <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-xs font-bold text-primary-foreground">
                         {company.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-foreground">{company.name}</p>
+                        <p className="text-sm font-medium text-foreground">{company.name}</p>
                         <p className="text-xs text-muted-foreground">{company.member_count} members</p>
                       </div>
                     </div>
-                    <code className="text-xs font-bold tracking-wider text-primary">{company.code}</code>
+                    <code className="text-xs font-mono font-semibold text-primary">{company.code}</code>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Recent activity */}
-          <div className="card-premium rounded-2xl p-5">
+          <div className="erp-card rounded-lg p-5">
             <SectionHeader title="Recent Activity" action={<ViewAllLink to="/dashboard/history" />} />
             <RecentActivity workspaceId={currentWorkspace.id} limit={5} />
           </div>
 
-          {/* User distribution */}
-          <div className="card-premium rounded-2xl p-5 lg:col-span-2">
+          <div className="erp-card rounded-lg p-5 lg:col-span-2">
             <SectionHeader title="User Distribution" />
             <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
               {[
-                { label: 'Directors',   key: 'director',   gradient: ICON_GRADIENTS.orange, bg: 'bg-orange-50 dark:bg-orange-950/30' },
-                { label: 'Employees',   key: 'employee',   gradient: ICON_GRADIENTS.blue,   bg: 'bg-blue-50 dark:bg-blue-950/30' },
-                { label: 'Accountants', key: 'accountant', gradient: ICON_GRADIENTS.green,  bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
-                { label: 'Personal',    key: 'personal',   gradient: ICON_GRADIENTS.indigo, bg: 'bg-indigo-50 dark:bg-indigo-950/30' },
-              ].map(({ label, key, gradient, bg }) => (
-                <div key={key} className={`rounded-xl p-4 ${bg}`}>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg mb-2" style={{ background: gradient }}>
-                    <Users className="h-4 w-4 text-white" strokeWidth={2} />
+                { label: 'Directors',   key: 'director',   color: 'orange' },
+                { label: 'Employees',   key: 'employee',   color: 'blue' },
+                { label: 'Accountants', key: 'accountant', color: 'green' },
+                { label: 'Personal',    key: 'personal',   color: 'slate' },
+              ].map(({ label, key, color }) => (
+                <div key={key} className="erp-card rounded-md p-4 flex items-center gap-3">
+                  <IconBox icon={Users} color={color} />
+                  <div>
+                    <p className="text-xl font-semibold tabular-nums text-foreground">{roleCounts[key] ?? 0}</p>
+                    <p className="text-xs text-muted-foreground">{label}</p>
                   </div>
-                  <p className="text-2xl font-bold text-foreground">{roleCounts[key] ?? 0}</p>
-                  <p className="text-xs font-medium text-muted-foreground mt-0.5">{label}</p>
                 </div>
               ))}
             </div>
@@ -793,25 +674,22 @@ export function Dashboard({ userRole }: DashboardProps) {
     );
   };
 
-  // ── Page ──────────────────────────────────────────────────────────────────
+  // ── Page subtitle ──────────────────────────────────────────────────────────
   const PAGE_SUBTITLE: Record<string, string> = {
     employee:   'Upload and track your invoices',
     accountant: 'Review and validate pending invoices',
-    director:   'Overview of invoice management and analytics',
-    admin:      'System overview and administration',
+    director:   'Invoice management and organisation overview',
+    admin:      'Platform administration',
     normal:     'Personal invoice management',
   };
 
   return (
-    <div className="space-y-5">
-      <div className="animate-fade-up">
-        <h1
-          className="text-2xl font-extrabold tracking-tight text-foreground"
-          style={{ fontFamily: "'Syne', sans-serif" }}
-        >
-          Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{PAGE_SUBTITLE[userRole] ?? ''}</p>
+    // page-enter fires once when the component mounts — not on every re-render
+    // because the animation is CSS-driven and doesn't reset on state updates
+    <div className="space-y-5 page-enter">
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">{PAGE_SUBTITLE[userRole] ?? ''}</p>
       </div>
 
       {userRole === 'employee'   && renderEmployeeDashboard()}
