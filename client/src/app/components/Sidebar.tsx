@@ -53,10 +53,16 @@ export function Sidebar({ currentWorkspace }: SidebarProps) {
     <aside className="flex h-screen w-60 flex-col bg-sidebar border-r border-sidebar-border">
       {/* ── Logo ── */}
       <div className="flex h-16 items-center gap-3 px-4 shrink-0 border-b border-sidebar-border">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+          style={{ background: 'var(--gradient-brand)', boxShadow: '0 4px 12px rgba(88,101,242,0.4)' }}
+        >
           <Zap className="h-4 w-4 text-white" strokeWidth={2.5} />
         </div>
-        <span className="text-base font-bold tracking-tight text-sidebar-foreground">
+        <span
+          className="text-base font-bold tracking-tight text-sidebar-foreground"
+          style={{ fontFamily: "'Syne', sans-serif" }}
+        >
           EasyFact
         </span>
       </div>
@@ -70,10 +76,10 @@ export function Sidebar({ currentWorkspace }: SidebarProps) {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 ${
+              className={`flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium transition-colors duration-150 ${
                 active
-                  ? 'bg-primary/10 text-primary dark:bg-primary/20'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  ? 'border-primary bg-primary/10 text-primary dark:bg-primary/20'
+                  : 'border-transparent text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               }`}
             >
               <Icon

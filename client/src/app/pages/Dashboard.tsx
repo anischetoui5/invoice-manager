@@ -41,20 +41,23 @@ const ACTION_CONFIG: Record<string, { label: string; dot: string }> = {
 
 // ── Shared UI primitives ───────────────────────────────────────────────────
 
-// Flat icon container — replaces gradient bubbles
 function IconBox({ icon: Icon, color }: { icon: React.ElementType; color: string }) {
-  const colorMap: Record<string, string> = {
-    blue:   'bg-blue-50   dark:bg-blue-950/40  text-blue-600   dark:text-blue-400',
-    green:  'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400',
-    yellow: 'bg-amber-50  dark:bg-amber-950/40  text-amber-600  dark:text-amber-400',
-    red:    'bg-red-50    dark:bg-red-950/40    text-red-600    dark:text-red-400',
-    purple: 'bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400',
-    orange: 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400',
-    slate:  'bg-slate-100 dark:bg-slate-800     text-slate-600  dark:text-slate-400',
+  const styleMap: Record<string, { background: string; boxShadow: string }> = {
+    blue:   { background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)', boxShadow: '0 4px 12px rgba(29,78,216,0.35)' },
+    green:  { background: 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)', boxShadow: '0 4px 12px rgba(22,163,74,0.35)' },
+    yellow: { background: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)', boxShadow: '0 4px 12px rgba(217,119,6,0.35)' },
+    red:    { background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)', boxShadow: '0 4px 12px rgba(220,38,38,0.35)' },
+    purple: { background: 'linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)', boxShadow: '0 4px 12px rgba(124,58,237,0.35)' },
+    orange: { background: 'linear-gradient(135deg, #ea580c 0%, #fb923c 100%)', boxShadow: '0 4px 12px rgba(234,88,12,0.35)' },
+    slate:  { background: 'linear-gradient(135deg, #475569 0%, #94a3b8 100%)', boxShadow: '0 4px 12px rgba(71,85,105,0.25)' },
   };
+  const s = styleMap[color] ?? styleMap.slate;
   return (
-    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${colorMap[color] ?? colorMap.slate}`}>
-      <Icon className="h-5 w-5" strokeWidth={1.75} />
+    <div
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+      style={s}
+    >
+      <Icon className="h-5 w-5 text-white" strokeWidth={2} />
     </div>
   );
 }
