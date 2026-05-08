@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import {
   Search, Filter, Download, Eye, Loader2, Trash2, X,
   ArrowUpDown, ArrowUp, ArrowDown, FileX, AlertTriangle,
@@ -175,18 +175,20 @@ function sortInvoices(invoices: Invoice[], key: SortKey | null, dir: SortDir): I
 export function InvoiceList() {
   const { currentWorkspace, currentUser } = useOutletContext<{ currentWorkspace: Workspace; currentUser: User }>();
   const { isLocked } = useSubscriptionGuard();
+  const [searchParams] = useSearchParams();
 
-  const [invoices, setInvoices]         = useState<Invoice[]>([]);
-  const [total, setTotal]               = useState(0);
-  const [page, setPage]                 = useState(1);
-  const [isLoading, setIsLoading]       = useState(true);
-  const [error, setError]               = useState<string | null>(null);
-  const [searchQuery, setSearchQuery]   = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
-  const [deleting, setDeleting]         = useState(false);
-  const [sortKey, setSortKey]           = useState<SortKey | null>(null);
-  const [sortDir, setSortDir]           = useState<SortDir>('asc');
+  const [invoices, setInvoices]               = useState<Invoice[]>([]);
+  const [total, setTotal]                     = useState(0);
+  const [page, setPage]                       = useState(1);
+  const [isLoading, setIsLoading]             = useState(true);
+  const [error, setError]                     = useState<string | null>(null);
+  const [searchInput, setSearchInput]         = useState(() => searchParams.get('q') ?? '');
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('q') ?? '');
+  const [statusFilter, setStatusFilter]       = useState('all');
+  const [deleteTarget, setDeleteTarget]       = useState<Invoice | null>(null);
+  const [deleting, setDeleting]               = useState(false);
+  const [sortKey, setSortKey]                 = useState<SortKey | null>(null);
+  const [sortDir, setSortDir]                 = useState<SortDir>('asc');
 
   const limit   = 20;
   const isAdmin = currentWorkspace?.role === 'Admin';
@@ -205,13 +207,21 @@ export function InvoiceList() {
   };
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
     if (!currentWorkspace?.id) return;
     const fetch = async () => {
       setIsLoading(true); setError(null);
       try {
         const params: Record<string, any> = { role, page, limit };
         if (statusFilter !== 'all') params.status = statusFilter;
-        if (searchQuery.trim()) params.vendor_name = searchQuery.trim();
+        if (debouncedSearch.trim()) params.vendor_name = debouncedSearch.trim();
         const { data } = isAdmin
           ? await api.get('/invoices', { params })
           : await api.get(`/workspaces/${currentWorkspace.id}/invoices`, { params });
@@ -224,12 +234,7 @@ export function InvoiceList() {
       }
     };
     fetch();
-  }, [currentWorkspace?.id, role, page, statusFilter]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setPage(1), 400);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [currentWorkspace?.id, role, page, statusFilter, debouncedSearch]);
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
@@ -248,7 +253,7 @@ export function InvoiceList() {
   };
 
   const totalPages        = Math.ceil(total / limit);
-  const hasFilters        = statusFilter !== 'all' || searchQuery.trim() !== '';
+  const hasFilters        = statusFilter !== 'all' || debouncedSearch.trim() !== '';
   const displayedInvoices = sortInvoices(invoices, sortKey, sortDir);
 
   return (
@@ -281,8 +286,8 @@ export function InvoiceList() {
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by vendor name..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
               className="pl-9 h-9"
             />
           </div>

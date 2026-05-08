@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface TopBarProps {
@@ -42,6 +42,13 @@ export function TopBar({
   const [searchQuery, setSearchQuery] = useState('');
   const [currentEnterpriseId, setCurrentEnterpriseId] = useState(user.enterpriseId);
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || !searchQuery.trim()) return;
+    navigate(`/dashboard/invoices?q=${encodeURIComponent(searchQuery.trim())}`);
+    setSearchQuery('');
+  };
 
   const userEnterprises = user.role === 'accountant' && user.enterpriseIds
     ? (enterprises ?? []).filter(ent => user.enterpriseIds?.includes(ent.id))
@@ -76,9 +83,10 @@ export function TopBar({
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search invoices, vendors…"
+            placeholder="Search invoices, vendors… ↵"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearch}
             className="h-9 w-full rounded-lg border border-border bg-input-background py-2 pl-9 pr-4 text-sm placeholder:text-muted-foreground/60 transition-colors focus:border-primary focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
