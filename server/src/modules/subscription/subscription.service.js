@@ -207,7 +207,11 @@ const upgradePlan = async (userId, workspaceId, planId) => {
   const current = existing.rows[0];
 
   // Block same-plan "upgrade" only when subscription is still active
-  if (current.plan_id === planId && !['expired', 'cancelled'].includes(current.status)) {
+  const isActuallyExpired =
+    ['expired', 'cancelled'].includes(current.status) ||
+    (current.current_period_end && new Date(current.current_period_end) < new Date());
+
+  if (current.plan_id === planId && !isActuallyExpired) {
     throw new Error('You are already on this plan');
   }
 
