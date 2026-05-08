@@ -35,14 +35,10 @@ export function NotificationsPanel({
 
   const getBgColor = (type: Notification['type']) => {
     switch (type) {
-      case 'success':
-        return 'bg-green-50';
-      case 'warning':
-        return 'bg-orange-50';
-      case 'error':
-        return 'bg-red-50';
-      default:
-        return 'bg-blue-50';
+      case 'success': return 'bg-green-50 dark:bg-green-950/40';
+      case 'warning': return 'bg-orange-50 dark:bg-orange-950/40';
+      case 'error':   return 'bg-red-50 dark:bg-red-950/40';
+      default:        return 'bg-blue-50 dark:bg-blue-950/40';
     }
   };
 
@@ -74,7 +70,7 @@ export function NotificationsPanel({
           <div className="border-b p-4">
             <button
               onClick={onMarkAllAsRead}
-              className="text-sm font-medium text-blue-600 hover:text-blue-700"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
             >
               Mark all as read
             </button>
@@ -84,7 +80,7 @@ export function NotificationsPanel({
         <div className="flex-1 overflow-y-auto">
           {notifications.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center p-4 text-center">
-              <Info className="h-12 w-12 text-slate-300" />
+              <Info className="h-12 w-12 text-muted-foreground/30" />
               <p className="mt-2 text-sm text-muted-foreground">No notifications yet</p>
             </div>
           ) : (
@@ -92,8 +88,8 @@ export function NotificationsPanel({
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 transition-colors hover:bg-background ${
-                    !notification.read ? 'bg-blue-50/30' : ''
+                  className={`p-4 transition-colors hover:bg-muted/30 ${
+                    !notification.read ? 'bg-blue-50/30 dark:bg-blue-950/20' : ''
                   }`}
                   onClick={() => !notification.read && onMarkAsRead(notification.id)}
                 >
@@ -114,7 +110,7 @@ export function NotificationsPanel({
                         {notification.message}
                       </p>
                       <div className="mt-2 flex items-center justify-between">
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(notification.timestamp), {
                             addSuffix: true,
                           })}
@@ -123,7 +119,7 @@ export function NotificationsPanel({
                           <Link
                             to={notification.actionUrl}
                             onClick={onClose}
-                            className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                            className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                           >
                             View
                           </Link>

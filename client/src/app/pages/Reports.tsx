@@ -288,8 +288,8 @@ function ExportDropdown({ data, period, isPersonal }: { data: any; period: strin
       {open && (
         <div style={{
           position: 'absolute', right: 0, top: 'calc(100% + 6px)',
-          background: 'white', border: '1px solid #e2e8f0',
-          borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: '12px', boxShadow: 'var(--shadow-md)',
           minWidth: '180px', zIndex: 50, overflow: 'hidden',
           animation: 'fadeSlideUp 0.15s ease',
         }}>
@@ -299,11 +299,11 @@ function ExportDropdown({ data, period, isPersonal }: { data: any; period: strin
               width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
               padding: '10px 16px', background: 'none', border: 'none',
               cursor: 'pointer', fontSize: '13.5px', fontFamily: 'inherit',
-              color: '#1e293b', textAlign: 'left',
-              borderTop: i > 0 ? '1px solid #f1f5f9' : 'none',
+              color: 'var(--foreground)', textAlign: 'left',
+              borderTop: i > 0 ? '1px solid var(--border)' : 'none',
               transition: 'background 0.15s',
             }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}
             >
               {opt.icon} {opt.label}
