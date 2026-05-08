@@ -14,6 +14,7 @@ const invitationsRoutes = require('./modules/invitations/invitations.routes');
 const notificationsRoutes = require('./modules/notifications/notifications.routes');
 const activityRoutes = require('./modules/activity/activity.routes');
 const aiRoutes = require('./modules/ai/ai.routes');
+const chatRoutes = require('./modules/chat/chat.routes');
 const { getAllInvoices } = require('./modules/invoices/invoices.controller');
 const { authenticate, authorizeAdmin } = require('./middlewares/auth.middleware');
 
@@ -52,6 +53,7 @@ app.use('/api/invitations', invitationsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/workspaces/:workspace_id/activity', activityRoutes);
 app.use('/api/workspaces/:workspace_id/ai', aiRoutes);
+app.use('/api/workspaces/:workspace_id/chat', chatRoutes);
 
 app.get('/api/me', authenticate, (req, res) => {
   res.json({ message: 'You are authenticated', user: req.user });

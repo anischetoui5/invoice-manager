@@ -15,6 +15,7 @@ import { Users } from './pages/Users';
 import { Companies } from './pages/Companies';
 import { Reports } from './pages/Reports';
 import { History } from './pages/History';
+import { Chat } from './pages/Chat';
 import type { User, Enterprise, Workspace, UserRole } from './types';
 import api from '../lib/api';
 
@@ -186,6 +187,10 @@ export const router = createBrowserRouter([
       {
         path: 'companies',
         element: <Companies />,
+      },
+      {
+        path: 'chat',
+        element: <Chat />,
       },
       {
         path: 'history',

@@ -2,15 +2,16 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Upload, FileText, BarChart3,
   Settings, Users, History, CreditCard, UserPlus,
-  Building2, Zap,
+  Building2, Zap, MessageSquare,
 } from 'lucide-react';
 import type { Workspace } from '../types';
 
 interface SidebarProps {
   currentWorkspace: Workspace;
+  chatUnreadCount?: number;
 }
 
-export function Sidebar({ currentWorkspace }: SidebarProps) {
+export function Sidebar({ currentWorkspace, chatUnreadCount = 0 }: SidebarProps) {
   const location = useLocation();
   const isActive = (path: string) => location.pathname === path;
 
@@ -34,6 +35,7 @@ export function Sidebar({ currentWorkspace }: SidebarProps) {
     { path: '/dashboard/personal-subscription', icon: CreditCard,      label: 'Subscription',  roles: ['normal'] },
     { path: '/dashboard/users',                 icon: Users,           label: 'Users',         roles: ['admin'] },
     { path: '/dashboard/companies',             icon: Building2,       label: 'Companies',     roles: ['admin'] },
+    { path: '/dashboard/chat',                   icon: MessageSquare,   label: 'Chat',          roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
     { path: '/dashboard/history',               icon: History,         label: 'History',       roles: ['admin', 'accountant', 'normal', 'employee', 'director'] },
     { path: '/dashboard/settings',              icon: Settings,        label: 'Settings',      roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
   ];
@@ -87,9 +89,13 @@ export function Sidebar({ currentWorkspace }: SidebarProps) {
                 strokeWidth={active ? 2.5 : 2}
               />
               <span className="truncate">{item.label}</span>
-              {active && (
+              {item.path === '/dashboard/chat' && chatUnreadCount > 0 ? (
+                <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
+                  {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                </span>
+              ) : active ? (
                 <div className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
-              )}
+              ) : null}
             </Link>
           );
         })}

@@ -9,8 +9,9 @@ import { MobileNav } from './MobileNav';
 import { InstallPWA } from './InstallPWA';
 import api from '../../lib/api';
 import type { User, Enterprise, Notification, Workspace, Subscription } from '../types';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CreditCard } from 'lucide-react';
 import { Button } from './ui/button';
+import { SubscriptionLock } from './SubscriptionLock';
 
 interface LayoutProps {
   currentUser: User;
@@ -36,8 +37,11 @@ export function Layout({
   const [currentWorkspace, setCurrentWorkspace]     = useState<Workspace>(initialWorkspace);
   const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
 
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
   const unreadCount = notifications.filter(n => !n.read).length;
   const pollingRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const chatPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -48,11 +52,30 @@ export function Layout({
     }
   }, []);
 
+  const fetchChatUnread = useCallback(async () => {
+    if (!currentWorkspace?.id) return;
+    try {
+      const { data } = await api.get(`/workspaces/${currentWorkspace.id}/chat/conversations`);
+      const total = (data.conversations ?? []).reduce(
+        (sum: number, c: { unread_count: number }) => sum + (c.unread_count || 0), 0
+      );
+      setChatUnreadCount(total);
+    } catch {
+      // silently ignore
+    }
+  }, [currentWorkspace?.id]);
+
   useEffect(() => {
     fetchNotifications();
     pollingRef.current = setInterval(fetchNotifications, 30_000);
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [fetchNotifications]);
+
+  useEffect(() => {
+    fetchChatUnread();
+    chatPollRef.current = setInterval(fetchChatUnread, 15_000);
+    return () => { if (chatPollRef.current) clearInterval(chatPollRef.current); };
+  }, [fetchChatUnread]);
 
   useEffect(() => {
     if (!currentWorkspace?.id) return;
@@ -107,7 +130,7 @@ export function Layout({
     <div className="flex overflow-hidden bg-background" style={{ height: '100dvh' }}>
       {/* Sidebar — hidden on mobile */}
       <div className="hidden md:flex">
-        <Sidebar currentWorkspace={currentWorkspace} />
+        <Sidebar currentWorkspace={currentWorkspace} chatUnreadCount={chatUnreadCount} />
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -124,56 +147,88 @@ export function Layout({
         />
 
         <main className="flex-1 overflow-y-auto overscroll-y-none p-4 md:p-8 pb-20 md:pb-8">
-          {/* Subscription expired banner */}
-          {currentWorkspace?.type === 'company' && currentSubscription?.status === 'expired' && (
-            <div className="mb-4 flex items-center gap-3 rounded-md border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/50 px-4 py-3">
-              <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-red-800 dark:text-red-300">Subscription expired</p>
-                <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
-                  Your workspace is in read-only mode. Renew to continue.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30 flex-shrink-0"
-                onClick={() => navigate('/dashboard/settings')}
-              >
-                Renew
-              </Button>
-            </div>
-          )}
+          {(() => {
+            const isCompany  = currentWorkspace?.type === 'company';
+            const isExpired  = isCompany && currentSubscription?.status === 'expired';
+            const wsRole     = currentWorkspace?.role ?? '';
+            const isDirector = wsRole === 'Director' || wsRole === 'Admin';
 
-          {/* Payment past due banner */}
-          {currentWorkspace?.type === 'company' && currentSubscription?.status === 'past_due' && (
-            <div className="mb-4 flex items-center gap-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/50 px-4 py-3">
-              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Payment past due</p>
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                  Update your billing to avoid service interruption.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/30 flex-shrink-0"
-                onClick={() => navigate('/dashboard/settings')}
-              >
-                Update Billing
-              </Button>
-            </div>
-          )}
+            // ── Employees / Accountants: full lock screen ──────────────────
+            if (isExpired && !isDirector) {
+              return (
+                <SubscriptionLock
+                  workspaceName={currentWorkspace.name}
+                  onLogout={handleLogout}
+                />
+              );
+            }
 
-          <Outlet context={{
-            activeEnterpriseId,
-            currentUser,
-            enterprises,
-            currentWorkspace,
-            workspaces,
-            currentSubscription,
-          }} />
+            return (
+              <>
+                {/* Director expiry notice */}
+                {isExpired && isDirector && (
+                  <div className="mb-6 overflow-hidden rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20">
+                    <div className="flex items-start gap-4 p-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/40">
+                        <CreditCard className="h-5 w-5 text-red-600 dark:text-red-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-red-800 dark:text-red-300">
+                          Subscription Expired — Action Required
+                        </p>
+                        <p className="mt-0.5 text-sm text-red-600 dark:text-red-400">
+                          All employees and accountants are currently locked out. Renew your
+                          subscription immediately to restore full platform access.
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="shrink-0 bg-red-600 hover:bg-red-700 text-white border-0"
+                        onClick={() => navigate('/dashboard/subscription')}
+                      >
+                        Renew Now
+                      </Button>
+                    </div>
+                    <div className="border-t border-red-200 dark:border-red-900/50 bg-red-100/50 dark:bg-red-900/20 px-4 py-2">
+                      <p className="text-xs text-red-600 dark:text-red-400">
+                        Your team cannot upload invoices, view reports, or perform any actions until the subscription is active.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Past due banner */}
+                {isCompany && currentSubscription?.status === 'past_due' && (
+                  <div className="mb-4 flex items-center gap-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/50 px-4 py-3">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Payment past due</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                        Update your billing to avoid service interruption.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/30 flex-shrink-0"
+                      onClick={() => navigate('/dashboard/subscription')}
+                    >
+                      Update Billing
+                    </Button>
+                  </div>
+                )}
+
+                <Outlet context={{
+                  activeEnterpriseId,
+                  currentUser,
+                  enterprises,
+                  currentWorkspace,
+                  workspaces,
+                  currentSubscription,
+                }} />
+              </>
+            );
+          })()}
         </main>
       </div>
 

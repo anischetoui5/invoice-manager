@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const { createNotification } = require('../notifications/notifications.service');
 
 /**
  * Fetch active subscription plans filtered by type ('personal' or 'company')
@@ -68,7 +69,13 @@ const getMySubscription = async (userId, workspaceId) => {
          ORDER BY s.created_at DESC LIMIT 1`,
         [userId]
       );
-  return rows[0] || null;
+  const sub = rows[0] || null;
+  if (sub && sub.current_period_end && !['expired', 'cancelled'].includes(sub.status)) {
+    if (new Date(sub.current_period_end) < new Date()) {
+      sub.status = 'expired';
+    }
+  }
+  return sub;
 };
 
 /**
@@ -199,7 +206,8 @@ const upgradePlan = async (userId, workspaceId, planId) => {
 
   const current = existing.rows[0];
 
-  if (current.plan_id === planId) {
+  // Block same-plan "upgrade" only when subscription is still active
+  if (current.plan_id === planId && !['expired', 'cancelled'].includes(current.status)) {
     throw new Error('You are already on this plan');
   }
 
@@ -238,4 +246,68 @@ const upgradePlan = async (userId, workspaceId, planId) => {
   };
 };
 
-module.exports = { getPlansByType, getMySubscription, getPersonalUpgradePreview, upgradePlan };
+async function checkAndExpireSubscriptions() {
+  try {
+    const expired = await pool.query(
+      `SELECT s.id, s.company_id, c.workspace_id, c.name AS company_name
+       FROM subscriptions s
+       JOIN companies c ON c.id = s.company_id
+       WHERE s.current_period_end < NOW()
+         AND s.status NOT IN ('expired', 'cancelled')`
+    );
+
+    for (const sub of expired.rows) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        await client.query(
+          `UPDATE subscriptions SET status = 'expired' WHERE id = $1`,
+          [sub.id]
+        );
+
+        const dirRes = await client.query(
+          `SELECT m.user_id FROM memberships m
+           JOIN roles r ON r.id = m.role_id
+           WHERE m.workspace_id = $1 AND r.name = 'Director'
+           LIMIT 1`,
+          [sub.workspace_id]
+        );
+        const directorId = dirRes.rows[0]?.user_id;
+
+        if (directorId) {
+          const alreadyNotified = await client.query(
+            `SELECT id FROM notifications
+             WHERE user_id = $1 AND title = 'Subscription Expired'
+               AND created_at >= NOW() - INTERVAL '24 hours'`,
+            [directorId]
+          );
+          if (alreadyNotified.rows.length === 0) {
+            await createNotification(client, {
+              user_id: directorId,
+              type: 'error',
+              title: 'Subscription Expired',
+              message: `Your subscription for ${sub.company_name} has expired. Renew immediately to restore access for all team members.`,
+              action_url: '/dashboard/settings',
+            });
+          }
+        }
+
+        await client.query('COMMIT');
+        console.log(`[subscription.job] Expired subscription for ${sub.company_name}`);
+      } catch (err) {
+        await client.query('ROLLBACK');
+        console.error(`[subscription.job] Failed to expire ${sub.id}:`, err.message);
+      } finally {
+        client.release();
+      }
+    }
+
+    return expired.rows.length;
+  } catch (err) {
+    console.error('[subscription.job] Query failed:', err.message);
+    return 0;
+  }
+}
+
+module.exports = { getPlansByType, getMySubscription, getPersonalUpgradePreview, upgradePlan, checkAndExpireSubscriptions };

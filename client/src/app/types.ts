@@ -45,6 +45,37 @@ export interface Enterprise {
   companyCode: string; // Unique code for joining the enterprise
 }
 
+export interface ChatConversation {
+  id: string;
+  type: 'channel' | 'direct';
+  name?: string;
+  created_at: string;
+  last_read_at?: string;
+  last_msg_content?: string;
+  last_msg_at?: string;
+  last_msg_sender_name?: string;
+  dm_user_id?: string;
+  dm_user_name?: string;
+  unread_count: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_name: string;
+  content: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ChatMember {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
 export interface Subscription {
   id: string;
   enterpriseId: string;

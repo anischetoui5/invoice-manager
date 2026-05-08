@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, CreditCard, Users, FileText, Zap, TrendingUp, X, Lock, AlertTriangle } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { Card } from '../components/ui/card';
@@ -120,6 +121,7 @@ export function Subscription() {
   };
 
   const isExpiredOrPastDue = ['expired', 'past_due', 'cancelled'].includes(currentSubscription.status);
+  const isExpired = currentSubscription.status === 'expired';
 
   if (isLoading) {
     return (
@@ -202,6 +204,9 @@ export function Subscription() {
         <div className="grid gap-4 lg:grid-cols-4">
           {plans.map(plan => {
             const isCurrentPlan = plan.name.toLowerCase() === currentSubscription.plan.toLowerCase();
+            // When expired, always allow clicking — even the same plan (renewal)
+            const isDisabled = isCurrentPlan && !isExpired;
+            const btnLabel   = isExpired && isCurrentPlan ? 'Renew' : isCurrentPlan ? 'Current Plan' : 'Upgrade';
             return (
               <div
                 key={plan.id}
@@ -236,11 +241,11 @@ export function Subscription() {
                 <Button
                   size="sm"
                   className="w-full"
-                  variant={isCurrentPlan ? 'outline' : 'default'}
-                  disabled={isCurrentPlan}
+                  variant={isDisabled ? 'outline' : 'default'}
+                  disabled={isDisabled}
                   onClick={() => handleUpgradeClick(plan)}
                 >
-                  {isCurrentPlan ? 'Current Plan' : 'Upgrade'}
+                  {btnLabel}
                 </Button>
               </div>
             );
@@ -268,9 +273,9 @@ export function Subscription() {
         ))}
       </div>
 
-      {/* Payment Modal */}
-      {paymentModal.isOpen && paymentModal.plan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      {/* Payment Modal — rendered in a portal so fixed covers the entire viewport */}
+      {paymentModal.isOpen && paymentModal.plan && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md">
           <div className="relative w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-2xl mx-4">
             <button
               onClick={() => setPaymentModal({ isOpen: false, plan: null, amountCharged: 0, credit: 0 })}
@@ -280,9 +285,14 @@ export function Subscription() {
             </button>
 
             <div className="mb-5">
-              <h2 className="text-base font-semibold text-foreground">Complete Your Upgrade</h2>
+              <h2 className="text-base font-semibold text-foreground">
+                {isExpired ? 'Renew Subscription' : 'Complete Your Upgrade'}
+              </h2>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Upgrading to <span className="font-medium text-foreground">{paymentModal.plan.name}</span> plan
+                {isExpired
+                  ? <>Renewing <span className="font-medium text-foreground">{paymentModal.plan.name}</span> plan for another 30 days</>
+                  : <>Upgrading to <span className="font-medium text-foreground">{paymentModal.plan.name}</span> plan</>
+                }
               </p>
             </div>
 
@@ -348,7 +358,8 @@ export function Subscription() {
               ) : `Pay $${paymentModal.amountCharged}`}
             </Button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
