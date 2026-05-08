@@ -322,7 +322,14 @@ async function getDashboardStats(workspaceId, userId, role) {
         COUNT(*) FILTER (WHERE current_status = 'pending_review') as pending_validation,
         COUNT(*) FILTER (WHERE current_status = 'approved') as approved,
         COUNT(*) FILTER (WHERE current_status = 'rejected') as rejected,
-        COUNT(*) FILTER (WHERE current_status = 'approved' AND created_at >= date_trunc('day', NOW())) as validated_today
+        (
+          SELECT COUNT(DISTINCT sh.invoice_id)
+          FROM status_history sh
+          JOIN invoices i2 ON i2.id = sh.invoice_id
+          WHERE i2.workspace_id = $1
+            AND sh.status = 'approved'
+            AND sh.changed_at >= date_trunc('day', NOW())
+        ) as validated_today
        FROM invoices
        WHERE workspace_id = $1`,
       [workspaceId]

@@ -169,11 +169,22 @@ function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit
 }
 
 // Invoice preview list
-function InvoicePreview({ invoices, emptyMessage, uploadLink = true }: {
+function InvoicePreview({ invoices, emptyMessage, uploadLink = true, loading = false }: {
   invoices: any[];
   emptyMessage: string;
   uploadLink?: boolean;
+  loading?: boolean;
 }) {
+  if (loading) {
+    return (
+      <div className="space-y-1.5">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="shimmer-skeleton h-14 rounded-md" />
+        ))}
+      </div>
+    );
+  }
+
   if (invoices.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -285,16 +296,19 @@ export function Dashboard({ userRole }: DashboardProps) {
       .catch(() => {});
   }, [userRole]);
 
-  const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
+  const [recentInvoices, setRecentInvoices]               = useState<any[]>([]);
+  const [recentInvoicesLoading, setRecentInvoicesLoading] = useState(false);
   useEffect(() => {
     if (!currentWorkspace?.id) return;
     const normalizedRole = userRole?.toLowerCase();
     if (!['employee', 'accountant'].includes(normalizedRole)) return;
+    setRecentInvoicesLoading(true);
     const params: Record<string, any> = { limit: 5, page: 1 };
     if (normalizedRole === 'accountant') params.status = 'pending_review';
     api.get(`/workspaces/${currentWorkspace.id}/invoices`, { params })
       .then(({ data }) => setRecentInvoices(data.invoices ?? []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setRecentInvoicesLoading(false));
   }, [currentWorkspace?.id, userRole]);
 
   // ── Stat helpers ───────────────────────────────────────────────────────────
@@ -392,7 +406,7 @@ export function Dashboard({ userRole }: DashboardProps) {
 
       <div className="erp-card rounded-lg p-5">
         <SectionHeader title="Recent Invoices" action={<ViewAllLink to="/dashboard/invoices" />} />
-        <InvoicePreview invoices={recentInvoices} emptyMessage="No invoices yet. Upload your first invoice." />
+        <InvoicePreview invoices={recentInvoices} emptyMessage="No invoices yet. Upload your first invoice." loading={recentInvoicesLoading} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -460,7 +474,7 @@ export function Dashboard({ userRole }: DashboardProps) {
             title="Invoices Pending Validation"
             action={<ViewAllLink to="/dashboard/invoices?status=pending_review" label={`${S('pending_validation')} pending`} />}
           />
-          <InvoicePreview invoices={recentInvoices} emptyMessage="All caught up — no invoices pending validation." uploadLink={false} />
+          <InvoicePreview invoices={recentInvoices} emptyMessage="All caught up — no invoices pending validation." uploadLink={false} loading={recentInvoicesLoading} />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
