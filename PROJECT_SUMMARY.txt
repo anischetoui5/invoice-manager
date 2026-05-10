@@ -1,0 +1,448 @@
+================================================================================
+  EASYFACT — INVOICE MANAGEMENT PLATFORM
+  Project Summary · Features · User Stories by Role
+================================================================================
+
+Last updated: May 2026
+Stack: Node.js (Express) + PostgreSQL + React (TypeScript) + Socket.io
+Repo : invoice-manager/
+
+
+────────────────────────────────────────────────────────────────────────────────
+  WHAT IS EASYFACT?
+────────────────────────────────────────────────────────────────────────────────
+
+EASYfact is a multi-tenant invoice management SaaS platform built for
+Algerian/French-speaking companies. It allows companies to digitize their
+invoice workflow — from photo upload and OCR extraction, to review,
+approval, and reporting — all inside a single collaborative workspace.
+
+Key differentiators:
+  · OCR-powered invoice extraction (Tesseract.js, EN + FR)
+  · Role-based access for Directors, Accountants, and Employees
+  · Contract management with auto-expiry for Accountant members
+  · Real-time team chat (channels + direct messages)
+  · Subscription-gated access with per-plan invoice and user limits
+  · Full audit trail on every invoice status change
+  · AI assistant (Llama 3.3 70B via Groq) with workspace context
+
+
+────────────────────────────────────────────────────────────────────────────────
+  USER ROLES
+────────────────────────────────────────────────────────────────────────────────
+
+  PERSONAL (Normal)
+    Individual account with a personal workspace. No team features.
+    Manages their own invoices independently.
+
+  DIRECTOR
+    Owner of a company workspace. Full administrative control.
+    Manages team, subscription, and company profile.
+
+  ACCOUNTANT
+    External accountant contracted to a company.
+    Has a contract_start and contract_end date.
+    Can validate/approve invoices. Auto-removed when contract expires.
+
+  EMPLOYEE
+    Regular company staff member.
+    Can upload and submit invoices for review.
+    Can only see their own submissions.
+
+  ADMIN
+    System-level superuser. Not tied to any company.
+    Manages all users, companies, and invoices globally.
+
+
+────────────────────────────────────────────────────────────────────────────────
+  USER STORIES BY ROLE
+────────────────────────────────────────────────────────────────────────────────
+
+  ╔══════════════════════════════════╗
+  ║  PERSONAL USER                   ║
+  ╚══════════════════════════════════╝
+
+  · As a personal user, I can register and create my own personal workspace.
+  · As a personal user, I can upload invoice images and have them processed
+    by OCR to extract vendor, amount, date, and invoice number automatically.
+  · As a personal user, I can review and correct extracted fields before saving.
+  · As a personal user, I can view all my invoices with their status.
+  · As a personal user, I can filter and search invoices by vendor,
+    status, or date range.
+  · As a personal user, I can choose a personal subscription plan (Free,
+    Basic, Plus, Premium) to increase my invoice limit.
+  · As a personal user, I can upgrade my plan at any time through the
+    billing page with a credit card.
+  · As a personal user, I can update my profile (name, email, password).
+  · As a personal user, I can use the AI assistant to ask questions
+    about my invoices (totals, vendors, trends).
+
+  ╔══════════════════════════════════╗
+  ║  DIRECTOR                        ║
+  ╚══════════════════════════════════╝
+
+  Workspace Setup
+  · As a Director, I can create a company workspace with a unique join code.
+  · As a Director, I can update my company's name, email, phone, and address.
+  · As a Director, I can view my company's current subscription plan and usage.
+  · As a Director, I can upgrade or renew the subscription plan at any time,
+    including renewing the same plan after it expires.
+
+  Team Management
+  · As a Director, I can view all pending join requests from employees
+    and accountants who used my company code.
+  · As a Director, I can accept or reject join requests, and when accepting
+    an accountant I must set their contract start and end dates.
+  · As a Director, I can view all current workspace members with their
+    roles and contract dates.
+  · As a Director, I can remove a member from the workspace.
+  · As a Director, I can change a member's role.
+  · As a Director, I can accept or reject leave requests submitted by members.
+  · As a Director, I can accept or reject contract renewal requests from
+    accountants (setting a new contract end date on acceptance).
+
+  Invoice Oversight
+  · As a Director, I can see all invoices submitted in my workspace,
+    regardless of who created them.
+  · As a Director, I can view the full status history of any invoice.
+  · As a Director, I can delete any invoice.
+  · As a Director, I can upload and submit invoices.
+
+  Reporting & Insights
+  · As a Director, I can access the Reports page showing monthly trends,
+    status distribution, top vendors, and total amounts.
+  · As a Director, I can export reports as CSV, PDF, DOCX, or ZIP.
+  · As a Director, I can see an employee leaderboard (invoice count
+    by submitter).
+  · As a Director, I can choose the reporting period (30, 90, 180 days
+    or 1 year).
+
+  Dashboard
+  · As a Director, I can see summary stats: total invoices, total amount,
+    pending count, approved count, team size.
+  · As a Director, I can see recent activity in the workspace.
+  · As a Director, I can see a preview of the most recently submitted invoices.
+
+  Subscription Expiry
+  · As a Director, I receive a notification when my company subscription
+    expires, with a direct link to renew.
+  · As a Director, I see a prominent "Subscription Expired — Action Required"
+    banner on every page when expired, with a "Renew Now" button.
+  · As a Director, I retain access to Settings and Subscription pages even
+    while the subscription is expired so I can renew immediately.
+
+  Communication
+  · As a Director, I can use the team chat to message employees and
+    accountants in workspace channels or via direct messages.
+  · As a Director, I see an unread message badge on the Chat link
+    in the sidebar.
+
+  ╔══════════════════════════════════╗
+  ║  ACCOUNTANT                      ║
+  ╚══════════════════════════════════╝
+
+  Joining & Contract
+  · As an accountant, I can join a company workspace using its join code
+    and selecting the "Accountant" role.
+  · As an accountant, I can see my contract start and end dates in Settings.
+  · As an accountant, I can request a contract renewal within 30 days of
+    my contract's expiry date. Outside that window, the option is locked.
+  · As an accountant, I am automatically removed from the workspace if
+    my contract expires without renewal.
+
+  Invoice Validation
+  · As an accountant, I can see all invoices across the company workspace.
+  · As an accountant, I can review invoices in "pending_review" status
+    and approve or reject them.
+  · As an accountant, I can leave a comment/reason when rejecting an invoice.
+  · As an accountant, I can view the full OCR-extracted fields and compare
+    them to the original document.
+  · As an accountant, I can view the complete status history of any invoice.
+
+  Dashboard
+  · As an accountant, I see my dashboard with: invoices pending validation,
+    approved count, rejected count, and validated today.
+  · As an accountant, I see a preview of the most recent invoices needing
+    my attention.
+
+  Reporting
+  · As an accountant, I can access the full Reports page with all analytics,
+    charts, and export capabilities.
+
+  Subscription Lock
+  · As an accountant, if the company subscription expires, I see a full
+    "Workspace Access Suspended" screen and cannot interact with any feature
+    until the Director renews the subscription.
+
+  Communication
+  · As an accountant, I can use the workspace chat to communicate with
+    the Director and other team members.
+  · As an accountant, I can start direct message conversations with
+    individual team members.
+
+  ╔══════════════════════════════════╗
+  ║  EMPLOYEE                        ║
+  ╚══════════════════════════════════╝
+
+  Joining
+  · As an employee, I can join a company workspace using its join code
+    and selecting the "Employee" role.
+  · As an employee, I can submit a leave request if I wish to leave
+    the company workspace.
+
+  Invoice Submission
+  · As an employee, I can upload an invoice image and have fields
+    extracted automatically via OCR.
+  · As an employee, I can review and correct extracted fields before
+    submitting for review.
+  · As an employee, I can attach additional documents to my invoices.
+  · As an employee, I can submit an invoice for accountant review.
+  · As an employee, I can view only my own invoices and their statuses.
+  · As an employee, I can see the status history (who reviewed, when,
+    and what comment was left) on my own invoices.
+  · As an employee, I can delete my own invoices that are still in draft
+    or rejected status.
+
+  Notifications
+  · As an employee, I receive a notification when my invoice is approved.
+  · As an employee, I receive a notification when my invoice is rejected,
+    with the reason provided.
+
+  Dashboard
+  · As an employee, I see my personal stats: my total submissions,
+    pending count, approved count, and rejected count.
+  · As an employee, I see a preview of my most recent invoice submissions.
+
+  Subscription Lock
+  · As an employee, if the company subscription expires, I see a full
+    "Workspace Access Suspended" screen and cannot interact with any feature
+    until the Director renews.
+
+  Communication
+  · As an employee, I can use the workspace chat to communicate with
+    the Director, accountant, and other team members.
+  · As an employee, I can create or join workspace channels.
+  · As an employee, I can send direct messages to individual team members.
+
+  ╔══════════════════════════════════╗
+  ║  ADMIN                           ║
+  ╚══════════════════════════════════╝
+
+  · As an admin, I can view all registered users in the system.
+  · As an admin, I can update or delete any user account.
+  · As an admin, I can view all companies with their member counts and
+    subscription status.
+  · As an admin, I can view all invoices across all workspaces.
+  · As an admin, I can manually trigger the expired contract cleanup job.
+
+
+────────────────────────────────────────────────────────────────────────────────
+  FEATURES & MODULES
+────────────────────────────────────────────────────────────────────────────────
+
+  AUTHENTICATION (auth)
+  ─────────────────────
+  · Email/password registration with 6-digit email verification
+  · JWT-based authentication (24-hour tokens)
+  · Forgot password / reset password via email code
+  · Multi-workspace support: switch between personal and company workspaces
+  · Passwords hashed with bcryptjs (10 rounds)
+
+  OCR — INVOICE EXTRACTION (ocr / ai)
+  ─────────────────────────────────────
+  · Accepts JPEG, PNG, PDF uploads
+  · Preprocesses images: grayscale, sharpen, normalize, gamma correction
+  · Runs Tesseract.js with English and French language models
+  · Extracts: vendor name, invoice number, total amount, invoice date, due date
+  · Normalizes date formats: DD/MM/YYYY, DD.MM.YYYY, written month names
+  · Normalizes amounts: strips currency symbols (TND, $, €, £, DA)
+  · Saves extracted fields to extracted_fields table per invoice
+
+  INVOICE WORKFLOW (invoices)
+  ────────────────────────────
+  Statuses: draft → pending_review → approved / rejected → paid / archived
+
+  · Employees submit invoices → status becomes pending_review
+  · Accountants/Directors review and approve or reject with comment
+  · Every status change is logged to status_history with who, when, comment
+  · Notifications sent to all relevant parties on each status change
+  · Role-based visibility: employees see only their own, accountants/directors
+    see all
+
+  DOCUMENTS (documents)
+  ──────────────────────
+  · Multiple file attachments per invoice
+  · Files stored in server/uploads/ with timestamp-prefixed names
+  · Primary document flag for the main invoice scan
+  · Role-based deletion permissions
+
+  TEAM MANAGEMENT (invitations + workspace)
+  ──────────────────────────────────────────
+  · Companies have unique 8-character join codes
+  · Join requests (employee/accountant) require director approval
+  · Accountants get contract_start and contract_end dates on acceptance
+  · Leave requests require director approval
+  · Renewal requests: accountants may submit within 30 days of expiry
+  · Cron job runs daily to auto-remove accountants with expired contracts
+  · Member role updates and removal by Director
+
+  NOTIFICATIONS (notifications)
+  ──────────────────────────────
+  · In-app notification bell with unread count badge
+  · Polled every 30 seconds in the background
+  · Notification types: info, success, warning, error
+  · Mark individual or all notifications as read
+  · Action URLs link directly to the relevant resource
+  · Triggered by: invoice events, membership events, subscription expiry
+
+  REAL-TIME CHAT (chat)
+  ──────────────────────
+  · Workspace channels (e.g. #general, custom channels)
+  · Direct messages between any two workspace members
+  · #general channel auto-created for every workspace on first visit
+  · Real-time message delivery via Socket.io (JWT authenticated)
+  · Typing indicators ("Alice is typing…")
+  · Unread message count badge on sidebar Chat link (polled every 15s)
+  · Message history loaded on conversation open (50 messages, paginated)
+  · Messages grouped by date with separators (Today, Yesterday, full date)
+  · Bubble UI: own messages right-aligned (primary color), others left-aligned
+  · New Channel modal and New DM modal with member search
+  · Per-conversation unread count badges
+
+  REPORTS & ANALYTICS (invoices/reports)
+  ────────────────────────────────────────
+  · Monthly invoice count and amount trend charts
+  · Status distribution (approved vs rejected vs pending)
+  · Top 5 vendors by invoice count
+  · Employee leaderboard (submissions per user)
+  · Selectable periods: 30 days, 90 days, 180 days, 1 year
+  · Export formats: CSV, PDF (jsPDF), DOCX, full ZIP package
+  · Dark-mode compatible export dropdowns
+
+  SUBSCRIPTIONS (subscription)
+  ─────────────────────────────
+  Company plans:
+    · Starter     — $49/mo  — 200 invoices, 10 users
+    · Business    — $149/mo — 1,000 invoices, 50 users
+    · Professional— $349/mo — 5,000 invoices, 200 users
+    · Enterprise  — $999/mo — Unlimited invoices and users
+
+  Personal plans:
+    · Free        — $0/mo   — 10 invoices
+    · Basic       — $9/mo   — 50 invoices
+    · Plus        — $19/mo  — 200 invoices
+    · Premium     — $39/mo  — Unlimited invoices
+
+  · Upgrade with credit proration on company plans
+  · Cron job runs hourly to auto-expire subscriptions past their period end
+  · Expired subscriptions block all write operations via middleware
+  · Directors notified by in-app notification on expiry
+  · Same-plan renewal allowed when subscription is expired
+  · Payment modal uses React portal for true full-page backdrop blur
+
+  SUBSCRIPTION LOCK (Layout / SubscriptionLock)
+  ───────────────────────────────────────────────
+  · When a company subscription expires:
+    - Employees and Accountants see a full lock screen:
+        "Workspace Access Suspended — contact your Director"
+        Only the logout button is available
+    - Director sees a red "Subscription Expired — Action Required" banner
+        on every page with a "Renew Now" button
+    - Director retains access to Settings and Subscription pages
+  · Access is automatically restored once the subscription is renewed
+
+  AI ASSISTANT (ai)
+  ──────────────────
+  · Floating chat panel accessible on all dashboard pages
+  · Powered by Llama 3.3 70B via Groq API
+  · Injected context: invoice stats, monthly breakdown, top vendors,
+    recent invoices, workspace name, current date
+  · Answers questions in English and French
+  · Number formatting adapted to French locale (spaces as thousands separator)
+
+  ACTIVITY HISTORY (activity)
+  ────────────────────────────
+  · Every significant action is logged to activity_log
+  · Tracked actions:
+      invoice.created, invoice.status_changed, invoice.updated,
+      invoice.deleted, member.joined, member.left, invitation.rejected,
+      company.updated, membership.expired, contract.renewed
+  · Filterable history page for audit review
+  · JSONB metadata stored per event (user name, old/new values, etc.)
+
+  GLOBAL SEARCH (Topbar)
+  ───────────────────────
+  · Search bar in the topbar — press Enter to navigate to Invoices
+    with the query pre-filled
+  · Invoice list debounces search input (400ms) and filters server-side
+  · Searches vendor name, invoice number, and created-by name
+
+  DARK MODE (Theme)
+  ──────────────────
+  · Full light / dark mode via next-themes
+  · Toggle button in topbar
+  · All components use CSS custom properties (--background, --foreground,
+    --primary, --muted, --border, --card) for automatic theme adaptation
+  · Dark-mode variants on all status badges, notification panels,
+    report dropdowns, chat bubbles, and lock screens
+
+
+────────────────────────────────────────────────────────────────────────────────
+  DATABASE SCHEMA (18 tables)
+────────────────────────────────────────────────────────────────────────────────
+
+  users                 — Accounts (email, password hash, verification codes)
+  workspaces            — Personal or company workspaces
+  companies             — Company profiles linked 1:1 to a workspace
+  roles                 — Predefined roles (Admin, Director, Accountant,
+                          Employee, Personal)
+  memberships           — User↔Workspace link with role and contract dates
+  invoices              — Invoice records (vendor, amount, currency, status)
+  invoice_status        — Status enum (draft, pending_review, approved,
+                          rejected, paid, archived)
+  extracted_fields      — OCR-extracted fields per invoice
+  documents             — Files attached to invoices
+  status_history        — Audit trail of every invoice status change
+  invitations           — Join/leave/renewal requests between users and
+                          company workspaces
+  subscription_plans    — Plan tiers with price and usage limits
+  subscriptions         — Active subscription per user or company
+  notifications         — In-app notifications per user with read status
+  activity_log          — Workspace activity audit log with JSONB metadata
+  chat_conversations    — Channels and direct message threads
+  chat_members          — Conversation participants with last_read_at tracking
+  chat_messages         — Message content (soft-delete via deleted_at)
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SECURITY
+────────────────────────────────────────────────────────────────────────────────
+
+  · JWT tokens with 24-hour expiry on every request
+  · Email verification required before first login
+  · bcryptjs password hashing (10 salt rounds)
+  · Every API route behind authenticate() middleware
+  · Workspace isolation: every query scoped to workspace_id membership check
+  · Role enforcement at route level (authorizeInWorkspace, authorizeAdmin)
+  · Parameterized SQL queries throughout (no raw string concatenation)
+  · CORS: credentials allowed, origin matched per request
+  · Helmet.js for HTTP security headers (XSS, MIME sniffing, etc.)
+  · Subscription middleware blocks all write operations when expired
+
+
+────────────────────────────────────────────────────────────────────────────────
+  BACKGROUND JOBS (CRON)
+────────────────────────────────────────────────────────────────────────────────
+
+  checkAndExpireSubscriptions()   — Runs hourly
+    Finds company subscriptions past current_period_end, marks them
+    'expired', sends a notification to the workspace Director.
+
+  removeExpiredContracts()        — Runs daily at midnight + on startup
+    Finds Accountant memberships where contract_end < NOW(), removes them,
+    resets their active workspace to personal, sends them a notification.
+
+
+================================================================================
+  END OF SUMMARY
+================================================================================
