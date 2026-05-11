@@ -24,11 +24,14 @@ const getMySubscription = async (userId, workspaceId) => {
     ? await pool.query(
         `SELECT 
            s.*, 
-           sp.name as plan_name, 
-           sp.price, 
-           sp.max_invoices, 
-           sp.max_users, 
+           sp.name as plan_name,
+           sp.price,
+           sp.max_invoices,
+           sp.max_users,
            sp.ocr_accuracy,
+           sp.has_chat,
+           sp.has_dm,
+           sp.can_create_channels,
            (
              SELECT COUNT(*) FROM invoices i
              WHERE i.workspace_id = (
@@ -52,11 +55,14 @@ const getMySubscription = async (userId, workspaceId) => {
     : await pool.query(
         `SELECT 
            s.*, 
-           sp.name as plan_name, 
-           sp.price, 
-           sp.max_invoices, 
-           sp.max_users, 
+           sp.name as plan_name,
+           sp.price,
+           sp.max_invoices,
+           sp.max_users,
            sp.ocr_accuracy,
+           sp.has_chat,
+           sp.has_dm,
+           sp.can_create_channels,
            (
              SELECT COUNT(*) FROM invoices i
              WHERE i.created_by = s.user_id

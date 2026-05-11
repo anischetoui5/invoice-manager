@@ -198,7 +198,10 @@ CREATE TABLE subscription_plans (
     max_users integer,
     ocr_accuracy numeric(5,2),
     is_active boolean DEFAULT true,
-    plan_type varchar(20) NOT NULL CHECK (plan_type IN ('company','personal'))
+    plan_type varchar(20) NOT NULL CHECK (plan_type IN ('company','personal')),
+    has_chat boolean DEFAULT false,
+    has_dm boolean DEFAULT false,
+    can_create_channels boolean DEFAULT false
 );
 
 -- SUBSCRIPTIONS
@@ -268,15 +271,15 @@ ON CONFLICT (name) DO NOTHING;
 
 -- SUBSCRIPTION PLANS
 INSERT INTO subscription_plans
-(name, price, max_invoices, max_users, ocr_accuracy, is_active, plan_type)
+(name, price, max_invoices, max_users, ocr_accuracy, is_active, plan_type, has_chat, has_dm, can_create_channels)
 VALUES
-  ('Starter', 49.00, 200, 10, 90.00, true, 'company'),
-  ('Business', 149.00, 1000, 50, 95.00, true, 'company'),
-  ('Professional', 349.00, 5000, 200, 98.00, true, 'company'),
-  ('Enterprise', 999.00, NULL, NULL, 99.50, true, 'company'),
+  ('Starter',      49.00,   200,  10,  90.00, true, 'company', false, false, false),
+  ('Business',    149.00,  1000,  50,  95.00, true, 'company', true,  false, false),
+  ('Professional',349.00,  5000, 200,  98.00, true, 'company', true,  true,  true),
+  ('Enterprise',  999.00,  NULL, NULL, 99.50, true, 'company', true,  true,  true),
 
-  ('Free', 0.00, 10, NULL, 85.00, true, 'personal'),
-  ('Basic', 9.00, 50, NULL, 92.00, true, 'personal'),
-  ('Plus', 19.00, 200, NULL, 96.00, true, 'personal'),
+  ('Free',    0.00,  10, NULL, 85.00, true, 'personal', false, false, false),
+  ('Basic',   9.00,  50, NULL, 92.00, true, 'personal', false, false, false),
+  ('Plus',   19.00, 200, NULL, 96.00, true, 'personal', false, false, false),
   ('Premium', 39.00, -1, NULL, 99.00, true, 'personal')
 ON CONFLICT DO NOTHING;

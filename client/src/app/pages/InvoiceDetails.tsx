@@ -279,10 +279,11 @@ export function InvoiceDetail() {
 
   const { isLocked } = useSubscriptionGuard();
   const role = currentWorkspace?.role;
-  const canSubmitForReview = !isLocked && status === 'draft' && (role === 'Employee' || role === 'Director');
+  const canEditStatus      = status === 'draft' || status === 'rejected';
+  const canSubmitForReview = !isLocked && canEditStatus && (role === 'Employee' || role === 'Director');
   const canApproveReject   = !isLocked && role === 'Accountant' && status === 'pending_review';
-  const canEditOCR         = !isLocked && status === 'draft' && (role === 'Director' || role === 'Employee' || role === 'Personal') && fields.length > 0;
-  const canEditBasic       = !isLocked && status === 'draft' && (role === 'Employee' || role === 'Director' || role === 'Personal');
+  const canEditOCR         = !isLocked && canEditStatus && (role === 'Director' || role === 'Employee' || role === 'Personal') && fields.length > 0;
+  const canEditBasic       = !isLocked && canEditStatus && (role === 'Employee' || role === 'Director' || role === 'Personal');
   const canDelete          = !isLocked && role === 'Director' && !['approved', 'paid', 'archived'].includes(status);
 
   const handleSyncFromOCR = () => {
@@ -821,7 +822,9 @@ export function InvoiceDetail() {
           {canSubmitForReview && (
             <Card className="p-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">Actions</h2>
-              <Button className="w-full" onClick={handleSubmitForReview}>Submit for Review</Button>
+              <Button className="w-full" onClick={handleSubmitForReview}>
+                {status === 'rejected' ? 'Resubmit for Review' : 'Submit for Review'}
+              </Button>
             </Card>
           )}
 

@@ -95,6 +95,9 @@ export function Layout({
           invoiceLimit: sub.max_invoices ?? 0,
           userCount:    parseInt(sub.user_count) || 0,
           userLimit:    sub.max_users ?? 0,
+          has_chat:             sub.has_chat ?? false,
+          has_dm:               sub.has_dm ?? false,
+          can_create_channels:  sub.can_create_channels ?? false,
         } : null);
       } catch {
         // ignore

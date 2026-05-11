@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import {
-  Users, Check, X, Loader2, Calendar, LogOut, AlertTriangle, RefreshCw,
+  Users, Check, X, Loader2, Calendar, LogOut, AlertTriangle, RefreshCw, Copy,
 } from 'lucide-react';
 import { useSubscriptionGuard } from '../hooks/useSubscriptionGuard';
 import { Card } from '../components/ui/card';
@@ -197,6 +197,8 @@ export function TeamManagement() {
   const { currentWorkspace } = useOutletContext<{ currentWorkspace: Workspace }>();
   const { isLocked } = useSubscriptionGuard();
 
+  const isDirector = currentWorkspace?.role === 'Director';
+
   const [members, setMembers]                 = useState<Member[]>([]);
   const [joinRequests, setJoinRequests]       = useState<Invitation[]>([]);
   const [leaveRequests, setLeaveRequests]     = useState<Invitation[]>([]);
@@ -204,6 +206,7 @@ export function TeamManagement() {
   const [isLoading, setIsLoading]             = useState(true);
   const [actionLoading, setActionLoading]     = useState<string | null>(null);
   const [contractDates, setContractDates]     = useState<Record<string, { start: string; end: string }>>({});
+  const [companyCode, setCompanyCode]         = useState<string | null>(null);
 
   const [dialog, setDialog] = useState<ConfirmDialog>({
     open: false, title: '', description: '', confirmLabel: 'Confirm', onConfirm: () => {},
@@ -215,6 +218,11 @@ export function TeamManagement() {
   useEffect(() => {
     if (!currentWorkspace?.id) return;
     fetchData();
+    if (isDirector) {
+      api.get(`/company/${currentWorkspace.id}`)
+        .then(({ data }) => setCompanyCode(data.company?.code ?? null))
+        .catch(() => {});
+    }
   }, [currentWorkspace?.id]);
 
   const fetchData = async () => {
@@ -377,6 +385,21 @@ export function TeamManagement() {
               )}
             </div>
           </div>
+
+          {isDirector && companyCode && (
+            <div className="mt-4 flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <div className="flex-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company Join Code</p>
+                <code className="mt-1 text-xl font-bold tracking-widest text-primary">{companyCode}</code>
+              </div>
+              <button
+                onClick={() => { navigator.clipboard.writeText(companyCode); toast.success('Company code copied!'); }}
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Copy className="h-3.5 w-3.5" /> Copy
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Director */}

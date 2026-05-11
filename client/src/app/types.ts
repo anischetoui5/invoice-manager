@@ -79,7 +79,8 @@ export interface ChatMember {
 export interface Subscription {
   id: string;
   enterpriseId: string;
-  plan: PlanType;
+  plan: string;
+  plan_name?: string;
   status: 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired';
   startDate: string;
   endDate?: string;
@@ -89,4 +90,7 @@ export interface Subscription {
   userCount: number;
   price: number;
   features: string[];
+  has_chat: boolean;
+  has_dm: boolean;
+  can_create_channels: boolean;
 }
