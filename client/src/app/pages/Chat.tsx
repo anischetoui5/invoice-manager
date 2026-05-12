@@ -324,7 +324,7 @@ export function Chat() {
   // ── Upsell for Starter / personal ───────────────────────────────────────────
   if (!hasChat) {
     return (
-      <div className="flex h-full overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex overflow-hidden rounded-xl border border-border bg-card" style={{ height: 'calc(100dvh - 11rem)' }}>
         <ChatUpsell
           planName={currentSubscription?.plan ?? (currentWorkspace?.type === 'personal' ? 'Personal' : 'Starter')}
           onNavigate={() => navigate('/dashboard/subscription')}
@@ -334,7 +334,7 @@ export function Chat() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <div className="flex overflow-hidden rounded-xl border border-border bg-card shadow-sm" style={{ height: 'calc(100dvh - 11rem)' }}>
 
       {/* ═══ SIDEBAR ═══════════════════════════════════════════════════════════ */}
       <div className="flex w-64 shrink-0 flex-col border-r border-border bg-muted/20">

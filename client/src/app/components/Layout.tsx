@@ -126,7 +126,7 @@ export function Layout({
       onWorkspaceChange(workspace);
       toast.success(`Switched to ${workspace.name}`);
     }
-    if (!window.location.pathname.startsWith('/dashboard')) navigate('/dashboard');
+    navigate('/dashboard');
   };
 
   return (

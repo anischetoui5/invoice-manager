@@ -75,8 +75,12 @@ function estimatePdfPages(bytes: number): number {
 
 export function UploadInvoice() {
   const navigate = useNavigate();
-  const { currentWorkspace } = useOutletContext<{ currentWorkspace: Workspace }>();
+  const { currentWorkspace, currentSubscription } = useOutletContext<{ currentWorkspace: Workspace; currentSubscription: any }>();
   const { isLocked } = useSubscriptionGuard();
+
+  const invoiceLimit = currentSubscription?.invoiceLimit ?? 0;
+  const invoiceUsed  = currentSubscription?.invoiceUsed  ?? 0;
+  const isAtLimit    = invoiceLimit > 0 && invoiceLimit !== -1 && invoiceUsed >= invoiceLimit;
 
   const [dragActive, setDragActive]     = useState(false);
   const [entries, setEntries]           = useState<FileEntry[]>([]);
@@ -204,7 +208,29 @@ export function UploadInvoice() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className={`space-y-5 ${isLocked ? 'pointer-events-none opacity-50' : ''}`}>
+      {isAtLimit && !isLocked && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/50 p-5">
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-amber-800 dark:text-amber-300">Invoice Limit Reached</p>
+              <p className="mt-0.5 text-sm text-amber-600 dark:text-amber-400">
+                You've used <strong>{invoiceUsed}</strong> of <strong>{invoiceLimit}</strong> invoices on your current plan.
+                Upgrade to add more.
+              </p>
+            </div>
+            <Link to={currentWorkspace?.type === 'company' ? '/dashboard/subscription' : '/dashboard/personal-subscription'}>
+              <Button size="sm" className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white border-0">
+                Upgrade Plan
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className={`space-y-5 ${isLocked || isAtLimit ? 'pointer-events-none opacity-50' : ''}`}>
         {/* Drop zone */}
         <div className="erp-card rounded-lg p-5">
           <div

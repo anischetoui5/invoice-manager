@@ -6,7 +6,6 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Progress } from '../components/ui/progress';
 import type { UserRole, Workspace, User } from '../types';
 import { JoinCompany } from '../components/JoinCompany';
 import { useState, useEffect, useRef } from 'react';
@@ -301,7 +300,7 @@ export function Dashboard({ userRole }: DashboardProps) {
   useEffect(() => {
     if (!currentWorkspace?.id) return;
     const normalizedRole = userRole?.toLowerCase();
-    if (!['employee', 'accountant'].includes(normalizedRole)) return;
+    if (!['employee', 'accountant', 'normal'].includes(normalizedRole)) return;
     setRecentInvoicesLoading(true);
     const params: Record<string, any> = { limit: 5, page: 1 };
     if (normalizedRole === 'accountant') params.status = 'pending_review';
@@ -320,76 +319,137 @@ export function Dashboard({ userRole }: DashboardProps) {
   const renderNormalUserDashboard = () => {
     const invoiceLimit = currentSubscription?.invoiceLimit ?? 0;
     const invoiceUsed  = currentSubscription?.invoiceUsed ?? 0;
-    const usagePct     = invoiceLimit > 0 ? Math.min((invoiceUsed / invoiceLimit) * 100, 100) : 0;
-    const nearLimit    = invoiceLimit > 0 && (invoiceUsed / invoiceLimit) >= 0.8;
+    const usagePct     = invoiceLimit > 0 && invoiceLimit !== -1 ? Math.min((invoiceUsed / invoiceLimit) * 100, 100) : 0;
+    const nearLimit    = invoiceLimit > 0 && invoiceLimit !== -1 && (invoiceUsed / invoiceLimit) >= 0.8;
+    const atLimit      = invoiceLimit > 0 && invoiceLimit !== -1 && invoiceUsed >= invoiceLimit;
+    const isUnlimited  = invoiceLimit === -1;
+    const total        = S('total');
 
     return (
       <>
+        {/* Stats row */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Invoices" value={sv(S('total'))}   icon={FileText}   color="blue"   loading={statsLoading} />
-          <StatCard label="Processing"     value={sv(S('pending'))} icon={Clock}      color="yellow" loading={statsLoading} />
-          <StatCard label="Total Amount"   value={sv(`$${S('total_amount').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)} icon={DollarSign} color="green" loading={statsLoading} />
+          <StatCard label="Total Invoices" value={sv(total)}          icon={FileText}   color="blue"   loading={statsLoading} />
+          <StatCard label="Approved"       value={sv(S('approved'))}  icon={CheckCircle2} color="green" loading={statsLoading} />
+          <StatCard label="Pending Review" value={sv(S('pending'))}   icon={Clock}      color="yellow" loading={statsLoading} />
+          <StatCard label="Total Amount"   value={sv(`TND ${S('total_amount').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)} icon={DollarSign} color="purple" loading={statsLoading} />
+        </div>
+
+        {/* Plan usage + quick actions */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          {/* Plan card */}
           <div className="erp-card rounded-lg p-5">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan</p>
-                <p className="mt-1.5 text-2xl font-semibold text-foreground">{currentSubscription?.plan ?? '—'}</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current Plan</p>
+                <p className="mt-1 text-xl font-bold text-foreground">{currentSubscription?.plan ?? '—'}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">${currentSubscription?.price ?? 0}/mo</p>
               </div>
               <IconBox icon={CreditCard} color="purple" />
             </div>
-          </div>
-        </div>
-
-        <div className="erp-card rounded-lg p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Plan Usage</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {invoiceUsed} of {invoiceLimit === -1 ? 'Unlimited' : invoiceLimit} invoices this month
-              </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Invoices used</span>
+                <span className={`font-semibold tabular-nums ${atLimit ? 'text-red-600' : nearLimit ? 'text-amber-600' : 'text-foreground'}`}>
+                  {invoiceUsed} / {isUnlimited ? '∞' : invoiceLimit}
+                </span>
+              </div>
+              {!isUnlimited && (
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${atLimit ? 'bg-red-500' : nearLimit ? 'bg-amber-500' : 'bg-primary'}`}
+                    style={{ width: `${usagePct}%` }}
+                  />
+                </div>
+              )}
+              {atLimit && (
+                <p className="text-xs text-red-600 font-medium">Limit reached — upgrade to add more.</p>
+              )}
+              {nearLimit && !atLimit && (
+                <p className="text-xs text-amber-600">{Math.round(usagePct)}% used — consider upgrading.</p>
+              )}
             </div>
-            {nearLimit && (
-              <Link to="/dashboard/personal-subscription">
-                <Button size="sm" variant="outline" className="text-amber-600 border-amber-200 hover:bg-amber-50 dark:hover:bg-amber-900/20">
-                  Upgrade
-                </Button>
-              </Link>
-            )}
+            <Link to="/dashboard/personal-subscription" className="mt-4 flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              Manage Plan <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
-          <Progress value={usagePct} className="h-2" />
-          {nearLimit && (
-            <p className="text-xs text-amber-600 mt-2">{Math.round(usagePct)}% used — consider upgrading.</p>
-          )}
-        </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className={`erp-card rounded-lg p-5 ${!isPersonalOnly && !isAccountant ? 'lg:col-span-2' : ''}`}>
-            <SectionHeader title="My Invoices" action={<ViewAllLink to="/dashboard/invoices" />} />
-            {S('total') === 0 && !statsLoading ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <IconBox icon={Upload} color="blue" />
-                <p className="text-sm text-muted-foreground mt-3 mb-4">No invoices yet.</p>
-                <Link to="/dashboard/upload"><Button size="sm"><Upload className="mr-1.5 h-3.5 w-3.5" />Upload Invoice</Button></Link>
+          {/* Quick actions */}
+          <div className="erp-card rounded-lg p-5">
+            <SectionHeader title="Quick Actions" />
+            <div className="space-y-2">
+              {[
+                { to: '/dashboard/upload',   icon: Upload,   label: 'Upload New Invoice',  desc: 'Scan or import a document' },
+                { to: '/dashboard/invoices', icon: FileText, label: 'View All Invoices',    desc: 'Browse your invoice history' },
+                { to: '/dashboard/reports',  icon: TrendingUp, label: 'View Reports',       desc: 'Charts and export' },
+              ].map(({ to, icon: Icon, label, desc }) => (
+                <Link key={to} to={to}
+                  className="flex items-center gap-3 rounded-md border border-border px-3 py-2.5 transition-colors hover:bg-muted/50 group"
+                >
+                  <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" strokeWidth={1.75} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <p className="text-xs text-muted-foreground">{desc}</p>
+                  </div>
+                  <ArrowRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Status breakdown */}
+          <div className="erp-card rounded-lg p-5">
+            <SectionHeader title="Invoice Summary" />
+            {total === 0 && !statsLoading ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <IconBox icon={FileText} color="slate" />
+                <p className="text-sm text-muted-foreground mt-3">No invoices yet.</p>
+                <Link to="/dashboard/upload" className="mt-3">
+                  <Button size="sm"><Upload className="mr-1.5 h-3.5 w-3.5" />Upload First</Button>
+                </Link>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-3">
                 {[
-                  { value: S('pending'),   label: 'Processing', color: 'text-amber-600' },
-                  { value: S('processed'), label: 'Processed',  color: 'text-emerald-600' },
-                  { value: S('failed'),    label: 'Failed',     color: 'text-red-600' },
-                ].map(({ value, label, color }) => (
-                  <div key={label} className="rounded-md bg-muted/50 border border-border p-3 text-center">
-                    <p className={`text-2xl font-semibold tabular-nums ${color}`}>{value}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+                  { label: 'Approved', value: S('approved'), color: 'bg-emerald-500' },
+                  { label: 'Pending',  value: S('pending'),  color: 'bg-amber-500' },
+                  { label: 'Rejected', value: S('rejected'), color: 'bg-red-500' },
+                  { label: 'Draft',    value: S('draft'),    color: 'bg-slate-400' },
+                ].map(({ label, value, color }) => (
+                  <div key={label}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                      <span className="text-xs font-semibold text-foreground tabular-nums">{value}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div className={`h-full rounded-full ${color} transition-all duration-500`}
+                        style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%' }} />
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          {isPersonalOnly && <JoinCompany userRole="normal" />}
-          {isAccountant   && <JoinCompany userRole="accountant" lockedRole />}
         </div>
+
+        {/* Recent invoices + join company */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="erp-card rounded-lg p-5">
+            <SectionHeader title="Recent Invoices" action={<ViewAllLink to="/dashboard/invoices" />} />
+            <InvoicePreview
+              invoices={recentInvoices}
+              emptyMessage="No invoices yet. Upload your first invoice to get started."
+              loading={recentInvoicesLoading}
+            />
+          </div>
+
+          <div className="erp-card rounded-lg p-5">
+            <SectionHeader title="Recent Activity" action={<ViewAllLink to="/dashboard/history" />} />
+            <RecentActivity workspaceId={currentWorkspace.id} limit={5} />
+          </div>
+        </div>
+
+        {isPersonalOnly && <JoinCompany userRole="normal" />}
       </>
     );
   };
