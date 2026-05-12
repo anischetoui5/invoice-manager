@@ -35,7 +35,7 @@ export function Sidebar({ currentWorkspace, chatUnreadCount = 0 }: SidebarProps)
     { path: '/dashboard/personal-subscription', icon: CreditCard,      label: 'Subscription',  roles: ['normal'] },
     { path: '/dashboard/users',                 icon: Users,           label: 'Users',         roles: ['admin'] },
     { path: '/dashboard/companies',             icon: Building2,       label: 'Companies',     roles: ['admin'] },
-    { path: '/dashboard/chat',                   icon: MessageSquare,   label: 'Chat',          roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
+    { path: '/dashboard/chat',                   icon: MessageSquare,   label: 'Chat',          roles: ['admin', 'employee', 'accountant', 'director'] },
     { path: '/dashboard/history',               icon: History,         label: 'History',       roles: ['admin', 'accountant', 'normal', 'employee', 'director'] },
     { path: '/dashboard/settings',              icon: Settings,        label: 'Settings',      roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
   ];

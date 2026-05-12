@@ -282,6 +282,7 @@ export function InvoiceDetail() {
   const canEditStatus      = status === 'draft' || status === 'rejected';
   const canSubmitForReview = !isLocked && canEditStatus && (role === 'Employee' || role === 'Director');
   const canApproveReject   = !isLocked && role === 'Accountant' && status === 'pending_review';
+  const canMarkPaid        = !isLocked && role === 'Director' && status === 'approved';
   const canEditOCR         = !isLocked && canEditStatus && (role === 'Director' || role === 'Employee' || role === 'Personal') && fields.length > 0;
   const canEditBasic       = !isLocked && canEditStatus && (role === 'Employee' || role === 'Director' || role === 'Personal');
   const canDelete          = !isLocked && role === 'Director' && !['approved', 'paid', 'archived'].includes(status);
@@ -314,6 +315,14 @@ export function InvoiceDetail() {
       setStatus('approved');
       toast.success('Invoice approved successfully');
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed to approve invoice'); }
+  };
+
+  const handleMarkPaid = async () => {
+    try {
+      await api.patch(`/workspaces/${currentWorkspace.id}/invoices/${id}/status`, { status: 'paid' });
+      setStatus('paid');
+      toast.success('Invoice marked as paid');
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed to mark invoice as paid'); }
   };
 
   const handleReject = async () => {
@@ -847,6 +856,20 @@ export function InvoiceDetail() {
                   <XCircle className="mr-2 h-4 w-4" /> Reject Invoice
                 </Button>
               </div>
+            </Card>
+          )}
+
+          {canMarkPaid && (
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold text-foreground mb-1">Payment</h2>
+              <p className="text-sm text-muted-foreground mb-4">Confirm this invoice has been paid.</p>
+              <Button
+                className="w-full"
+                style={{ backgroundColor: 'var(--success)', color: 'var(--success-foreground)' }}
+                onClick={handleMarkPaid}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Mark as Paid
+              </Button>
             </Card>
           )}
 

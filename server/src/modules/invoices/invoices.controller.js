@@ -16,7 +16,7 @@ async function createInvoice(req, res) {
     res.status(201).json({ message: 'Invoice created successfully', invoice });
   } catch (err) {
     console.error('createInvoice error:', err.message);
-    res.status(400).json({ error: err.message });
+    res.status(err.statusCode || 400).json({ error: err.message });
   }
 }
 

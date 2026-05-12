@@ -7,6 +7,27 @@ async function createInvoice({ workspace_id, created_by, invoice_number, vendor_
   try {
     await client.query('BEGIN');
 
+    // Check invoice quota for this workspace's subscription plan
+    const quotaRes = await client.query(
+      `SELECT sp.max_invoices,
+              COUNT(i.id) AS invoice_count
+       FROM workspaces w
+       LEFT JOIN companies c ON c.workspace_id = w.id
+       LEFT JOIN subscriptions s ON (s.company_id = c.id OR s.user_id = w.owner_id)
+         AND s.status IN ('trialing', 'active')
+       LEFT JOIN subscription_plans sp ON sp.id = s.plan_id
+       LEFT JOIN invoices i ON i.workspace_id = w.id
+       WHERE w.id = $1
+       GROUP BY sp.max_invoices`,
+      [workspace_id]
+    );
+    if (quotaRes.rows.length > 0) {
+      const { max_invoices, invoice_count } = quotaRes.rows[0];
+      if (max_invoices !== null && max_invoices !== -1 && parseInt(invoice_count) >= parseInt(max_invoices)) {
+        throw Object.assign(new Error('Invoice limit reached for your current plan. Please upgrade to add more invoices.'), { statusCode: 403 });
+      }
+    }
+
     const invoiceResult = await client.query(
       `INSERT INTO invoices 
         (workspace_id, created_by, invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes, current_status)
