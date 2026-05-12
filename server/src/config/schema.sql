@@ -281,5 +281,32 @@ VALUES
   ('Free',    0.00,  10, NULL, 85.00, true, 'personal', false, false, false),
   ('Basic',   9.00,  50, NULL, 92.00, true, 'personal', false, false, false),
   ('Plus',   19.00, 200, NULL, 96.00, true, 'personal', false, false, false),
-  ('Premium', 39.00, -1, NULL, 99.00, true, 'personal')
+  ('Premium', 39.00, -1, NULL, 99.00, true, 'personal', false, false, false)
 ON CONFLICT DO NOTHING;
+
+-- CHAT
+CREATE TABLE IF NOT EXISTS chat_conversations (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workspace_id uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    type varchar(10) NOT NULL CHECK (type IN ('channel', 'direct')),
+    name varchar(100),
+    created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+    created_at timestamp DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS chat_members (
+    conversation_id uuid NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    last_read_at timestamp DEFAULT now(),
+    PRIMARY KEY (conversation_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id uuid NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+    sender_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content text NOT NULL,
+    created_at timestamp DEFAULT now(),
+    updated_at timestamp,
+    deleted_at timestamp
+);
