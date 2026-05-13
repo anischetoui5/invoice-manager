@@ -7,7 +7,7 @@ import {
 } from '../components/ui/select';
 import {
   Download, TrendingUp, DollarSign, FileText, Users,
-  Loader2, CheckCircle2, XCircle, Clock, TrendingDown, Minus,
+  Loader2, CheckCircle2, XCircle, TrendingDown, Minus,
   ChevronDown, FileSpreadsheet, FileType2, Archive,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -642,11 +642,11 @@ export function Reports() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2">
           <SummaryCard
             label="Total Invoices"
             value={total}
-            sub={`${pending} pending`}
+            sub={`${total === 1 ? '1 invoice' : `${total} invoices`} uploaded`}
             icon={<FileText className="h-6 w-6" />}
             iconBg="bg-blue-100" iconColor="text-blue-600"
             trend={changes.total}
@@ -654,19 +654,11 @@ export function Reports() {
           />
           <SummaryCard
             label="Total Amount"
-            value={`$${fmt(totalAmount)}`}
-            sub={`Avg $${fmt(avgAmount)} each`}
+            value={`TND ${fmt(totalAmount)}`}
+            sub={`Avg TND ${fmt(avgAmount)} each`}
             icon={<DollarSign className="h-6 w-6" />}
             iconBg="bg-green-100" iconColor="text-green-600"
             trend={changes.total_amount}
-            periodLabel={periodLabel}
-          />
-          <SummaryCard
-            label="In Queue"
-            value={pending}
-            sub="Currently in OCR queue"
-            icon={<Clock className="h-6 w-6" />}
-            iconBg="bg-yellow-100" iconColor="text-yellow-600"
             periodLabel={periodLabel}
           />
         </div>

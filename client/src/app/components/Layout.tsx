@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { TopBar } from './Topbar';
 import { Sidebar } from './Sidebar';
 import { NotificationsPanel } from './NotificationsPanel';
@@ -30,7 +30,8 @@ export function Layout({
   currentWorkspace: initialWorkspace,
   onWorkspaceChange,
 }: LayoutProps) {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const [activeEnterpriseId, setActiveEnterpriseId] = useState(currentUser.enterpriseId);
   const [notifications, setNotifications]           = useState<Notification[]>(initialNotifications);
   const [showNotifications, setShowNotifications]   = useState(false);
@@ -65,17 +66,38 @@ export function Layout({
     }
   }, [currentWorkspace?.id]);
 
+  // Clear chat badge the moment the user lands on the chat page
+  useEffect(() => {
+    if (location.pathname === '/dashboard/chat') {
+      setChatUnreadCount(0);
+    }
+  }, [location.pathname]);
+
+  // Polling: 60 s for notifications, 30 s for chat unread.
+  // Pauses automatically when the tab is hidden; refetches immediately on focus.
   useEffect(() => {
     fetchNotifications();
-    pollingRef.current = setInterval(fetchNotifications, 30_000);
+    pollingRef.current = setInterval(fetchNotifications, 60_000);
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [fetchNotifications]);
 
   useEffect(() => {
     fetchChatUnread();
-    chatPollRef.current = setInterval(fetchChatUnread, 15_000);
+    chatPollRef.current = setInterval(fetchChatUnread, 30_000);
     return () => { if (chatPollRef.current) clearInterval(chatPollRef.current); };
   }, [fetchChatUnread]);
+
+  // Page Visibility API — pause polling when tab is hidden, refetch on return
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchNotifications();
+        fetchChatUnread();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [fetchNotifications, fetchChatUnread]);
 
   const fetchSubscription = useCallback(async () => {
     if (!currentWorkspace?.id) return;
