@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import {
-  WorkspaceConfig, AppMode, SidebarPosition,
-  loadConfig, saveConfig, DEFAULT_CONFIG,
-} from '../../lib/workspaceConfig';
+import type { WorkspaceConfig, AppMode, SidebarPosition } from '../../lib/workspaceConfig';
+import { loadConfig, saveConfig, DEFAULT_CONFIG } from '../../lib/workspaceConfig';
 
 interface CtxValue {
   config:          WorkspaceConfig;
