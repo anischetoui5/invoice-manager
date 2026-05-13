@@ -7,11 +7,13 @@ import { NotificationsPanel } from './NotificationsPanel';
 import { AiChat } from './AiChat';
 import { MobileNav } from './MobileNav';
 import { InstallPWA } from './InstallPWA';
+import { CustomizationPanel } from './CustomizationPanel';
 import api from '../../lib/api';
 import type { User, Enterprise, Notification, Workspace, Subscription } from '../types';
 import { AlertTriangle, CreditCard } from 'lucide-react';
 import { Button } from './ui/button';
 import { SubscriptionLock } from './SubscriptionLock';
+import { useWorkspaceConfig } from '../context/WorkspaceConfigContext';
 
 interface LayoutProps {
   currentUser: User;
@@ -32,6 +34,8 @@ export function Layout({
 }: LayoutProps) {
   const navigate  = useNavigate();
   const location  = useLocation();
+  const { config } = useWorkspaceConfig();
+  const sidebarPos = config.mode === 'custom' ? config.sidebarPosition : 'left';
   const [activeEnterpriseId, setActiveEnterpriseId] = useState(currentUser.enterpriseId);
   const [notifications, setNotifications]           = useState<Notification[]>(initialNotifications);
   const [showNotifications, setShowNotifications]   = useState(false);
@@ -152,14 +156,29 @@ export function Layout({
     navigate('/dashboard');
   };
 
-  return (
-    <div className="flex overflow-hidden bg-background" style={{ height: '100dvh' }}>
-      {/* Sidebar — hidden on mobile */}
-      <div className="hidden md:flex">
-        <Sidebar currentWorkspace={currentWorkspace} chatUnreadCount={chatUnreadCount} />
-      </div>
+  const isHorizontal = sidebarPos === 'top' || sidebarPos === 'bottom';
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+  // Sidebar element — used in different flex positions based on sidebarPos
+  const sidebarEl = (
+    <div className={isHorizontal ? 'hidden md:block w-full shrink-0' : 'hidden md:flex shrink-0'}>
+      <Sidebar
+        currentWorkspace={currentWorkspace}
+        chatUnreadCount={chatUnreadCount}
+        orientation={isHorizontal ? 'horizontal' : 'vertical'}
+      />
+    </div>
+  );
+
+  return (
+    <div
+      className={`overflow-hidden bg-background ${isHorizontal ? 'flex flex-col' : 'flex'}`}
+      style={{ height: '100dvh', transition: 'flex-direction 0.3s ease' }}
+    >
+      {/* Top or Left sidebar */}
+      {(sidebarPos === 'top' || sidebarPos === 'left') && sidebarEl}
+
+      {/* Main content */}
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <TopBar
           user={currentUser}
           enterprises={enterprises}
@@ -179,7 +198,6 @@ export function Layout({
             const wsRole     = currentWorkspace?.role ?? '';
             const isDirector = wsRole === 'Director' || wsRole === 'Admin';
 
-            // ── Employees / Accountants: full lock screen ──────────────────
             if (isExpired && !isDirector) {
               return (
                 <SubscriptionLock
@@ -191,7 +209,6 @@ export function Layout({
 
             return (
               <>
-                {/* Director expiry notice */}
                 {isExpired && isDirector && (
                   <div className="mb-6 overflow-hidden rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20">
                     <div className="flex items-start gap-4 p-4">
@@ -223,7 +240,6 @@ export function Layout({
                   </div>
                 )}
 
-                {/* Past due banner */}
                 {isCompany && currentSubscription?.status === 'past_due' && (
                   <div className="mb-4 flex items-center gap-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/50 px-4 py-3">
                     <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
@@ -259,6 +275,9 @@ export function Layout({
         </main>
       </div>
 
+      {/* Right or Bottom sidebar */}
+      {(sidebarPos === 'right' || sidebarPos === 'bottom') && sidebarEl}
+
       <NotificationsPanel
         notifications={notifications}
         isOpen={showNotifications}
@@ -272,7 +291,9 @@ export function Layout({
       <div className="md:hidden">
         <MobileNav />
       </div>
+
       <InstallPWA />
+      <CustomizationPanel />
     </div>
   );
 }

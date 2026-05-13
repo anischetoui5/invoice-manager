@@ -1,6 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Sparkles, X, Send, ChevronDown } from 'lucide-react';
 import api from '../../lib/api';
+import { useWorkspaceConfig } from '../context/WorkspaceConfigContext';
+
+const BTN_SIZE = 56;
 
 interface Message {
   role: 'user' | 'assistant';
@@ -15,18 +18,89 @@ const SUGGESTIONS = [
   'Résume mes factures récentes',
 ];
 
+function clamp(val: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, val));
+}
+
 export function AiChat({ workspaceId }: { workspaceId: string }) {
-  const [open, setOpen] = useState(false);
+  const { config, setAiPosition } = useWorkspaceConfig();
+  const isCustom = config.mode === 'custom';
+
+  const [open, setOpen]       = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput]     = useState('');
   const [loading, setLoading] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Draggable position — null means use CSS default (bottom-right)
+  const defaultPos = () => ({
+    x: window.innerWidth  - BTN_SIZE - 16,
+    y: window.innerHeight - BTN_SIZE - 76,
+  });
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(
+    isCustom ? (config.aiPosition ?? null) : null
+  );
+
+  const dragging   = useRef(false);
+  const hasMoved   = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const btnRef     = useRef<HTMLButtonElement>(null);
+  const bottomRef  = useRef<HTMLDivElement>(null);
+  const inputRef   = useRef<HTMLInputElement>(null);
+
+  // Sync position from config when mode changes to custom
+  useEffect(() => {
+    if (isCustom && config.aiPosition && !pos) {
+      setPos(config.aiPosition);
+    }
+    if (!isCustom) setPos(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCustom]);
+
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    if (!dragging.current) return;
+    hasMoved.current = true;
+    setPos({
+      x: clamp(e.clientX - dragOffset.current.x, 0, window.innerWidth  - BTN_SIZE),
+      y: clamp(e.clientY - dragOffset.current.y, 0, window.innerHeight - BTN_SIZE),
+    });
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    document.body.style.userSelect = '';
+    setPos(prev => {
+      if (prev) setAiPosition(prev);
+      return prev;
+    });
+  }, [setAiPosition]);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup',   onMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup',   onMouseUp);
+    };
+  }, [onMouseMove, onMouseUp]);
+
+  const handleBtnMouseDown = (e: React.MouseEvent) => {
+    if (!isCustom) return;
+    hasMoved.current = false;
+    dragging.current = true;
+    document.body.style.userSelect = 'none';
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    e.preventDefault();
+  };
+
+  const handleBtnClick = () => {
+    if (hasMoved.current) return; // was a drag, not a click
+    setOpen(o => !o);
+  };
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 100);
   }, [open]);
 
   useEffect(() => {
@@ -61,35 +135,34 @@ export function AiChat({ workspaceId }: { workspaceId: string }) {
 
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button — draggable in custom mode */}
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={btnRef}
+        onMouseDown={handleBtnMouseDown}
+        onClick={handleBtnClick}
         style={{
           position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom) + 76px)',
-          right: '16px',
-          width: '56px',
-          height: '56px',
+          ...(pos
+            ? { left: pos.x, top: pos.y, bottom: 'auto', right: 'auto' }
+            : { bottom: 'calc(env(safe-area-inset-bottom) + 76px)', right: '16px' }
+          ),
+          width: `${BTN_SIZE}px`,
+          height: `${BTN_SIZE}px`,
           borderRadius: '50%',
           background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-          border: 'none',
-          cursor: 'pointer',
+          border: isCustom ? '2px dashed rgba(255,255,255,0.4)' : 'none',
+          cursor: isCustom ? 'grab' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: '0 8px 32px rgba(99,102,241,0.45)',
           zIndex: 1000,
-          transition: 'transform 0.2s, box-shadow 0.2s',
+          transition: 'box-shadow 0.2s',
+          userSelect: 'none',
         }}
-        onMouseEnter={e => {
-          (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.1)';
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 12px 40px rgba(99,102,241,0.6)';
-        }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px rgba(99,102,241,0.45)';
-        }}
-        title="AI Assistant"
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 12px 40px rgba(99,102,241,0.65)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px rgba(99,102,241,0.45)'; }}
+        title={isCustom ? 'Drag to move · Click to open' : 'AI Assistant'}
       >
         {open ? <ChevronDown size={22} color="white" /> : <Sparkles size={22} color="white" />}
       </button>

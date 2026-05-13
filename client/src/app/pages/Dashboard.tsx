@@ -1,5 +1,6 @@
 import { Link, useOutletContext } from 'react-router-dom';
 import { toast } from 'sonner';
+import { SortableSectionList, DashboardSection } from '../components/SortableSections';
 import {
   FileText, Upload, CheckCircle2, XCircle, Clock,
   DollarSign, Users, Building2, Shield, CreditCard, ArrowRight,
@@ -326,15 +327,17 @@ export function Dashboard({ userRole }: DashboardProps) {
     const total        = S('total');
 
     return (
-      <>
-        {/* Stats row */}
+      <SortableSectionList role="personal" defaultOrder={['stats','plan','recent']}>
+        <DashboardSection id="stats">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Total Uploaded"  value={sv(total)}               icon={FileText}    color="blue"   loading={statsLoading} />
           <StatCard label="OCR Processing"  value={sv(S('ocr_pending'))}    icon={Clock}       color="yellow" loading={statsLoading} />
           <StatCard label="OCR Completed"   value={sv(S('ocr_done'))}       icon={CheckCircle2} color="green" loading={statsLoading} />
           <StatCard label="Paid"            value={sv(S('paid'))}           icon={DollarSign}  color="purple" loading={statsLoading} />
         </div>
+        </DashboardSection>
 
+        <DashboardSection id="plan">
         {/* Plan usage + quick actions */}
         <div className="grid gap-4 lg:grid-cols-3">
           {/* Plan card */}
@@ -433,6 +436,9 @@ export function Dashboard({ userRole }: DashboardProps) {
           </div>
         </div>
 
+        </DashboardSection>
+
+        <DashboardSection id="recent">
         {/* Recent invoices + join company */}
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="erp-card rounded-lg p-5">
@@ -451,25 +457,31 @@ export function Dashboard({ userRole }: DashboardProps) {
         </div>
 
         {isPersonalOnly && <JoinCompany userRole="normal" />}
-      </>
+        </DashboardSection>
+      </SortableSectionList>
     );
   };
 
   // ── Employee ───────────────────────────────────────────────────────────────
   const renderEmployeeDashboard = () => (
-    <>
+    <SortableSectionList role="employee" defaultOrder={['stats','invoices','grid']}>
+      <DashboardSection id="stats">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total Uploaded"  value={sv(S('total'))}    icon={FileText}    color="blue"   loading={statsLoading} />
         <StatCard label="Pending Review"  value={sv(S('pending'))}  icon={Clock}       color="yellow" loading={statsLoading} />
         <StatCard label="Approved"        value={sv(S('approved'))} icon={CheckCircle2} color="green" loading={statsLoading} />
         <StatCard label="Paid"            value={sv(S('paid'))}     icon={DollarSign}  color="purple" loading={statsLoading} />
       </div>
+      </DashboardSection>
 
+      <DashboardSection id="invoices">
       <div className="erp-card rounded-lg p-5">
         <SectionHeader title="Recent Invoices" action={<ViewAllLink to="/dashboard/invoices" />} />
         <InvoicePreview invoices={recentInvoices} emptyMessage="No invoices yet. Upload your first invoice." loading={recentInvoicesLoading} />
       </div>
+      </DashboardSection>
 
+      <DashboardSection id="grid">
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="erp-card rounded-lg p-5">
           <SectionHeader title="Quick Actions" />
@@ -513,7 +525,8 @@ export function Dashboard({ userRole }: DashboardProps) {
           </div>
         </div>
       </div>
-    </>
+      </DashboardSection>
+    </SortableSectionList>
   );
 
   // ── Accountant ─────────────────────────────────────────────────────────────
@@ -524,14 +537,17 @@ export function Dashboard({ userRole }: DashboardProps) {
     const approvalRate = approved + rejected > 0 ? Math.round((approved / (approved + rejected)) * 100) : 0;
 
     return (
-      <>
+      <SortableSectionList role="accountant" defaultOrder={['stats','pending','grid']}>
+        <DashboardSection id="stats">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Pending Validation" value={sv(S('pending_validation'))} icon={Clock}        color="orange" loading={statsLoading} />
           <StatCard label="Validated Today"    value={sv(S('validated_today'))}   icon={CheckCircle2} color="purple" loading={statsLoading} />
           <StatCard label="Approved"           value={sv(approved)}               icon={CheckCircle2} color="green"  loading={statsLoading} />
           <StatCard label="Paid"               value={sv(paid)}                   icon={DollarSign}   color="blue"   loading={statsLoading} />
         </div>
+        </DashboardSection>
 
+        <DashboardSection id="pending">
         <div className="erp-card rounded-lg p-5">
           <SectionHeader
             title="Invoices Pending Validation"
@@ -539,7 +555,9 @@ export function Dashboard({ userRole }: DashboardProps) {
           />
           <InvoicePreview invoices={recentInvoices} emptyMessage="All caught up — no invoices pending validation." uploadLink={false} loading={recentInvoicesLoading} />
         </div>
+        </DashboardSection>
 
+        <DashboardSection id="grid">
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="erp-card rounded-lg p-5">
             <SectionHeader title="Recent Activity" />
@@ -561,9 +579,9 @@ export function Dashboard({ userRole }: DashboardProps) {
             </div>
           </div>
         </div>
-
         <JoinCompany userRole="accountant" lockedRole />
-      </>
+        </DashboardSection>
+      </SortableSectionList>
     );
   };
 
@@ -576,110 +594,116 @@ export function Dashboard({ userRole }: DashboardProps) {
     const paid     = S('paid');
 
     return (
-      <>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Invoices"  value={sv(total)}                   icon={FileText}    color="blue"   loading={statsLoading} />
-          <StatCard label="Approved Amount" value={sv(`$${S('total_amount').toLocaleString()}`)} icon={DollarSign} color="green" loading={statsLoading} />
-          <StatCard label="Approval Rate"   value={sv(`${S('approval_rate')}%`)} icon={TrendingUp}  color="purple" loading={statsLoading} />
-          <StatCard label="Team Members"    value={sv(S('total_members'))}       icon={Users}       color="orange" loading={statsLoading} />
-        </div>
-
-        {/* Overview panel */}
-        <div className="erp-card rounded-lg p-5">
-          <div className="flex items-start justify-between mb-5">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Organisation Overview</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Invoice activity across all employees</p>
-            </div>
-            <div className="flex gap-2">
-              <Link to="/dashboard/team">
-                <Button variant="outline" size="sm"><Users className="mr-1.5 h-3.5 w-3.5" />Team</Button>
-              </Link>
-              <Link to="subscription">
-                <Button variant="outline" size="sm">Subscription</Button>
-              </Link>
-            </div>
+      <SortableSectionList role="director" defaultOrder={['stats', 'overview', 'grid']}>
+        <DashboardSection id="stats">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="Total Invoices"  value={sv(total)}                   icon={FileText}    color="blue"   loading={statsLoading} />
+            <StatCard label="Approved Amount" value={sv(`$${S('total_amount').toLocaleString()}`)} icon={DollarSign} color="green" loading={statsLoading} />
+            <StatCard label="Approval Rate"   value={sv(`${S('approval_rate')}%`)} icon={TrendingUp}  color="purple" loading={statsLoading} />
+            <StatCard label="Team Members"    value={sv(S('total_members'))}       icon={Users}       color="orange" loading={statsLoading} />
           </div>
+        </DashboardSection>
 
-          <div className="grid gap-3 md:grid-cols-3 mb-4">
-            {[
-              { icon: FileText,    label: 'Total',    value: total,    sub: 'All employees',     color: 'blue' },
-              { icon: CheckCircle2, label: 'Approved', value: approved, sub: `${total > 0 ? Math.round((approved / total) * 100) : 0}% of total`, color: 'green' },
-              { icon: XCircle,     label: 'Rejected', value: rejected, sub: 'Needs attention',  color: 'red' },
-            ].map(({ icon, label, value, sub, color }) => (
-              <div key={label} className="flex items-center gap-3 rounded-md border border-border p-4">
-                <IconBox icon={icon} color={color} />
-                <div>
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <p className="text-2xl font-semibold tabular-nums text-foreground">{value}</p>
-                  <p className="text-xs text-muted-foreground">{sub}</p>
-                </div>
+        <DashboardSection id="overview">
+          {/* Overview panel */}
+          <div className="erp-card rounded-lg p-5">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Organisation Overview</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Invoice activity across all employees</p>
               </div>
-            ))}
-          </div>
-
-          <div className="rounded-md border border-border p-3 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <Clock className="h-4 w-4 text-amber-500" />
-              <span className="text-sm text-foreground">
-                {pending > 0 ? `${pending} invoice${pending !== 1 ? 's' : ''} awaiting review` : 'No pending invoices'}
-              </span>
+              <div className="flex gap-2">
+                <Link to="/dashboard/team">
+                  <Button variant="outline" size="sm"><Users className="mr-1.5 h-3.5 w-3.5" />Team</Button>
+                </Link>
+                <Link to="subscription">
+                  <Button variant="outline" size="sm">Subscription</Button>
+                </Link>
+              </div>
             </div>
-            {pending > 0 && (
-              <Link to="/dashboard/invoices?status=pending_review">
-                <Button size="sm" variant="outline" className="text-xs">Review <ArrowRight className="ml-1 h-3 w-3" /></Button>
-              </Link>
-            )}
-          </div>
-        </div>
 
-        <div className="grid gap-4 lg:grid-cols-4">
-          <div className="erp-card rounded-lg p-5 lg:col-span-2">
-            <SectionHeader title="Status Breakdown" action={<ViewAllLink to="/dashboard/reports" label="Reports" />} />
-            {total === 0 ? <p className="text-xs text-muted-foreground">No data yet.</p> : (
-              <div className="space-y-3">
-                {[
-                  { label: 'Approved', value: approved, color: 'bg-emerald-500' },
-                  { label: 'Paid',     value: paid,     color: 'bg-blue-500' },
-                  { label: 'Pending',  value: pending,  color: 'bg-amber-500' },
-                  { label: 'Rejected', value: rejected, color: 'bg-red-500' },
-                ].map(({ label, value, color }) => (
-                  <div key={label}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-muted-foreground">{label}</span>
-                      <span className="text-xs font-semibold text-foreground tabular-nums">{value}</span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div className={`h-full rounded-full ${color} transition-all duration-500`}
-                        style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%' }} />
-                    </div>
+            <div className="grid gap-3 md:grid-cols-3 mb-4">
+              {[
+                { icon: FileText,    label: 'Total',    value: total,    sub: 'All employees',     color: 'blue' },
+                { icon: CheckCircle2, label: 'Approved', value: approved, sub: `${total > 0 ? Math.round((approved / total) * 100) : 0}% of total`, color: 'green' },
+                { icon: XCircle,     label: 'Rejected', value: rejected, sub: 'Needs attention',  color: 'red' },
+              ].map(({ icon, label, value, sub, color }) => (
+                <div key={label} className="flex items-center gap-3 rounded-md border border-border p-4">
+                  <IconBox icon={icon} color={color} />
+                  <div>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="text-2xl font-semibold tabular-nums text-foreground">{value}</p>
+                    <p className="text-xs text-muted-foreground">{sub}</p>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="erp-card rounded-lg p-5">
-            <SectionHeader title="Recent Activity" action={<ViewAllLink to="/dashboard/history" />} />
-            <RecentActivity workspaceId={currentWorkspace.id} limit={4} />
-          </div>
-
-          <div className="erp-card rounded-lg p-5">
-            <SectionHeader title="Company Code" />
-            <p className="text-xs text-muted-foreground -mt-2 mb-3">Share to invite team members</p>
-            <div className="rounded-md border border-border bg-muted/30 p-3 text-center mb-3">
-              <p className="text-xs text-muted-foreground mb-1">Code</p>
-              <p className="text-xl font-bold tracking-[0.2em] text-foreground font-mono">
-                {companyCode ?? '———'}
-              </p>
+                </div>
+              ))}
             </div>
-            <Button size="sm" variant="outline" className="w-full text-xs" disabled={!companyCode}
-              onClick={() => { if (companyCode) { navigator.clipboard.writeText(companyCode); toast.success('Copied!'); } }}>
-              Copy Code
-            </Button>
+
+            <div className="rounded-md border border-border p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Clock className="h-4 w-4 text-amber-500" />
+                <span className="text-sm text-foreground">
+                  {pending > 0 ? `${pending} invoice${pending !== 1 ? 's' : ''} awaiting review` : 'No pending invoices'}
+                </span>
+              </div>
+              {pending > 0 && (
+                <Link to="/dashboard/invoices?status=pending_review">
+                  <Button size="sm" variant="outline" className="text-xs">Review <ArrowRight className="ml-1 h-3 w-3" /></Button>
+                </Link>
+              )}
+            </div>
           </div>
-        </div>
-      </>
+        </DashboardSection>
+
+        <DashboardSection id="grid">
+          <div className="grid gap-4 lg:grid-cols-4">
+            <div className="erp-card rounded-lg p-5 lg:col-span-2">
+              <SectionHeader title="Status Breakdown" action={<ViewAllLink to="/dashboard/reports" label="Reports" />} />
+              {total === 0 ? <p className="text-xs text-muted-foreground">No data yet.</p> : (
+                <div className="space-y-3">
+                  {[
+                    { label: 'Approved', value: approved, color: 'bg-emerald-500' },
+                    { label: 'Paid',     value: paid,     color: 'bg-blue-500' },
+                    { label: 'Pending',  value: pending,  color: 'bg-amber-500' },
+                    { label: 'Rejected', value: rejected, color: 'bg-red-500' },
+                  ].map(({ label, value, color }) => (
+                    <div key={label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-muted-foreground">{label}</span>
+                        <span className="text-xs font-semibold text-foreground tabular-nums">{value}</span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div className={`h-full rounded-full ${color} transition-all duration-500`}
+                          style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="erp-card rounded-lg p-5">
+              <SectionHeader title="Recent Activity" action={<ViewAllLink to="/dashboard/history" />} />
+              <RecentActivity workspaceId={currentWorkspace.id} limit={4} />
+            </div>
+
+            <div className="erp-card rounded-lg p-5">
+              <SectionHeader title="Company Code" />
+              <p className="text-xs text-muted-foreground -mt-2 mb-3">Share to invite team members</p>
+              <div className="rounded-md border border-border bg-muted/30 p-3 text-center mb-3">
+                <p className="text-xs text-muted-foreground mb-1">Code</p>
+                <p className="text-xl font-bold tracking-[0.2em] text-foreground font-mono">
+                  {companyCode ?? '———'}
+                </p>
+              </div>
+              <Button size="sm" variant="outline" className="w-full text-xs" disabled={!companyCode}
+                onClick={() => { if (companyCode) { navigator.clipboard.writeText(companyCode); toast.success('Copied!'); } }}>
+                Copy Code
+              </Button>
+            </div>
+          </div>
+        </DashboardSection>
+      </SortableSectionList>
     );
   };
 
