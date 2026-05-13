@@ -75,7 +75,7 @@ function estimatePdfPages(bytes: number): number {
 
 export function UploadInvoice() {
   const navigate = useNavigate();
-  const { currentWorkspace, currentSubscription } = useOutletContext<{ currentWorkspace: Workspace; currentSubscription: any }>();
+  const { currentWorkspace, currentSubscription, refreshSubscription } = useOutletContext<{ currentWorkspace: Workspace; currentSubscription: any; refreshSubscription?: () => void }>();
   const { isLocked } = useSubscriptionGuard();
 
   const invoiceLimit = currentSubscription?.invoiceLimit ?? 0;
@@ -180,6 +180,7 @@ export function UploadInvoice() {
         }
       }
       toast.success('Invoice uploaded successfully!');
+      refreshSubscription?.();
       navigate('/dashboard/invoices');
     } catch (err) {
       toast.error('Something went wrong. Please try again.');

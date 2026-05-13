@@ -77,34 +77,35 @@ export function Layout({
     return () => { if (chatPollRef.current) clearInterval(chatPollRef.current); };
   }, [fetchChatUnread]);
 
-  useEffect(() => {
+  const fetchSubscription = useCallback(async () => {
     if (!currentWorkspace?.id) return;
-    const fetchSubscription = async () => {
-      try {
-        const isCompany = currentWorkspace?.type === 'company';
-        const { data } = await api.get('/subscriptions/my', {
-          headers: isCompany ? { 'x-workspace-id': currentWorkspace.id } : {},
-        });
-        const sub = data.subscription;
-        setCurrentSubscription(sub ? {
-          ...sub,
-          plan: sub.plan_name,
-          price: parseFloat(sub.price),
-          startDate: sub.billing_start,
-          invoiceUsed:  parseInt(sub.invoice_used) || 0,
-          invoiceLimit: sub.max_invoices ?? 0,
-          userCount:    parseInt(sub.user_count) || 0,
-          userLimit:    sub.max_users ?? 0,
-          has_chat:             sub.has_chat ?? false,
-          has_dm:               sub.has_dm ?? false,
-          can_create_channels:  sub.can_create_channels ?? false,
-        } : null);
-      } catch {
-        // ignore
-      }
-    };
+    try {
+      const isCompany = currentWorkspace?.type === 'company';
+      const { data } = await api.get('/subscriptions/my', {
+        headers: isCompany ? { 'x-workspace-id': currentWorkspace.id } : {},
+      });
+      const sub = data.subscription;
+      setCurrentSubscription(sub ? {
+        ...sub,
+        plan: sub.plan_name,
+        price: parseFloat(sub.price),
+        startDate: sub.billing_start,
+        invoiceUsed:  parseInt(sub.invoice_used) || 0,
+        invoiceLimit: sub.max_invoices ?? 0,
+        userCount:    parseInt(sub.user_count) || 0,
+        userLimit:    sub.max_users ?? 0,
+        has_chat:             sub.has_chat ?? false,
+        has_dm:               sub.has_dm ?? false,
+        can_create_channels:  sub.can_create_channels ?? false,
+      } : null);
+    } catch {
+      // ignore
+    }
+  }, [currentWorkspace?.id, currentWorkspace?.type]);
+
+  useEffect(() => {
     fetchSubscription();
-  }, [currentWorkspace?.id]);
+  }, [fetchSubscription]);
 
   const handleMarkAsRead = async (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -228,6 +229,7 @@ export function Layout({
                   currentWorkspace,
                   workspaces,
                   currentSubscription,
+                  refreshSubscription: fetchSubscription,
                 }} />
               </>
             );

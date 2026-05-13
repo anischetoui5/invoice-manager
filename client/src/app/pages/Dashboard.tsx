@@ -329,10 +329,10 @@ export function Dashboard({ userRole }: DashboardProps) {
       <>
         {/* Stats row */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Invoices" value={sv(total)}          icon={FileText}   color="blue"   loading={statsLoading} />
-          <StatCard label="Approved"       value={sv(S('approved'))}  icon={CheckCircle2} color="green" loading={statsLoading} />
-          <StatCard label="Pending Review" value={sv(S('pending'))}   icon={Clock}      color="yellow" loading={statsLoading} />
-          <StatCard label="Total Amount"   value={sv(`TND ${S('total_amount').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)} icon={DollarSign} color="purple" loading={statsLoading} />
+          <StatCard label="Total Uploaded"  value={sv(total)}               icon={FileText}    color="blue"   loading={statsLoading} />
+          <StatCard label="OCR Processing"  value={sv(S('ocr_pending'))}    icon={Clock}       color="yellow" loading={statsLoading} />
+          <StatCard label="OCR Completed"   value={sv(S('ocr_done'))}       icon={CheckCircle2} color="green" loading={statsLoading} />
+          <StatCard label="Paid"            value={sv(S('paid'))}           icon={DollarSign}  color="purple" loading={statsLoading} />
         </div>
 
         {/* Plan usage + quick actions */}
@@ -411,10 +411,11 @@ export function Dashboard({ userRole }: DashboardProps) {
             ) : (
               <div className="space-y-3">
                 {[
-                  { label: 'Approved', value: S('approved'), color: 'bg-emerald-500' },
-                  { label: 'Pending',  value: S('pending'),  color: 'bg-amber-500' },
-                  { label: 'Rejected', value: S('rejected'), color: 'bg-red-500' },
-                  { label: 'Draft',    value: S('draft'),    color: 'bg-slate-400' },
+                  { label: 'OCR Done',     value: S('ocr_done'),    color: 'bg-emerald-500' },
+                  { label: 'Processing',   value: S('ocr_pending'), color: 'bg-amber-500' },
+                  { label: 'OCR Failed',   value: S('ocr_failed'),  color: 'bg-red-500' },
+                  { label: 'Paid',         value: S('paid'),        color: 'bg-blue-500' },
+                  { label: 'Draft',        value: S('draft'),       color: 'bg-slate-400' },
                 ].map(({ label, value, color }) => (
                   <div key={label}>
                     <div className="flex items-center justify-between mb-1">
@@ -461,7 +462,7 @@ export function Dashboard({ userRole }: DashboardProps) {
         <StatCard label="Total Uploaded"  value={sv(S('total'))}    icon={FileText}    color="blue"   loading={statsLoading} />
         <StatCard label="Pending Review"  value={sv(S('pending'))}  icon={Clock}       color="yellow" loading={statsLoading} />
         <StatCard label="Approved"        value={sv(S('approved'))} icon={CheckCircle2} color="green" loading={statsLoading} />
-        <StatCard label="Rejected"        value={sv(S('rejected'))} icon={XCircle}     color="red"    loading={statsLoading} />
+        <StatCard label="Paid"            value={sv(S('paid'))}     icon={DollarSign}  color="purple" loading={statsLoading} />
       </div>
 
       <div className="erp-card rounded-lg p-5">
@@ -491,6 +492,7 @@ export function Dashboard({ userRole }: DashboardProps) {
           <div className="space-y-3">
             {[
               { label: 'Approved', value: S('approved'), color: 'bg-emerald-500' },
+              { label: 'Paid',     value: S('paid'),     color: 'bg-blue-500' },
               { label: 'Pending',  value: S('pending'),  color: 'bg-amber-500' },
               { label: 'Rejected', value: S('rejected'), color: 'bg-red-500' },
             ].map(({ label, value, color }) => (
@@ -505,7 +507,7 @@ export function Dashboard({ userRole }: DashboardProps) {
             <div className="pt-2 border-t border-border flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Total Amount</span>
               <span className="text-base font-semibold tabular-nums text-foreground">
-                ${S('total_amount').toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                TND {S('total_amount').toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>
@@ -518,6 +520,7 @@ export function Dashboard({ userRole }: DashboardProps) {
   const renderAccountantDashboard = () => {
     const approved     = S('approved');
     const rejected     = S('rejected');
+    const paid         = S('paid');
     const approvalRate = approved + rejected > 0 ? Math.round((approved / (approved + rejected)) * 100) : 0;
 
     return (
@@ -526,7 +529,7 @@ export function Dashboard({ userRole }: DashboardProps) {
           <StatCard label="Pending Validation" value={sv(S('pending_validation'))} icon={Clock}        color="orange" loading={statsLoading} />
           <StatCard label="Validated Today"    value={sv(S('validated_today'))}   icon={CheckCircle2} color="purple" loading={statsLoading} />
           <StatCard label="Approved"           value={sv(approved)}               icon={CheckCircle2} color="green"  loading={statsLoading} />
-          <StatCard label="Rejected"           value={sv(rejected)}               icon={XCircle}      color="red"    loading={statsLoading} />
+          <StatCard label="Paid"               value={sv(paid)}                   icon={DollarSign}   color="blue"   loading={statsLoading} />
         </div>
 
         <div className="erp-card rounded-lg p-5">
@@ -570,6 +573,7 @@ export function Dashboard({ userRole }: DashboardProps) {
     const approved = S('approved');
     const rejected = S('rejected');
     const pending  = S('pending');
+    const paid     = S('paid');
 
     return (
       <>
@@ -636,6 +640,7 @@ export function Dashboard({ userRole }: DashboardProps) {
               <div className="space-y-3">
                 {[
                   { label: 'Approved', value: approved, color: 'bg-emerald-500' },
+                  { label: 'Paid',     value: paid,     color: 'bg-blue-500' },
                   { label: 'Pending',  value: pending,  color: 'bg-amber-500' },
                   { label: 'Rejected', value: rejected, color: 'bg-red-500' },
                 ].map(({ label, value, color }) => (
