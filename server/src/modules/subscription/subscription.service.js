@@ -52,29 +52,73 @@ const getMySubscription = async (userId, workspaceId) => {
          ORDER BY s.created_at DESC LIMIT 1`,
         [workspaceId]
       )
-    : await pool.query(
-        `SELECT 
-           s.*, 
-           sp.name as plan_name,
-           sp.price,
-           sp.max_invoices,
-           sp.max_users,
-           sp.ocr_accuracy,
-           sp.has_chat,
-           sp.has_dm,
-           sp.can_create_channels,
-           (
-             SELECT COUNT(*) FROM invoices i
-             WHERE i.created_by = s.user_id
-             AND i.created_at >= (s.current_period_end - INTERVAL '30 days') -- ← billing period
-           ) AS invoice_used,
-           1 AS user_count
-         FROM subscriptions s
-         JOIN subscription_plans sp ON sp.id = s.plan_id
-         WHERE s.user_id = $1::uuid AND s.company_id IS NULL
-         ORDER BY s.created_at DESC LIMIT 1`,
-        [userId]
-      );
+    : await (async () => {
+        // Try to find existing personal subscription
+        const { rows: existingRows } = await pool.query(
+          `SELECT
+             s.*,
+             sp.name as plan_name,
+             sp.price,
+             sp.max_invoices,
+             sp.max_users,
+             sp.ocr_accuracy,
+             sp.has_chat,
+             sp.has_dm,
+             sp.can_create_channels,
+             (
+               SELECT COUNT(*) FROM invoices i
+               JOIN workspaces w ON w.id = i.workspace_id
+               WHERE w.owner_id = s.user_id AND w.type = 'personal'
+             ) AS invoice_used,
+             1 AS user_count
+           FROM subscriptions s
+           JOIN subscription_plans sp ON sp.id = s.plan_id
+           WHERE s.user_id = $1::uuid AND s.company_id IS NULL
+           ORDER BY s.created_at DESC LIMIT 1`,
+          [userId]
+        );
+
+        if (existingRows.length > 0) return { rows: existingRows };
+
+        // No personal subscription found — auto-create Free plan subscription
+        const freePlanRes = await pool.query(
+          `SELECT id FROM subscription_plans
+           WHERE LOWER(name) = 'free' AND plan_type = 'personal' AND is_active = true
+           LIMIT 1`
+        );
+        if (!freePlanRes.rows[0]) return { rows: [] };
+
+        await pool.query(
+          `INSERT INTO subscriptions (user_id, plan_id, status, billing_start, current_period_end, credits)
+           VALUES ($1, $2, 'active', NOW(), NOW() + INTERVAL '30 days', 0)`,
+          [userId, freePlanRes.rows[0].id]
+        );
+
+        const { rows: newRows } = await pool.query(
+          `SELECT
+             s.*,
+             sp.name as plan_name,
+             sp.price,
+             sp.max_invoices,
+             sp.max_users,
+             sp.ocr_accuracy,
+             sp.has_chat,
+             sp.has_dm,
+             sp.can_create_channels,
+             (
+               SELECT COUNT(*) FROM invoices i
+               JOIN workspaces w ON w.id = i.workspace_id
+               WHERE w.owner_id = s.user_id AND w.type = 'personal'
+             ) AS invoice_used,
+             1 AS user_count
+           FROM subscriptions s
+           JOIN subscription_plans sp ON sp.id = s.plan_id
+           WHERE s.user_id = $1::uuid AND s.company_id IS NULL
+           ORDER BY s.created_at DESC LIMIT 1`,
+          [userId]
+        );
+        return { rows: newRows };
+      })();
   const sub = rows[0] || null;
   if (sub && sub.current_period_end && !['expired', 'cancelled'].includes(sub.status)) {
     if (new Date(sub.current_period_end) < new Date()) {

@@ -9,16 +9,27 @@ async function createInvoice({ workspace_id, created_by, invoice_number, vendor_
 
     // Check invoice quota for this workspace's subscription plan
     const quotaRes = await client.query(
-      `SELECT sp.max_invoices, sp.name AS plan_name,
-              COUNT(i.id) AS invoice_count
+      `SELECT
+         w.type AS workspace_type,
+         sp.max_invoices,
+         sp.name AS plan_name,
+         (
+           CASE WHEN w.type = 'personal' THEN
+             (SELECT COUNT(*) FROM invoices i2
+              JOIN workspaces w2 ON w2.id = i2.workspace_id
+              WHERE w2.owner_id = w.owner_id AND w2.type = 'personal')
+           ELSE
+             (SELECT COUNT(*) FROM invoices i2 WHERE i2.workspace_id = w.id)
+           END
+         ) AS invoice_count
        FROM workspaces w
        LEFT JOIN companies c ON c.workspace_id = w.id
-       LEFT JOIN subscriptions s ON (s.company_id = c.id OR s.user_id = w.owner_id)
-         AND s.status IN ('trialing', 'active')
+       LEFT JOIN subscriptions s ON (
+         (w.type = 'personal' AND s.user_id = w.owner_id AND s.company_id IS NULL)
+         OR (w.type = 'company' AND s.company_id = c.id)
+       ) AND s.status IN ('trialing', 'active')
        LEFT JOIN subscription_plans sp ON sp.id = s.plan_id
-       LEFT JOIN invoices i ON i.workspace_id = w.id
-       WHERE w.id = $1
-       GROUP BY sp.max_invoices, sp.name`,
+       WHERE w.id = $1`,
       [workspace_id]
     );
 
@@ -61,8 +72,14 @@ async function createInvoice({ workspace_id, created_by, invoice_number, vendor_
 
     // Send notifications based on usage thresholds
     if (maxInvoices !== null && maxInvoices !== -1) {
+      const isPersonal = quotaRes.rows[0]?.workspace_type === 'personal';
       const newCountRes = await client.query(
-        'SELECT COUNT(*) FROM invoices WHERE workspace_id = $1',
+        isPersonal
+          ? `SELECT COUNT(*) FROM invoices i
+             JOIN workspaces w ON w.id = i.workspace_id
+             WHERE w.owner_id = (SELECT owner_id FROM workspaces WHERE id = $1)
+               AND w.type = 'personal'`
+          : `SELECT COUNT(*) FROM invoices WHERE workspace_id = $1`,
         [workspace_id]
       );
       const newCount = parseInt(newCountRes.rows[0].count);
