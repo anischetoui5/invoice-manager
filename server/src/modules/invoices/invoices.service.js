@@ -9,7 +9,7 @@ async function createInvoice({ workspace_id, created_by, invoice_number, vendor_
 
     // Check invoice quota for this workspace's subscription plan
     const quotaRes = await client.query(
-      `SELECT sp.max_invoices,
+      `SELECT sp.max_invoices, sp.name AS plan_name,
               COUNT(i.id) AS invoice_count
        FROM workspaces w
        LEFT JOIN companies c ON c.workspace_id = w.id
@@ -18,18 +18,24 @@ async function createInvoice({ workspace_id, created_by, invoice_number, vendor_
        LEFT JOIN subscription_plans sp ON sp.id = s.plan_id
        LEFT JOIN invoices i ON i.workspace_id = w.id
        WHERE w.id = $1
-       GROUP BY sp.max_invoices`,
+       GROUP BY sp.max_invoices, sp.name`,
       [workspace_id]
     );
+
+    let maxInvoices = null;
     if (quotaRes.rows.length > 0) {
       const { max_invoices, invoice_count } = quotaRes.rows[0];
+      maxInvoices = max_invoices;
       if (max_invoices !== null && max_invoices !== -1 && parseInt(invoice_count) >= parseInt(max_invoices)) {
-        throw Object.assign(new Error('Invoice limit reached for your current plan. Please upgrade to add more invoices.'), { statusCode: 403 });
+        throw Object.assign(
+          new Error('Invoice limit reached for your current plan. Upgrade your plan to continue. Your account data may be removed after 30 days of inactivity.'),
+          { statusCode: 403 }
+        );
       }
     }
 
     const invoiceResult = await client.query(
-      `INSERT INTO invoices 
+      `INSERT INTO invoices
         (workspace_id, created_by, invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes, current_status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft')
        RETURNING *`,
@@ -52,6 +58,36 @@ async function createInvoice({ workspace_id, created_by, invoice_number, vendor_
       entity_id: invoice.id,
       metadata: { invoice_number: invoice.invoice_number, vendor_name: invoice.vendor_name, created_by },
     });
+
+    // Send notifications based on usage thresholds
+    if (maxInvoices !== null && maxInvoices !== -1) {
+      const newCountRes = await client.query(
+        'SELECT COUNT(*) FROM invoices WHERE workspace_id = $1',
+        [workspace_id]
+      );
+      const newCount = parseInt(newCountRes.rows[0].count);
+      const planName = quotaRes.rows[0]?.plan_name ?? 'your current plan';
+
+      if (newCount >= maxInvoices) {
+        // Limit just reached — critical warning
+        await createNotification(client, {
+          user_id: created_by,
+          type: 'error',
+          title: 'Invoice Limit Reached',
+          message: `You've used all ${maxInvoices} invoices on the ${planName} plan. Upgrade now to keep uploading. If no action is taken, your account data may be removed after 30 days.`,
+          action_url: '/dashboard/personal-subscription',
+        });
+      } else if (newCount >= Math.ceil(maxInvoices * 0.8) && newCount < maxInvoices) {
+        // 80% threshold warning
+        await createNotification(client, {
+          user_id: created_by,
+          type: 'warning',
+          title: 'Approaching Invoice Limit',
+          message: `You've used ${newCount} of ${maxInvoices} invoices on the ${planName} plan. Consider upgrading before you reach the limit.`,
+          action_url: '/dashboard/personal-subscription',
+        });
+      }
+    }
 
     await client.query('COMMIT');
     return invoice;

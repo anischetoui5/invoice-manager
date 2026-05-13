@@ -209,23 +209,28 @@ export function UploadInvoice() {
       )}
 
       {isAtLimit && !isLocked && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/50 p-5">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
-              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+        <div className="overflow-hidden rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20">
+          <div className="flex items-start gap-4 p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/40">
+              <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-amber-800 dark:text-amber-300">Invoice Limit Reached</p>
-              <p className="mt-0.5 text-sm text-amber-600 dark:text-amber-400">
+              <p className="font-semibold text-red-800 dark:text-red-300">Invoice Limit Reached</p>
+              <p className="mt-0.5 text-sm text-red-600 dark:text-red-400">
                 You've used <strong>{invoiceUsed}</strong> of <strong>{invoiceLimit}</strong> invoices on your current plan.
-                Upgrade to add more.
+                Upgrade to continue uploading.
               </p>
             </div>
             <Link to={currentWorkspace?.type === 'company' ? '/dashboard/subscription' : '/dashboard/personal-subscription'}>
-              <Button size="sm" className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white border-0">
-                Upgrade Plan
+              <Button size="sm" className="shrink-0 bg-red-600 hover:bg-red-700 text-white border-0">
+                Upgrade Now
               </Button>
             </Link>
+          </div>
+          <div className="border-t border-red-200 dark:border-red-900/50 bg-red-100/50 dark:bg-red-900/20 px-5 py-2.5">
+            <p className="text-xs text-red-600 dark:text-red-400">
+              If no action is taken within <strong>30 days</strong>, your account data may be permanently removed.
+            </p>
           </div>
         </div>
       )}

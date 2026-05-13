@@ -47,44 +47,55 @@ function avatarColor(name: string) {
 // ── Upsell screen for plans without chat ────────────────────────────────────
 function ChatUpsell({ planName, onNavigate }: { planName: string; onNavigate: () => void }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 px-8 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-12 text-center w-full">
+      {/* Icon */}
       <div className="relative">
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
-          <MessageSquare className="h-9 w-9 text-primary" />
+        <div
+          className="flex h-24 w-24 items-center justify-center rounded-3xl shadow-lg"
+          style={{ background: 'var(--gradient-brand)', boxShadow: '0 8px 32px rgba(88,101,242,0.35)' }}
+        >
+          <MessageSquare className="h-11 w-11 text-white" />
         </div>
-        <div className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/60">
-          <Lock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+        <div className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-amber-400 shadow-md">
+          <Lock className="h-4 w-4 text-white" />
         </div>
       </div>
 
-      <div className="max-w-xs">
-        <h2 className="text-xl font-bold text-foreground">Team Chat</h2>
-        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-          Real-time messaging is not included in the <span className="font-semibold text-foreground">{planName}</span> plan.
-          Upgrade to <span className="font-semibold text-foreground">Business</span> or higher to unlock team chat.
+      {/* Text */}
+      <div className="max-w-sm">
+        <h2 className="text-2xl font-bold text-foreground">Team Chat</h2>
+        <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+          Real-time messaging is not available on the{' '}
+          <span className="font-semibold text-foreground">{planName}</span> plan.
+          Upgrade to unlock instant team communication.
         </p>
       </div>
 
-      <div className="flex flex-col items-center gap-3 w-full max-w-xs">
-        <div className="w-full rounded-xl border border-border bg-muted/30 p-4 text-left space-y-2">
-          {[
-            { plan: 'Business', desc: 'Channels for team discussions' },
-            { plan: 'Professional', desc: 'Channels + Direct Messages' },
-            { plan: 'Enterprise', desc: 'Custom channels (Director) + DMs' },
-          ].map(({ plan, desc }) => (
-            <div key={plan} className="flex items-center gap-2.5">
-              <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-              <span className="text-xs text-foreground"><span className="font-semibold">{plan}:</span> {desc}</span>
+      {/* Plan comparison */}
+      <div className="w-full max-w-sm space-y-3">
+        {[
+          { plan: 'Business',     badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',   desc: 'Team channels for group discussions' },
+          { plan: 'Professional', badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300', desc: 'Channels + Direct Messages' },
+          { plan: 'Enterprise',   badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300', desc: 'Custom channels + DMs + Director controls' },
+        ].map(({ plan, badge, desc }) => (
+          <div key={plan} className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 text-left">
+            <Sparkles className="h-4 w-4 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="text-xs text-muted-foreground">{desc}</span>
             </div>
-          ))}
-        </div>
-        <button
-          onClick={onNavigate}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-        >
-          View Plans <ArrowUpRight className="h-4 w-4" />
-        </button>
+            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${badge}`}>{plan}</span>
+          </div>
+        ))}
       </div>
+
+      {/* CTA */}
+      <button
+        onClick={onNavigate}
+        className="flex items-center justify-center gap-2 rounded-xl px-8 py-3 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-90 active:scale-95"
+        style={{ background: 'var(--gradient-brand)', boxShadow: '0 4px 16px rgba(88,101,242,0.4)' }}
+      >
+        View Plans <ArrowUpRight className="h-4 w-4" />
+      </button>
     </div>
   );
 }
@@ -324,7 +335,7 @@ export function Chat() {
   // ── Upsell for Starter / personal ───────────────────────────────────────────
   if (!hasChat) {
     return (
-      <div className="flex overflow-hidden rounded-xl border border-border bg-card" style={{ height: 'calc(100dvh - 11rem)' }}>
+      <div className="flex w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-card" style={{ height: 'calc(100dvh - 11rem)' }}>
         <ChatUpsell
           planName={currentSubscription?.plan ?? (currentWorkspace?.type === 'personal' ? 'Personal' : 'Starter')}
           onNavigate={() => navigate('/dashboard/subscription')}

@@ -1,37 +1,32 @@
-import { CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, FileText, DollarSign } from 'lucide-react';
 
 interface WorkflowStepperProps {
   status: string;
 }
 
 export function WorkflowStepper({ status }: WorkflowStepperProps) {
+  const isPaid = status === 'paid';
+
   const steps = [
     { key: 'draft',          label: 'Uploaded',      icon: FileText },
     { key: 'pending_review', label: 'Pending Review', icon: Clock },
     { key: 'approved',       label: 'Approved',       icon: CheckCircle },
+    ...(isPaid ? [{ key: 'paid', label: 'Paid', icon: DollarSign }] : []),
   ];
 
-  const statusOrder = ['draft', 'pending_review', 'approved'];
+  const statusOrder = ['draft', 'pending_review', 'approved', 'paid'];
 
   const getStepStatus = (stepKey: string) => {
     if (status === 'rejected') {
       const stepIndex = statusOrder.indexOf(stepKey);
       return stepIndex <= 1 ? 'completed' : 'rejected';
     }
+    if (isPaid) return 'completed';
 
     const currentIndex = statusOrder.indexOf(status);
-    const stepIndex = statusOrder.indexOf(stepKey);
+    const stepIndex    = statusOrder.indexOf(stepKey);
 
-    // FIX: If the current status is 'approved', mark the approved step as completed
-    if (status === 'approved' && stepKey === 'approved') {
-      return 'completed';
-    }
-
-    // Also handles other terminal states like 'paid' if you add them later
-    if (status === 'paid' && (stepKey === 'approved' || stepKey === 'paid')) {
-      return 'completed';
-    }
-
+    if (status === 'approved' && stepKey === 'approved') return 'completed';
     if (stepIndex < currentIndex) return 'completed';
     if (stepIndex === currentIndex) return 'current';
     return 'upcoming';
@@ -42,27 +37,27 @@ export function WorkflowStepper({ status }: WorkflowStepperProps) {
       case 'completed': return 'bg-green-500 border-green-500 text-white';
       case 'current':   return 'bg-blue-500 border-blue-500 text-white';
       case 'rejected':  return 'bg-red-500 border-red-500 text-white';
-      default:          return 'bg-white border-slate-300 text-slate-400';
+      default:          return 'bg-white border-slate-300 text-slate-400 dark:bg-slate-800 dark:border-slate-600';
     }
   };
 
   const getLineColor = (index: number) => {
     const stepStatus = getStepStatus(steps[index].key);
     if (stepStatus === 'completed') return 'bg-green-500';
-    if (stepStatus === 'current') return 'bg-gradient-to-r from-green-500 to-blue-500';
-    return 'bg-slate-200';
+    if (stepStatus === 'current')   return 'bg-gradient-to-r from-green-500 to-blue-500';
+    return 'bg-slate-200 dark:bg-slate-700';
   };
 
   if (status === 'rejected') {
     return (
-      <div className="rounded-lg bg-red-50 p-6">
+      <div className="rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 p-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500 text-white">
             <XCircle className="h-5 w-5" />
           </div>
           <div>
-            <p className="font-semibold text-red-900">Invoice Rejected</p>
-            <p className="text-sm text-red-700">This invoice did not pass validation</p>
+            <p className="font-semibold text-red-900 dark:text-red-300">Invoice Rejected</p>
+            <p className="text-sm text-red-700 dark:text-red-400">This invoice did not pass validation</p>
           </div>
         </div>
       </div>
@@ -98,7 +93,7 @@ export function WorkflowStepper({ status }: WorkflowStepperProps) {
                   <div
                     className={`absolute top-6 -z-0 h-0.5 ${getLineColor(index)}`}
                     style={{
-                      left: `${(100 / (steps.length - 1)) * index + 100 / (steps.length - 1) / 2}%`,
+                      left:  `${(100 / (steps.length - 1)) * index       + 100 / (steps.length - 1) / 2}%`,
                       right: `${100 - (100 / (steps.length - 1)) * (index + 1) + 100 / (steps.length - 1) / 2}%`,
                     }}
                   />
