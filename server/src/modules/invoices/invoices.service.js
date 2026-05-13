@@ -564,37 +564,67 @@ async function getReportsData(workspaceId, userId, role, period = '30d') {
 
   // ── Personal ──────────────────────────────────────────────────────────────
   if (isPersonal) {
-    const summary = await pool.query(`
-      SELECT
-        COUNT(*)                                            AS total,
-        COALESCE(SUM(amount), 0)                            AS total_amount,
-        COALESCE(AVG(amount), 0)                            AS avg_amount,
-        COUNT(*) FILTER (WHERE ocr_status = 'processing')   AS pending
-      FROM invoices i
-      WHERE i.created_at >= NOW() - $1::interval
-        AND i.workspace_id = $2
-        AND i.created_by = $3
-    `, [interval, workspaceId, userId]);
+    const [summary, monthly, statusDist, topVendors] = await Promise.all([
+      pool.query(`
+        SELECT
+          COUNT(*)                                                 AS total,
+          COALESCE(SUM(amount), 0)                                 AS total_amount,
+          COALESCE(AVG(amount), 0)                                 AS avg_amount,
+          COUNT(*) FILTER (WHERE current_status = 'paid')          AS paid,
+          COUNT(*) FILTER (WHERE ocr_status = 'completed')         AS ocr_done,
+          COUNT(*) FILTER (
+            WHERE ocr_status = 'processing' OR ocr_status = 'pending'
+          )                                                        AS ocr_pending
+        FROM invoices i
+        WHERE i.created_at >= NOW() - $1::interval
+          AND i.workspace_id = $2
+          AND i.created_by = $3
+      `, [interval, workspaceId, userId]),
 
-    const monthly = await pool.query(`
-      SELECT
-        TO_CHAR(DATE_TRUNC('month', i.created_at), 'Mon YY') AS month,
-        DATE_TRUNC('month', i.created_at)                    AS month_date,
-        COUNT(*)                                             AS count,
-        COALESCE(SUM(amount), 0)                             AS amount
-      FROM invoices i
-      WHERE i.created_at >= NOW() - $1::interval
-        AND i.workspace_id = $2
-        AND i.created_by = $3
-      GROUP BY DATE_TRUNC('month', i.created_at)
-      ORDER BY month_date ASC
-    `, [interval, workspaceId, userId]);
+      pool.query(`
+        SELECT
+          TO_CHAR(DATE_TRUNC('month', i.created_at), 'Mon YY') AS month,
+          DATE_TRUNC('month', i.created_at)                    AS month_date,
+          COUNT(*)                                             AS count,
+          COALESCE(SUM(amount), 0)                             AS amount
+        FROM invoices i
+        WHERE i.created_at >= NOW() - $1::interval
+          AND i.workspace_id = $2
+          AND i.created_by = $3
+        GROUP BY DATE_TRUNC('month', i.created_at)
+        ORDER BY month_date ASC
+      `, [interval, workspaceId, userId]),
+
+      pool.query(`
+        SELECT current_status AS status, COUNT(*) AS count
+        FROM invoices i
+        WHERE i.created_at >= NOW() - $1::interval
+          AND i.workspace_id = $2
+          AND i.created_by = $3
+        GROUP BY current_status
+      `, [interval, workspaceId, userId]),
+
+      pool.query(`
+        SELECT
+          COALESCE(vendor_name, 'Unknown') AS vendor,
+          COUNT(*)                         AS count,
+          COALESCE(SUM(amount), 0)         AS total_amount
+        FROM invoices i
+        WHERE i.created_at >= NOW() - $1::interval
+          AND i.workspace_id = $2
+          AND i.created_by = $3
+          AND vendor_name IS NOT NULL
+        GROUP BY vendor_name
+        ORDER BY total_amount DESC
+        LIMIT 5
+      `, [interval, workspaceId, userId]),
+    ]);
 
     return {
       summary: summary.rows[0],
       monthly_trend: monthly.rows,
-      status_distribution: [],
-      top_vendors: [],
+      status_distribution: statusDist.rows,
+      top_vendors: topVendors.rows,
       total_members: 0,
       employee_leaderboard: [],
     };

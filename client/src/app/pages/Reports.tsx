@@ -498,9 +498,10 @@ function EmployeeLeaderboard({ employees }: { employees: any[] }) {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function Reports() {
-  const { currentWorkspace } = useOutletContext<{
+  const { currentWorkspace, currentSubscription } = useOutletContext<{
     currentWorkspace: Workspace;
     currentUser: User;
+    currentSubscription: import('../types').Subscription | null;
   }>();
 
   const [period, setPeriod]       = useState('30d');
@@ -547,17 +548,23 @@ export function Reports() {
   const monthlyTrend = data?.monthly_trend ?? [];
   const statusDist   = data?.status_distribution ?? [];
   const topVendors   = data?.top_vendors ?? [];
-  const employees    = data?.employee_leaderboard ?? [];;
+  const employees    = data?.employee_leaderboard ?? [];
   const totalMembers = Number(data?.total_members ?? 0);
-  const changes      = data?.mom_changes ?? {}; // month-over-month deltas
+  const changes      = data?.mom_changes ?? {};
 
   const total        = Number(summary.total ?? 0);
   const approved     = Number(summary.approved ?? 0);
   const rejected     = Number(summary.rejected ?? 0);
   const pending      = Number(summary.pending ?? 0);
+  const paid         = Number(summary.paid ?? 0);
+  const ocrDone      = Number(summary.ocr_done ?? 0);
   const totalAmount  = Number(summary.total_amount ?? 0);
   const avgAmount    = Number(summary.avg_amount ?? 0);
   const approvalRate = total > 0 ? Math.round((approved / total) * 100) : 0;
+
+  const isPaidPlan = isPersonal &&
+    currentSubscription?.plan?.toLowerCase() !== 'free' &&
+    currentSubscription?.status === 'active';
 
   const pieData = statusDist.map((s: any) => ({
     name:  STATUS_LABELS[s.status] ?? s.status,
@@ -629,6 +636,12 @@ export function Reports() {
 
   // ── Personal view ───────────────────────────────────────────────────────────
   if (isPersonal) {
+    const personalPieData = statusDist.map((s: any) => ({
+      name:  STATUS_LABELS[s.status] ?? s.status,
+      value: Number(s.count),
+      color: STATUS_COLORS[s.status] ?? '#94a3b8',
+    }));
+
     return (
       <div className={`space-y-6 transition-opacity duration-200 ${isFetching ? 'opacity-60' : 'opacity-100'}`}>
         <FetchingOverlay />
@@ -636,34 +649,61 @@ export function Reports() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">My Reports</h1>
-            <p className="mt-1 text-muted-foreground">Your personal invoice statistics</p>
+            <p className="mt-1 text-muted-foreground">
+              Your personal invoice statistics
+              {isPaidPlan && (
+                <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">
+                  {currentSubscription?.plan}
+                </span>
+              )}
+            </p>
           </div>
-          <PeriodSelect />
+          <div className="flex gap-3">
+            <PeriodSelect />
+            {isPaidPlan && <ExportDropdown data={data} period={period} isPersonal />}
+          </div>
         </div>
 
-        {/* Summary cards */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <SummaryCard
-            label="Total Invoices"
-            value={total}
-            sub={`${total === 1 ? '1 invoice' : `${total} invoices`} uploaded`}
-            icon={<FileText className="h-6 w-6" />}
-            iconBg="bg-blue-100" iconColor="text-blue-600"
-            trend={changes.total}
-            periodLabel={periodLabel}
-          />
-          <SummaryCard
-            label="Total Amount"
-            value={`TND ${fmt(totalAmount)}`}
-            sub={`Avg TND ${fmt(avgAmount)} each`}
-            icon={<DollarSign className="h-6 w-6" />}
-            iconBg="bg-green-100" iconColor="text-green-600"
-            trend={changes.total_amount}
-            periodLabel={periodLabel}
-          />
-        </div>
+        {/* Summary cards — 4 for paid, 2 for free */}
+        {isPaidPlan ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <SummaryCard label="Total Invoices" value={total}
+              sub={`${total === 1 ? '1 invoice' : `${total} invoices`} uploaded`}
+              icon={<FileText className="h-6 w-6" />}
+              iconBg="bg-blue-100" iconColor="text-blue-600"
+              trend={changes.total} periodLabel={periodLabel} />
+            <SummaryCard label="Total Amount" value={`TND ${fmt(totalAmount)}`}
+              sub={`Avg TND ${fmt(avgAmount)} each`}
+              icon={<DollarSign className="h-6 w-6" />}
+              iconBg="bg-green-100" iconColor="text-green-600"
+              trend={changes.total_amount} periodLabel={periodLabel} />
+            <SummaryCard label="OCR Completed" value={ocrDone}
+              sub={total > 0 ? `${Math.round((ocrDone / total) * 100)}% success rate` : 'No invoices yet'}
+              icon={<CheckCircle2 className="h-6 w-6" />}
+              iconBg="bg-purple-100" iconColor="text-purple-600"
+              periodLabel={periodLabel} />
+            <SummaryCard label="Paid Invoices" value={paid}
+              sub={total > 0 ? `${Math.round((paid / total) * 100)}% of total` : 'No invoices yet'}
+              icon={<TrendingUp className="h-6 w-6" />}
+              iconBg="bg-orange-100" iconColor="text-orange-600"
+              periodLabel={periodLabel} />
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2">
+            <SummaryCard label="Total Invoices" value={total}
+              sub={`${total === 1 ? '1 invoice' : `${total} invoices`} uploaded`}
+              icon={<FileText className="h-6 w-6" />}
+              iconBg="bg-blue-100" iconColor="text-blue-600"
+              trend={changes.total} periodLabel={periodLabel} />
+            <SummaryCard label="Total Amount" value={`TND ${fmt(totalAmount)}`}
+              sub={`Avg TND ${fmt(avgAmount)} each`}
+              icon={<DollarSign className="h-6 w-6" />}
+              iconBg="bg-green-100" iconColor="text-green-600"
+              trend={changes.total_amount} periodLabel={periodLabel} />
+          </div>
+        )}
 
-        {/* Charts */}
+        {/* Charts row 1 — always shown */}
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="p-6">
             <h3 className="mb-6 font-semibold text-foreground">Invoice Amount Over Time</h3>
@@ -678,10 +718,8 @@ export function Reports() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
                   <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(v: any) => [`$${fmt(Number(v))}`, 'Amount']}
-                  />
+                  <Tooltip contentStyle={tooltipStyle}
+                    formatter={(v: any) => [`TND ${fmt(Number(v))}`, 'Amount']} />
                   <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2}
                     dot={{ fill: '#3b82f6', r: 4 }} />
                 </LineChart>
@@ -708,6 +746,51 @@ export function Reports() {
             )}
           </Card>
         </div>
+
+        {/* Charts row 2 — paid plan only */}
+        {isPaidPlan && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="p-6">
+              <h3 className="mb-6 font-semibold text-foreground">Invoice Status Distribution</h3>
+              {personalPieData.length === 0 ? (
+                <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
+                  No data for this period
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie data={personalPieData} cx="50%" cy="50%"
+                      innerRadius={55} outerRadius={95}
+                      paddingAngle={3} dataKey="value" labelLine={false}
+                      label={({ name, percent }) =>
+                        (percent ?? 0) > 0.08 ? `${name} ${((percent ?? 0) * 100).toFixed(0)}%` : ''
+                      }>
+                      {personalPieData.map((entry: any, i: number) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="mb-6 font-semibold text-foreground">Top Vendors</h3>
+              <VendorsBarChart vendors={topVendors} />
+            </Card>
+          </div>
+        )}
+
+        {/* Free-plan upsell hint */}
+        {!isPaidPlan && (
+          <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5 text-center">
+            <p className="text-sm font-medium text-foreground">Want deeper insights?</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Upgrade your plan to unlock status distribution, vendor analytics, and report exports.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
