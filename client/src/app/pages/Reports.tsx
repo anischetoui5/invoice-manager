@@ -636,12 +636,6 @@ export function Reports() {
 
   // ── Personal view ───────────────────────────────────────────────────────────
   if (isPersonal) {
-    const personalPieData = statusDist.map((s: any) => ({
-      name:  STATUS_LABELS[s.status] ?? s.status,
-      value: Number(s.count),
-      color: STATUS_COLORS[s.status] ?? '#94a3b8',
-    }));
-
     return (
       <div className={`space-y-6 transition-opacity duration-200 ${isFetching ? 'opacity-60' : 'opacity-100'}`}>
         <FetchingOverlay />
@@ -664,9 +658,9 @@ export function Reports() {
           </div>
         </div>
 
-        {/* Summary cards — 4 for paid, 2 for free */}
+        {/* Summary cards — 3 for paid, 2 for free */}
         {isPaidPlan ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-3">
             <SummaryCard label="Total Invoices" value={total}
               sub={`${total === 1 ? '1 invoice' : `${total} invoices`} uploaded`}
               icon={<FileText className="h-6 w-6" />}
@@ -677,11 +671,6 @@ export function Reports() {
               icon={<DollarSign className="h-6 w-6" />}
               iconBg="bg-green-100" iconColor="text-green-600"
               trend={changes.total_amount} periodLabel={periodLabel} />
-            <SummaryCard label="OCR Completed" value={ocrDone}
-              sub={total > 0 ? `${Math.round((ocrDone / total) * 100)}% success rate` : 'No invoices yet'}
-              icon={<CheckCircle2 className="h-6 w-6" />}
-              iconBg="bg-purple-100" iconColor="text-purple-600"
-              periodLabel={periodLabel} />
             <SummaryCard label="Paid Invoices" value={paid}
               sub={total > 0 ? `${Math.round((paid / total) * 100)}% of total` : 'No invoices yet'}
               icon={<TrendingUp className="h-6 w-6" />}
@@ -747,39 +736,12 @@ export function Reports() {
           </Card>
         </div>
 
-        {/* Charts row 2 — paid plan only */}
+        {/* Vendors chart — paid plan only */}
         {isPaidPlan && (
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="p-6">
-              <h3 className="mb-6 font-semibold text-foreground">Invoice Status Distribution</h3>
-              {personalPieData.length === 0 ? (
-                <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
-                  No data for this period
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie data={personalPieData} cx="50%" cy="50%"
-                      innerRadius={55} outerRadius={95}
-                      paddingAngle={3} dataKey="value" labelLine={false}
-                      label={({ name, percent }) =>
-                        (percent ?? 0) > 0.08 ? `${name} ${((percent ?? 0) * 100).toFixed(0)}%` : ''
-                      }>
-                      {personalPieData.map((entry: any, i: number) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </Card>
-
-            <Card className="p-6">
-              <h3 className="mb-6 font-semibold text-foreground">Top Vendors</h3>
-              <VendorsBarChart vendors={topVendors} />
-            </Card>
-          </div>
+          <Card className="p-6">
+            <h3 className="mb-6 font-semibold text-foreground">Top Vendors</h3>
+            <VendorsBarChart vendors={topVendors} />
+          </Card>
         )}
 
         {/* Free-plan upsell hint */}

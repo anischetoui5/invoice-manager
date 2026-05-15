@@ -169,11 +169,12 @@ function RecentActivity({ workspaceId, limit = 5 }: { workspaceId: string; limit
 }
 
 // Invoice preview list
-function InvoicePreview({ invoices, emptyMessage, uploadLink = true, loading = false }: {
+function InvoicePreview({ invoices, emptyMessage, uploadLink = true, loading = false, showStatus = true }: {
   invoices: any[];
   emptyMessage: string;
   uploadLink?: boolean;
   loading?: boolean;
+  showStatus?: boolean;
 }) {
   if (loading) {
     return (
@@ -228,9 +229,11 @@ function InvoicePreview({ invoices, emptyMessage, uploadLink = true, loading = f
               <span className="text-sm font-semibold text-foreground tabular-nums">
                 {invoice.currency} {Number(invoice.amount ?? 0).toLocaleString()}
               </span>
-              <span className={`rounded px-2 py-0.5 text-[11px] font-medium ${badge.bg} ${badge.text}`}>
-                {badge.label}
-              </span>
+              {showStatus && (
+                <span className={`rounded px-2 py-0.5 text-[11px] font-medium ${badge.bg} ${badge.text}`}>
+                  {badge.label}
+                </span>
+              )}
             </div>
           </Link>
         );
@@ -329,11 +332,10 @@ export function Dashboard({ userRole }: DashboardProps) {
     return (
       <SortableSectionList role="personal" defaultOrder={['stats','plan','recent']}>
         <DashboardSection id="stats">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Uploaded"  value={sv(total)}               icon={FileText}    color="blue"   loading={statsLoading} />
-          <StatCard label="OCR Processing"  value={sv(S('ocr_pending'))}    icon={Clock}       color="yellow" loading={statsLoading} />
-          <StatCard label="OCR Completed"   value={sv(S('ocr_done'))}       icon={CheckCircle2} color="green" loading={statsLoading} />
-          <StatCard label="Paid"            value={sv(S('paid'))}           icon={DollarSign}  color="purple" loading={statsLoading} />
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatCard label="Total Uploaded" value={sv(total)}          icon={FileText}    color="blue"   loading={statsLoading} />
+          <StatCard label="OCR Completed"  value={sv(S('ocr_done'))}  icon={CheckCircle2} color="green" loading={statsLoading} />
+          <StatCard label="Paid"           value={sv(S('paid'))}      icon={DollarSign}  color="purple" loading={statsLoading} />
         </div>
         </DashboardSection>
 
@@ -414,11 +416,9 @@ export function Dashboard({ userRole }: DashboardProps) {
             ) : (
               <div className="space-y-3">
                 {[
-                  { label: 'OCR Done',     value: S('ocr_done'),    color: 'bg-emerald-500' },
-                  { label: 'Processing',   value: S('ocr_pending'), color: 'bg-amber-500' },
-                  { label: 'OCR Failed',   value: S('ocr_failed'),  color: 'bg-red-500' },
-                  { label: 'Paid',         value: S('paid'),        color: 'bg-blue-500' },
-                  { label: 'Draft',        value: S('draft'),       color: 'bg-slate-400' },
+                  { label: 'OCR Done', value: S('ocr_done'), color: 'bg-emerald-500' },
+                  { label: 'Paid',     value: S('paid'),     color: 'bg-blue-500' },
+                  { label: 'Draft',    value: S('draft'),    color: 'bg-slate-400' },
                 ].map(({ label, value, color }) => (
                   <div key={label}>
                     <div className="flex items-center justify-between mb-1">
@@ -447,6 +447,7 @@ export function Dashboard({ userRole }: DashboardProps) {
               invoices={recentInvoices}
               emptyMessage="No invoices yet. Upload your first invoice to get started."
               loading={recentInvoicesLoading}
+              showStatus={false}
             />
           </div>
 
