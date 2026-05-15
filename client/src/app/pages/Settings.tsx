@@ -3,9 +3,12 @@ import {
   User as UserIcon, Mail, Lock, Bell, Shield, Save,
   Building2, Pencil, Phone, Copy, CreditCard, LogOut,
   CalendarClock, AlertTriangle, CheckCircle2, Clock,
-  ChevronDown, Check, RefreshCw,
+  ChevronDown, Check, RefreshCw, LayoutDashboard, Sparkles,
+  PanelLeft, PanelRight, PanelTop, PanelBottom,
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
+import { useWorkspaceConfig } from '../context/WorkspaceConfigContext';
+import type { SidebarPosition } from '../../lib/workspaceConfig';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -565,6 +568,8 @@ export function Settings() {
     ocrFailed:             true,
   });
 
+  const { config, setMode, setSidebarPosition, resetLayout } = useWorkspaceConfig();
+
   const isAdmin        = currentUser?.role?.toLowerCase() === 'admin';
   const hasCompanyRole = workspaces?.some(w =>
     w.type === 'company' && ['Employee', 'Director', 'Accountant'].includes(w.role)
@@ -633,11 +638,12 @@ export function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className={`bg-background grid w-full ${showCompanyTab ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`bg-background grid w-full ${showCompanyTab ? 'grid-cols-5' : 'grid-cols-4'}`}>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           {showCompanyTab && <TabsTrigger value="company">Company</TabsTrigger>}
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="workspace">Workspace</TabsTrigger>
         </TabsList>
 
         {/* ── Profile ── */}
@@ -816,6 +822,147 @@ export function Settings() {
                 </Button>
               </div>
             </Card>
+          </div>
+        </TabsContent>
+
+        {/* ── Workspace ── */}
+        <TabsContent value="workspace">
+          <div className="space-y-6">
+
+            {/* Mode selector */}
+            <Card className="p-6">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100">
+                  <LayoutDashboard className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Workspace Mode</h3>
+                  <p className="text-sm text-muted-foreground">Choose how you want to use EasyFact</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Basic card */}
+                <button
+                  type="button"
+                  onClick={() => { setMode('basic'); toast.success('Switched to Basic mode'); }}
+                  className="text-left rounded-xl border-2 p-5 transition-all duration-200 hover:-translate-y-0.5"
+                  style={{
+                    borderColor: config.mode === 'basic' ? '#6366f1' : 'var(--border)',
+                    background:  config.mode === 'basic' ? 'rgba(99,102,241,0.06)' : 'var(--card)',
+                    boxShadow:   config.mode === 'basic' ? '0 0 0 3px rgba(99,102,241,0.15)' : 'none',
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+                      <LayoutDashboard className="h-4 w-4 text-slate-600" />
+                    </div>
+                    {config.mode === 'basic' && (
+                      <span className="flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                        <Check className="h-3 w-3" /> Active
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-semibold text-foreground text-sm mb-1">Basic Mode</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Clean, focused layout. Jump straight into managing your invoices.</p>
+                </button>
+
+                {/* Custom card */}
+                <button
+                  type="button"
+                  onClick={() => { setMode('custom'); toast.success('Switched to Custom mode'); }}
+                  className="text-left rounded-xl border-2 p-5 transition-all duration-200 hover:-translate-y-0.5"
+                  style={{
+                    borderColor: config.mode === 'custom' ? '#6366f1' : 'var(--border)',
+                    background:  config.mode === 'custom'
+                      ? 'linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.08))'
+                      : 'var(--card)',
+                    boxShadow: config.mode === 'custom' ? '0 0 0 3px rgba(99,102,241,0.15)' : 'none',
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg"
+                      style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
+                      <Sparkles className="h-4 w-4 text-white" />
+                    </div>
+                    {config.mode === 'custom' ? (
+                      <span className="flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                        <Check className="h-3 w-3" /> Active
+                      </span>
+                    ) : (
+                      <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white"
+                        style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>NEW</span>
+                    )}
+                  </div>
+                  <p className="font-semibold text-foreground text-sm mb-1">Custom Mode</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Fully personalised — reorder sidebar, move the AI bubble, rearrange dashboard sections.</p>
+                </button>
+              </div>
+            </Card>
+
+            {/* Sidebar position — only in custom mode */}
+            {config.mode === 'custom' && (
+              <Card className="p-6">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+                    <PanelLeft className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Sidebar Position</h3>
+                    <p className="text-sm text-muted-foreground">Where the navigation sits on screen</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {([
+                    { pos: 'left',   label: 'Left',   Icon: PanelLeft   },
+                    { pos: 'right',  label: 'Right',  Icon: PanelRight  },
+                    { pos: 'top',    label: 'Top',    Icon: PanelTop    },
+                    { pos: 'bottom', label: 'Bottom', Icon: PanelBottom },
+                  ] as { pos: SidebarPosition; label: string; Icon: React.ElementType }[]).map(({ pos, label, Icon }) => (
+                    <button
+                      key={pos}
+                      type="button"
+                      onClick={() => { setSidebarPosition(pos); toast.success(`Sidebar moved to ${label.toLowerCase()}`); }}
+                      className="flex flex-col items-center gap-2 rounded-xl border-2 py-4 px-3 transition-all duration-150 hover:-translate-y-0.5"
+                      style={{
+                        borderColor: config.sidebarPosition === pos ? '#8b5cf6' : 'var(--border)',
+                        background:  config.sidebarPosition === pos ? 'rgba(139,92,246,0.08)' : 'var(--card)',
+                      }}
+                    >
+                      <Icon className="h-5 w-5" style={{ color: config.sidebarPosition === pos ? '#8b5cf6' : 'var(--muted-foreground)' }} />
+                      <span className="text-xs font-medium" style={{ color: config.sidebarPosition === pos ? '#8b5cf6' : 'var(--foreground)' }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* Reset layout — only in custom mode */}
+            {config.mode === 'custom' && (
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                      <RefreshCw className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">Reset Layout</h3>
+                      <p className="text-sm text-muted-foreground">Restore all positions and orders to defaults</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                    onClick={() => { resetLayout(); toast.success('Layout reset to defaults'); }}
+                  >
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Reset
+                  </Button>
+                </div>
+              </Card>
+            )}
+
           </div>
         </TabsContent>
 
