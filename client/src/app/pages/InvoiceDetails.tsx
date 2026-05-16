@@ -511,7 +511,10 @@ export function InvoiceDetail() {
         </div>
       )}
 
-      {role !== 'Personal' && <WorkflowStepper status={status as any} />}
+      {role === 'Personal'
+        ? <WorkflowStepper status={status} personal />
+        : <WorkflowStepper status={status as any} />
+      }
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left column */}

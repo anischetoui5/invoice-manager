@@ -342,7 +342,7 @@ export function InvoiceList() {
                     <SortableHead label="Amount"       sortKey="amount"         currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHead label="Invoice Date" sortKey="invoice_date"   currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHead label="Due Date"     sortKey="due_date"       currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-                    {role !== 'Personal' && <SortableHead label="Status" sortKey="current_status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />}
+                    <SortableHead label="Status" sortKey="current_status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <TableHead className="w-[120px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -352,9 +352,8 @@ export function InvoiceList() {
                       pill: 'bg-slate-100 text-slate-600', label: invoice.current_status,
                       row: '', border: 'border-l-slate-300',
                     };
-                    const isPersonalRole = role === 'Personal';
                     return (
-                      <TableRow key={invoice.id} className={`${isPersonalRole ? 'border-l-4 border-l-transparent' : `border-l-4 ${cfg.border} ${cfg.row}`} transition-colors hover:bg-muted/30`}>
+                      <TableRow key={invoice.id} className={`border-l-4 ${cfg.border} ${cfg.row} transition-colors hover:bg-muted/30`}>
                         <TableCell className="w-0 p-0" />
                         <TableCell className="font-medium text-sm">{invoice.invoice_number ?? '—'}</TableCell>
                         {isAdmin && (
@@ -375,13 +374,11 @@ export function InvoiceList() {
                         <TableCell className="text-sm text-muted-foreground tabular-nums">
                           {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '—'}
                         </TableCell>
-                        {!isPersonalRole && (
-                          <TableCell>
-                            <span className={`rounded px-2 py-0.5 text-[11px] font-medium ${cfg.pill}`}>
-                              {cfg.label}
-                            </span>
-                          </TableCell>
-                        )}
+                        <TableCell>
+                          <span className={`rounded px-2 py-0.5 text-[11px] font-medium ${cfg.pill}`}>
+                            {cfg.label}
+                          </span>
+                        </TableCell>
                         <TableCell className="w-[120px]">
                           <div className="flex items-center gap-1">
                             <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
@@ -417,20 +414,17 @@ export function InvoiceList() {
                   pill: 'bg-slate-100 text-slate-600', label: invoice.current_status,
                   row: '', border: 'border-l-slate-300',
                 };
-                const isMobilePersonal = role === 'Personal';
                 return (
                   <Link key={invoice.id} to={`/dashboard/invoices/${invoice.id}`}>
-                    <div className={`rounded-lg border border-border bg-background p-4 transition-colors active:bg-muted/50 ${isMobilePersonal ? '' : `border-l-4 ${cfg.border} ${cfg.row}`}`}>
+                    <div className={`rounded-lg border border-border bg-background p-4 transition-colors active:bg-muted/50 border-l-4 ${cfg.border} ${cfg.row}`}>
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div>
                           <p className="font-medium text-foreground text-sm">{invoice.vendor_name || 'Unknown vendor'}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">#{invoice.invoice_number ?? '—'}</p>
                         </div>
-                        {!isMobilePersonal && (
-                          <span className={`rounded px-2 py-0.5 text-[11px] font-medium flex-shrink-0 ${cfg.pill}`}>
-                            {cfg.label}
-                          </span>
-                        )}
+                        <span className={`rounded px-2 py-0.5 text-[11px] font-medium flex-shrink-0 ${cfg.pill}`}>
+                          {cfg.label}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="text-base font-semibold text-foreground tabular-nums">

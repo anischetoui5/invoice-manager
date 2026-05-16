@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { DashboardSection, SortableSectionList } from '../components/SortableSections';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../components/ui/select';
@@ -559,6 +560,8 @@ export function Reports() {
   const paid         = Number(summary.paid ?? 0);
   const ocrDone      = Number(summary.ocr_done ?? 0);
   const totalAmount  = Number(summary.total_amount ?? 0);
+  const paidAmount   = Number(summary.paid_amount ?? 0);
+  const unpaidAmount = totalAmount - paidAmount;
   const avgAmount    = Number(summary.avg_amount ?? 0);
   const approvalRate = total > 0 ? Math.round((approved / total) * 100) : 0;
 
@@ -636,6 +639,15 @@ export function Reports() {
 
   // ── Personal view ───────────────────────────────────────────────────────────
   if (isPersonal) {
+    const draftEntry = statusDist.find((s: any) => s.status === 'draft');
+    const paidEntry  = statusDist.find((s: any) => s.status === 'paid');
+    const draftCount = Number(draftEntry?.count ?? 0);
+    const paidCount  = Number(paidEntry?.count ?? 0);
+
+    const personalDefaultOrder = isPaidPlan
+      ? ['summary', 'trends', 'status', 'vendors']
+      : ['summary', 'trends', 'status', 'upsell'];
+
     return (
       <div className={`space-y-6 transition-opacity duration-200 ${isFetching ? 'opacity-60' : 'opacity-100'}`}>
         <FetchingOverlay />
@@ -658,141 +670,182 @@ export function Reports() {
           </div>
         </div>
 
-        {/* Summary cards — 3 for paid, 2 for free */}
-        {isPaidPlan ? (
-          <div className="grid gap-6 md:grid-cols-3">
-            <SummaryCard label="Total Invoices" value={total}
-              sub={`${total === 1 ? '1 invoice' : `${total} invoices`} uploaded`}
-              icon={<FileText className="h-6 w-6" />}
-              iconBg="bg-blue-100" iconColor="text-blue-600"
-              trend={changes.total} periodLabel={periodLabel} />
-            <SummaryCard label="Total Amount" value={`TND ${fmt(totalAmount)}`}
-              sub={`Avg TND ${fmt(avgAmount)} each`}
-              icon={<DollarSign className="h-6 w-6" />}
-              iconBg="bg-green-100" iconColor="text-green-600"
-              trend={changes.total_amount} periodLabel={periodLabel} />
-            <SummaryCard label="Paid Invoices" value={paid}
-              sub={total > 0 ? `${Math.round((paid / total) * 100)}% of total` : 'No invoices yet'}
-              icon={<TrendingUp className="h-6 w-6" />}
-              iconBg="bg-orange-100" iconColor="text-orange-600"
-              periodLabel={periodLabel} />
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2">
-            <SummaryCard label="Total Invoices" value={total}
-              sub={`${total === 1 ? '1 invoice' : `${total} invoices`} uploaded`}
-              icon={<FileText className="h-6 w-6" />}
-              iconBg="bg-blue-100" iconColor="text-blue-600"
-              trend={changes.total} periodLabel={periodLabel} />
-            <SummaryCard label="Total Amount" value={`TND ${fmt(totalAmount)}`}
-              sub={`Avg TND ${fmt(avgAmount)} each`}
-              icon={<DollarSign className="h-6 w-6" />}
-              iconBg="bg-green-100" iconColor="text-green-600"
-              trend={changes.total_amount} periodLabel={periodLabel} />
-          </div>
-        )}
+        <SortableSectionList role="personal-reports" defaultOrder={personalDefaultOrder}>
 
-        {/* Charts row 1 — always shown */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="p-6">
-            <h3 className="mb-6 font-semibold text-foreground">Invoice Amount Over Time</h3>
-            {!hasLineData ? (
-              <div className="flex h-[280px] flex-col items-center justify-center gap-1 text-sm text-muted-foreground">
-                <p>Only one data point available.</p>
-                <p className="text-xs">Select a longer period or wait for more data.</p>
+          {/* Summary cards */}
+          <DashboardSection id="summary">
+            {isPaidPlan ? (
+              <div className="grid gap-6 md:grid-cols-3">
+                <SummaryCard label="Total Invoices" value={total}
+                  sub={`${total === 1 ? '1 invoice' : `${total} invoices`} uploaded`}
+                  icon={<FileText className="h-6 w-6" />}
+                  iconBg="bg-blue-100" iconColor="text-blue-600"
+                  trend={changes.total} periodLabel={periodLabel} />
+                <SummaryCard label="Total Amount" value={`TND ${fmt(totalAmount)}`}
+                  sub={`Avg TND ${fmt(avgAmount)} each`}
+                  icon={<DollarSign className="h-6 w-6" />}
+                  iconBg="bg-green-100" iconColor="text-green-600"
+                  trend={changes.total_amount} periodLabel={periodLabel} />
+                <SummaryCard label="Paid Invoices" value={paid}
+                  sub={total > 0 ? `${Math.round((paid / total) * 100)}% of total` : 'No invoices yet'}
+                  icon={<TrendingUp className="h-6 w-6" />}
+                  iconBg="bg-orange-100" iconColor="text-orange-600"
+                  periodLabel={periodLabel} />
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={monthlyTrend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
-                  <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                  <Tooltip contentStyle={tooltipStyle}
-                    formatter={(v: any) => [`TND ${fmt(Number(v))}`, 'Amount']} />
-                  <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2}
-                    dot={{ fill: '#3b82f6', r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </Card>
-
-          <Card className="p-6">
-            <h3 className="mb-6 font-semibold text-foreground">Invoice Count Over Time</h3>
-            {!hasBarData ? (
-              <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
-                No data for this period
+              <div className="grid gap-6 md:grid-cols-2">
+                <SummaryCard label="Total Invoices" value={total}
+                  sub={`${total === 1 ? '1 invoice' : `${total} invoices`} uploaded`}
+                  icon={<FileText className="h-6 w-6" />}
+                  iconBg="bg-blue-100" iconColor="text-blue-600"
+                  trend={changes.total} periodLabel={periodLabel} />
+                <SummaryCard label="Total Amount" value={`TND ${fmt(totalAmount)}`}
+                  sub={`Avg TND ${fmt(avgAmount)} each`}
+                  icon={<DollarSign className="h-6 w-6" />}
+                  iconBg="bg-green-100" iconColor="text-green-600"
+                  trend={changes.total_amount} periodLabel={periodLabel} />
               </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={monthlyTrend} barSize={40}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
-                  <YAxis stroke="var(--muted-foreground)" fontSize={12} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="count" fill="#8b5cf6" name="Invoices" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
             )}
-          </Card>
-        </div>
+          </DashboardSection>
 
-        {/* Draft vs Paid breakdown — always shown for personal */}
-        {total > 0 && (() => {
-          const draft = statusDist.find((s: any) => s.status === 'draft');
-          const paidS = statusDist.find((s: any) => s.status === 'paid');
-          const draftCount = Number(draft?.count ?? 0);
-          const paidCount  = Number(paidS?.count ?? 0);
-          return (
-            <Card className="p-6">
-              <h3 className="mb-5 font-semibold text-foreground">Invoice Status</h3>
-              <div className="space-y-4">
-                {[
-                  { label: 'Draft',  value: draftCount, color: 'bg-slate-400',   text: 'text-slate-600 dark:text-slate-400' },
-                  { label: 'Paid',   value: paidCount,  color: 'bg-blue-500',    text: 'text-blue-600 dark:text-blue-400' },
-                ].map(({ label, value, color, text }) => (
-                  <div key={label}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm font-medium text-foreground">{label}</span>
-                      <span className={`text-sm font-bold tabular-nums ${text}`}>{value}</span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full ${color} transition-all duration-500`}
-                        style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%' }}
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {total > 0 ? `${Math.round((value / total) * 100)}%` : '0%'} of total
-                    </p>
+          {/* Charts row */}
+          <DashboardSection id="trends">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="p-6">
+                <h3 className="mb-6 font-semibold text-foreground">Invoice Amount Over Time</h3>
+                {!hasLineData ? (
+                  <div className="flex h-[280px] flex-col items-center justify-center gap-1 text-sm text-muted-foreground">
+                    <p>Only one data point available.</p>
+                    <p className="text-xs">Select a longer period or wait for more data.</p>
                   </div>
-                ))}
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={monthlyTrend}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
+                      <YAxis stroke="var(--muted-foreground)" fontSize={12} />
+                      <Tooltip contentStyle={tooltipStyle}
+                        formatter={(v: any) => [`TND ${fmt(Number(v))}`, 'Amount']} />
+                      <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2}
+                        dot={{ fill: '#3b82f6', r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </Card>
+
+              <Card className="p-6">
+                <h3 className="mb-6 font-semibold text-foreground">Invoice Count Over Time</h3>
+                {!hasBarData ? (
+                  <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+                    No data for this period
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={monthlyTrend} barSize={40}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
+                      <YAxis stroke="var(--muted-foreground)" fontSize={12} allowDecimals={false} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="count" fill="#8b5cf6" name="Invoices" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </Card>
+            </div>
+          </DashboardSection>
+
+          {/* Status breakdown + amount difference */}
+          <DashboardSection id="status">
+            <div className={`grid gap-6 ${totalAmount > 0 ? 'lg:grid-cols-2' : ''}`}>
+              {/* Draft vs Paid count */}
+              {total > 0 && (
+                <Card className="p-6">
+                  <h3 className="mb-5 font-semibold text-foreground">Invoice Status</h3>
+                  <div className="space-y-4">
+                    {[
+                      { label: 'Draft', value: draftCount, color: 'bg-slate-400', text: 'text-slate-600 dark:text-slate-400' },
+                      { label: 'Paid',  value: paidCount,  color: 'bg-blue-500',  text: 'text-blue-600 dark:text-blue-400' },
+                    ].map(({ label, value, color, text }) => (
+                      <div key={label}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm font-medium text-foreground">{label}</span>
+                          <span className={`text-sm font-bold tabular-nums ${text}`}>{value}</span>
+                        </div>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={`h-full rounded-full ${color} transition-all duration-500`}
+                            style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%' }}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {total > 0 ? `${Math.round((value / total) * 100)}%` : '0%'} of total
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Paid vs Unpaid amounts */}
+              {totalAmount > 0 && (
+                <Card className="p-6">
+                  <h3 className="mb-5 font-semibold text-foreground">Amount Breakdown</h3>
+                  <div className="space-y-4">
+                    {[
+                      { label: 'Paid',   value: paidAmount,   color: 'bg-blue-500',  text: 'text-blue-600 dark:text-blue-400' },
+                      { label: 'Unpaid', value: unpaidAmount, color: 'bg-slate-400', text: 'text-slate-600 dark:text-slate-400' },
+                    ].map(({ label, value, color, text }) => (
+                      <div key={label}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm font-medium text-foreground">{label}</span>
+                          <span className={`text-sm font-bold tabular-nums ${text}`}>
+                            TND {fmt(value)}
+                          </span>
+                        </div>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={`h-full rounded-full ${color} transition-all duration-500`}
+                            style={{ width: totalAmount > 0 ? `${(value / totalAmount) * 100}%` : '0%' }}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {totalAmount > 0 ? `${Math.round((value / totalAmount) * 100)}%` : '0%'} of total TND {fmt(totalAmount)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </div>
+          </DashboardSection>
+
+          {/* Vendors chart — paid plan only */}
+          {isPaidPlan ? (
+            <DashboardSection id="vendors">
+              <Card className="p-6">
+                <h3 className="mb-6 font-semibold text-foreground">Top Vendors</h3>
+                <VendorsBarChart vendors={topVendors} />
+              </Card>
+            </DashboardSection>
+          ) : (
+            <DashboardSection id="upsell">
+              <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5 text-center">
+                <p className="text-sm font-medium text-foreground">Want deeper insights?</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Upgrade your plan to unlock vendor analytics and report exports.
+                </p>
               </div>
-            </Card>
-          );
-        })()}
+            </DashboardSection>
+          )}
 
-        {/* Vendors chart — paid plan only */}
-        {isPaidPlan && (
-          <Card className="p-6">
-            <h3 className="mb-6 font-semibold text-foreground">Top Vendors</h3>
-            <VendorsBarChart vendors={topVendors} />
-          </Card>
-        )}
-
-        {/* Free-plan upsell hint */}
-        {!isPaidPlan && (
-          <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5 text-center">
-            <p className="text-sm font-medium text-foreground">Want deeper insights?</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Upgrade your plan to unlock status distribution, vendor analytics, and report exports.
-            </p>
-          </div>
-        )}
+        </SortableSectionList>
       </div>
     );
   }
 
   // ── Company / Director view ─────────────────────────────────────────────────
+  const companyDefaultOrder = ['summary', 'charts1', 'charts2', 'approval'];
+
   return (
     <div className={`space-y-6 transition-opacity duration-200 ${isFetching ? 'opacity-60' : 'opacity-100'}`}>
       <FetchingOverlay />
@@ -809,202 +862,209 @@ export function Reports() {
         </div>
       </div>
 
-      {/* Summary cards — row 1 */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard
-          label="Total Invoices"
-          value={total}
-          sub={`${pending} pending review`}
-          icon={<FileText className="h-6 w-6" />}
-          iconBg="bg-blue-100" iconColor="text-blue-600"
-          trend={changes.total}
-          periodLabel={periodLabel}
-        />
-        {/* Fixed label: only show approved amount */}
-        <SummaryCard
-          label="Approved Amount"
-          value={`$${fmt(totalAmount)}`}
-          sub={`Avg $${fmt(avgAmount)} per invoice`}
-          icon={<DollarSign className="h-6 w-6" />}
-          iconBg="bg-green-100" iconColor="text-green-600"
-          trend={changes.approved_amount}
-          periodLabel={periodLabel}
-        />
-        <SummaryCard
-          label="Approval Rate"
-          value={`${approvalRate}%`}
-          sub={`${approved} approved · ${rejected} rejected`}
-          icon={<TrendingUp className="h-6 w-6" />}
-          iconBg="bg-purple-100" iconColor="text-purple-600"
-          trend={changes.approval_rate}
-          periodLabel={periodLabel}
-        />
-        <SummaryCard
-          label="Team Members"
-          value={totalMembers}
-          sub="Active in workspace"
-          icon={<Users className="h-6 w-6" />}
-          iconBg="bg-orange-100" iconColor="text-orange-600"
-          periodLabel={periodLabel}
-        />
-      </div>
+      <SortableSectionList role="company-reports" defaultOrder={companyDefaultOrder}>
 
-      {/* Charts row 1 */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="p-6">
-          <h3 className="mb-6 font-semibold text-foreground">Monthly Approved Amount</h3>
-          {!hasBarData ? (
-            <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
-              No data for this period
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlyTrend} barSize={40}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
-                <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  formatter={(v: any) => [`$${fmt(Number(v))}`, 'Amount']}
-                />
-                <Bar dataKey="amount" fill="#3b82f6" name="Amount" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="mb-6 font-semibold text-foreground">Invoice Status Distribution</h3>
-          {pieData.length === 0 ? (
-            <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
-              No data for this period
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={3}
-                  dataKey="value"
-                  labelLine={false}
-                  label={({ name, percent }) =>
-                    (percent ?? 0) > 0.08
-                      ? `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
-                      : ''
-                  }
-                >
-                  {pieData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </Card>
-      </div>
-
-      {/* Charts row 2 */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="p-6">
-          <h3 className="mb-6 font-semibold text-foreground">Invoice Count Trend</h3>
-          {!hasLineData ? (
-            <div className="flex h-[300px] flex-col items-center justify-center gap-1 text-sm text-muted-foreground">
-              <p>Only one data point available.</p>
-              <p className="text-xs">Select a longer period or wait for more data.</p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
-                <YAxis stroke="var(--muted-foreground)" fontSize={12} allowDecimals={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Line type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={2}
-                  name="Invoices" dot={{ fill: '#8b5cf6', r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </Card>
-
-        {/* Top Vendors — now a horizontal bar chart */}
-        <Card className="p-6">
-          <h3 className="mb-6 font-semibold text-foreground">Top Vendors</h3>
-          <VendorsBarChart vendors={topVendors} />
-        </Card>
-        <Card className="p-6">
-          <div className="mb-6 flex items-center gap-2">
-            <Users className="h-4 w-4 text-blue-500" />
-            <h3 className="font-semibold text-foreground">Employee Upload Leaderboard</h3>
+        {/* Summary cards */}
+        <DashboardSection id="summary">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <SummaryCard
+              label="Total Invoices"
+              value={total}
+              sub={`${pending} pending review`}
+              icon={<FileText className="h-6 w-6" />}
+              iconBg="bg-blue-100" iconColor="text-blue-600"
+              trend={changes.total}
+              periodLabel={periodLabel}
+            />
+            <SummaryCard
+              label="Approved Amount"
+              value={`$${fmt(totalAmount)}`}
+              sub={`Avg $${fmt(avgAmount)} per invoice`}
+              icon={<DollarSign className="h-6 w-6" />}
+              iconBg="bg-green-100" iconColor="text-green-600"
+              trend={changes.approved_amount}
+              periodLabel={periodLabel}
+            />
+            <SummaryCard
+              label="Approval Rate"
+              value={`${approvalRate}%`}
+              sub={`${approved} approved · ${rejected} rejected`}
+              icon={<TrendingUp className="h-6 w-6" />}
+              iconBg="bg-purple-100" iconColor="text-purple-600"
+              trend={changes.approval_rate}
+              periodLabel={periodLabel}
+            />
+            <SummaryCard
+              label="Team Members"
+              value={totalMembers}
+              sub="Active in workspace"
+              icon={<Users className="h-6 w-6" />}
+              iconBg="bg-orange-100" iconColor="text-orange-600"
+              periodLabel={periodLabel}
+            />
           </div>
-          <EmployeeLeaderboard employees={employees} />
-        </Card>
-      </div>
+        </DashboardSection>
 
-      {/* Approval Summary */}
-      <Card className="p-6">
-        <h3 className="mb-6 font-semibold text-foreground">Approval Summary</h3>
-        <div className="grid gap-6 md:grid-cols-3">
-
-          {/* Rate circle */}
-          <div className="flex flex-col items-center justify-center rounded-lg border p-6 text-center">
-            <p className="text-5xl font-bold text-green-600">{approvalRate}%</p>
-            <p className="mt-2 text-sm text-muted-foreground">Approval Rate</p>
-            <div className="mt-4 flex gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3 text-green-500" />{approved} approved
-              </span>
-              <span className="flex items-center gap-1">
-                <XCircle className="h-3 w-3 text-red-500" />{rejected} rejected
-              </span>
-            </div>
-          </div>
-
-          {/* Progress bars */}
-          <div className="flex flex-col justify-between h-full space-y-auto">
-            {[
-              { label: 'Approved',       value: approved, color: 'bg-green-500',  text: 'text-green-600' },
-              { label: 'Pending Review', value: pending,  color: 'bg-yellow-500', text: 'text-yellow-600' },
-              { label: 'Rejected',       value: rejected, color: 'bg-red-500',    text: 'text-red-600' },
-            ].map(({ label, value, color, text }) => (
-              <div key={label} className="flex-1 flex flex-col justify-center py-3 border-b last:border-b-0">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">{label}</span>
-                  <span className={`text-sm font-bold ${text}`}>{value}</span>
+        {/* Charts row 1 */}
+        <DashboardSection id="charts1">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="p-6">
+              <h3 className="mb-6 font-semibold text-foreground">Monthly Approved Amount</h3>
+              {!hasBarData ? (
+                <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
+                  No data for this period
                 </div>
-                <div className="h-2 rounded-full bg-muted">
-                  <div
-                    className={`h-2 rounded-full ${color}`}
-                    style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%' }}
-                  />
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={monthlyTrend} barSize={40}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
+                    <YAxis stroke="var(--muted-foreground)" fontSize={12} />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      formatter={(v: any) => [`$${fmt(Number(v))}`, 'Amount']}
+                    />
+                    <Bar dataKey="amount" fill="#3b82f6" name="Amount" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="mb-6 font-semibold text-foreground">Invoice Status Distribution</h3>
+              {pieData.length === 0 ? (
+                <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
+                  No data for this period
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={3}
+                      dataKey="value"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        (percent ?? 0) > 0.08
+                          ? `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
+                          : ''
+                      }
+                    >
+                      {pieData.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
+          </div>
+        </DashboardSection>
+
+        {/* Charts row 2 */}
+        <DashboardSection id="charts2">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="p-6">
+              <h3 className="mb-6 font-semibold text-foreground">Invoice Count Trend</h3>
+              {!hasLineData ? (
+                <div className="flex h-[300px] flex-col items-center justify-center gap-1 text-sm text-muted-foreground">
+                  <p>Only one data point available.</p>
+                  <p className="text-xs">Select a longer period or wait for more data.</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={monthlyTrend}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
+                    <YAxis stroke="var(--muted-foreground)" fontSize={12} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Line type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={2}
+                      name="Invoices" dot={{ fill: '#8b5cf6', r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="mb-6 font-semibold text-foreground">Top Vendors</h3>
+              <VendorsBarChart vendors={topVendors} />
+            </Card>
+            <Card className="p-6">
+              <div className="mb-6 flex items-center gap-2">
+                <Users className="h-4 w-4 text-blue-500" />
+                <h3 className="font-semibold text-foreground">Employee Upload Leaderboard</h3>
+              </div>
+              <EmployeeLeaderboard employees={employees} />
+            </Card>
+          </div>
+        </DashboardSection>
+
+        {/* Approval Summary */}
+        <DashboardSection id="approval">
+          <Card className="p-6">
+            <h3 className="mb-6 font-semibold text-foreground">Approval Summary</h3>
+            <div className="grid gap-6 md:grid-cols-3">
+
+              <div className="flex flex-col items-center justify-center rounded-lg border p-6 text-center">
+                <p className="text-5xl font-bold text-green-600">{approvalRate}%</p>
+                <p className="mt-2 text-sm text-muted-foreground">Approval Rate</p>
+                <div className="mt-4 flex gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-green-500" />{approved} approved
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <XCircle className="h-3 w-3 text-red-500" />{rejected} rejected
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
 
-          {/* Amount stats */}
-          <div className="space-y-4 rounded-lg border p-4">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Approved Amount</p>
-              <p className="mt-1 text-xl font-bold text-foreground">${fmt(totalAmount)}</p>
+              <div className="flex flex-col justify-between h-full space-y-auto">
+                {[
+                  { label: 'Approved',       value: approved, color: 'bg-green-500',  text: 'text-green-600' },
+                  { label: 'Pending Review', value: pending,  color: 'bg-yellow-500', text: 'text-yellow-600' },
+                  { label: 'Rejected',       value: rejected, color: 'bg-red-500',    text: 'text-red-600' },
+                ].map(({ label, value, color, text }) => (
+                  <div key={label} className="flex-1 flex flex-col justify-center py-3 border-b last:border-b-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <span className={`text-sm font-bold ${text}`}>{value}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted">
+                      <div
+                        className={`h-2 rounded-full ${color}`}
+                        style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%' }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-4 rounded-lg border p-4">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Approved Amount</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">${fmt(totalAmount)}</p>
+                </div>
+                <div className="h-px bg-border" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Average per Invoice</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">${fmt(avgAmount)}</p>
+                </div>
+                <div className="h-px bg-border" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Team Members</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">{totalMembers}</p>
+                </div>
+              </div>
             </div>
-            <div className="h-px bg-border" />
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Average per Invoice</p>
-              <p className="mt-1 text-xl font-bold text-foreground">${fmt(avgAmount)}</p>
-            </div>
-            <div className="h-px bg-border" />
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Team Members</p>
-              <p className="mt-1 text-xl font-bold text-foreground">{totalMembers}</p>
-            </div>
-          </div>
-        </div>
-      </Card>
+          </Card>
+        </DashboardSection>
+
+      </SortableSectionList>
     </div>
   );
 }

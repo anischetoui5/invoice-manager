@@ -106,4 +106,15 @@ async function deleteUser(req, res) {
   }
 }
 
-module.exports = { getMe, updateMe, updatePassword, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers, getUserById, adminUpdateUser, deleteUser };
+async function uploadAvatar(req, res) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const avatarUrl = `/uploads/${req.file.filename}`;
+    const user = await usersService.uploadAvatar(req.user.id, avatarUrl);
+    res.status(200).json({ message: 'Avatar updated', user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { getMe, updateMe, updatePassword, uploadAvatar, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers, getUserById, adminUpdateUser, deleteUser };

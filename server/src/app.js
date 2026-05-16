@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
+const pool = require('./config/db');
 const authRoutes = require('./modules/auth/auth.routes');
 const workspaceRoutes = require('./modules/workspace/workspace.routes');
 const usersRoutes = require('./modules/users/users.routes');
@@ -20,6 +21,9 @@ const { authenticate, authorizeAdmin } = require('./middlewares/auth.middleware'
 
 
 
+// Add avatar_url column if not already present
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url text`).catch(() => {});
+
 const app = express();
 
 // CORS — must be first, before helmet, before everything
@@ -36,6 +40,7 @@ app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
 app.use(morgan('dev'));
 app.use(express.json());
+app.use('/uploads', require('express').static('uploads'));
 
 app.get('/api/invoices', authenticate, authorizeAdmin, getAllInvoices);
 

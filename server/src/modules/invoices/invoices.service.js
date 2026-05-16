@@ -567,14 +567,15 @@ async function getReportsData(workspaceId, userId, role, period = '30d') {
     const [summary, monthly, statusDist, topVendors] = await Promise.all([
       pool.query(`
         SELECT
-          COUNT(*)                                                 AS total,
-          COALESCE(SUM(amount), 0)                                 AS total_amount,
-          COALESCE(AVG(amount), 0)                                 AS avg_amount,
-          COUNT(*) FILTER (WHERE current_status = 'paid')          AS paid,
-          COUNT(*) FILTER (WHERE ocr_status = 'completed')         AS ocr_done,
+          COUNT(*)                                                              AS total,
+          COALESCE(SUM(amount), 0)                                              AS total_amount,
+          COALESCE(AVG(amount), 0)                                              AS avg_amount,
+          COUNT(*) FILTER (WHERE current_status = 'paid')                       AS paid,
+          COALESCE(SUM(amount) FILTER (WHERE current_status = 'paid'), 0)       AS paid_amount,
+          COUNT(*) FILTER (WHERE ocr_status = 'completed')                      AS ocr_done,
           COUNT(*) FILTER (
             WHERE ocr_status = 'processing' OR ocr_status = 'pending'
-          )                                                        AS ocr_pending
+          )                                                                     AS ocr_pending
         FROM invoices i
         WHERE i.created_at >= NOW() - $1::interval
           AND i.workspace_id = $2

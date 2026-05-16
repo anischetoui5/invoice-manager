@@ -4,7 +4,7 @@ import {
   Building2, Pencil, Phone, Copy, CreditCard, LogOut,
   CalendarClock, AlertTriangle, CheckCircle2, Clock,
   ChevronDown, Check, RefreshCw, LayoutDashboard, Sparkles,
-  PanelLeft, PanelRight, PanelTop, PanelBottom,
+  PanelLeft, PanelRight, PanelTop, PanelBottom, Camera,
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { useWorkspaceConfig } from '../context/WorkspaceConfigContext';
@@ -550,6 +550,8 @@ export function Settings() {
 
   const [name, setName]                       = useState(currentUser.name);
   const [email, setEmail]                     = useState(currentUser.email);
+  const [avatarUrl, setAvatarUrl]             = useState<string | null>((currentUser as any).avatar_url ?? null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [savingProfile, setSavingProfile]     = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword]         = useState('');
@@ -592,6 +594,31 @@ export function Settings() {
       toast.error(err.response?.data?.error || 'Failed to update profile');
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2MB'); return; }
+    const formData = new FormData();
+    formData.append('avatar', file);
+    setUploadingAvatar(true);
+    try {
+      const { data } = await api.post('/users/me/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = data.user.avatar_url;
+      setAvatarUrl(url);
+      const stored = localStorage.getItem('user');
+      if (stored) localStorage.setItem('user', JSON.stringify({ ...JSON.parse(stored), avatar_url: url }));
+      toast.success('Profile picture updated');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to upload avatar');
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = '';
     }
   };
 
@@ -653,10 +680,48 @@ export function Settings() {
               <div style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', height: 72 }} />
               <div className="px-6 pb-6">
                 <div className="flex items-end gap-4 -mt-9 mb-5">
-                  <Avatar name={name} size={72} />
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl.startsWith('http') ? avatarUrl : `http://${window.location.hostname}:3000${avatarUrl}`}
+                        alt={name}
+                        style={{
+                          width: 72, height: 72, borderRadius: '50%',
+                          objectFit: 'cover', border: '3px solid white',
+                          boxShadow: '0 4px 20px rgba(37,99,235,0.35)',
+                        }}
+                      />
+                    ) : (
+                      <Avatar name={name} size={72} />
+                    )}
+                    <label
+                      htmlFor="avatar-upload"
+                      title="Change profile picture"
+                      style={{
+                        position: 'absolute', bottom: 0, right: 0,
+                        width: 24, height: 24, borderRadius: '50%',
+                        background: uploadingAvatar ? '#94a3b8' : 'linear-gradient(135deg,#1e40af,#3b82f6)',
+                        border: '2px solid white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: uploadingAvatar ? 'not-allowed' : 'pointer',
+                        transition: 'background 0.2s',
+                      }}
+                    >
+                      <Camera size={12} color="white" />
+                    </label>
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleAvatarChange}
+                      disabled={uploadingAvatar}
+                    />
+                  </div>
                   <div className="pb-1">
                     <h2 className="text-lg font-semibold text-foreground">{name}</h2>
                     <p className="text-sm capitalize text-muted-foreground">{currentUser?.role ?? ''}</p>
+                    {uploadingAvatar && <p className="text-xs text-blue-500 mt-0.5">Uploading…</p>}
                   </div>
                 </div>
                 <form onSubmit={handleSaveProfile} className="space-y-4">

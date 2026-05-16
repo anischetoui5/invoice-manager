@@ -10,14 +10,6 @@ interface Message {
   content: string;
 }
 
-const SUGGESTIONS = [
-  'Show me pending invoices',
-  'What is my total this month?',
-  'Who is my biggest vendor?',
-  'How many invoices were approved?',
-  'Résume mes factures récentes',
-];
-
 function clamp(val: number, min: number, max: number) {
   return Math.max(min, Math.min(max, val));
 }
@@ -133,6 +125,50 @@ export function AiChat({ workspaceId }: { workspaceId: string }) {
 
   const isEmpty = messages.length === 0;
 
+  const PANEL_W = 380;
+  const PANEL_H = 520;
+  const panelStyle: React.CSSProperties = (() => {
+    if (!pos) return {};
+    const btnCx = pos.x + BTN_SIZE / 2;
+    const btnCy = pos.y + BTN_SIZE / 2;
+    const spaceRight  = window.innerWidth  - pos.x - BTN_SIZE;
+    const spaceLeft   = pos.x;
+    const spaceBottom = window.innerHeight - pos.y - BTN_SIZE;
+    const spaceTop    = pos.y;
+
+    let left: number | 'auto' = 'auto';
+    let right: number | 'auto' = 'auto';
+    let top: number | 'auto' = 'auto';
+    let bottom: number | 'auto' = 'auto';
+
+    if (spaceRight >= PANEL_W + 12) {
+      left = pos.x + BTN_SIZE + 12;
+    } else if (spaceLeft >= PANEL_W + 12) {
+      left = pos.x - PANEL_W - 12;
+    } else {
+      left = Math.max(8, Math.min(window.innerWidth - PANEL_W - 8, btnCx - PANEL_W / 2));
+    }
+
+    if (spaceBottom >= PANEL_H + 12) {
+      top = pos.y + BTN_SIZE + 12;
+    } else if (spaceTop >= PANEL_H + 12) {
+      top = pos.y - PANEL_H - 12;
+    } else {
+      top = Math.max(8, Math.min(window.innerHeight - PANEL_H - 8, btnCy - PANEL_H / 2));
+    }
+
+    return {
+      position: 'fixed',
+      left: left === 'auto' ? undefined : left,
+      right: right === 'auto' ? undefined : right,
+      top: top === 'auto' ? undefined : top,
+      bottom: bottom === 'auto' ? undefined : bottom,
+      width: PANEL_W,
+      height: PANEL_H,
+      borderRadius: '20px',
+    };
+  })();
+
   return (
     <>
       {/* Floating button — draggable in custom mode */}
@@ -171,14 +207,14 @@ export function AiChat({ workspaceId }: { workspaceId: string }) {
       {open && (
         <div style={{
           position: 'fixed',
-          bottom: 0,
-          right: 0,
-          left: 0,
-          top: 0,
-          width: '100%',
-          height: '100%',
+          bottom: pos ? undefined : 0,
+          right:  pos ? undefined : 0,
+          left:   pos ? undefined : 0,
+          top:    pos ? undefined : 0,
+          width:  pos ? undefined : '100%',
+          height: pos ? undefined : '100%',
           background: 'white',
-          borderRadius: 0,
+          borderRadius: pos ? undefined : 0,
           boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
           display: 'flex',
           flexDirection: 'column',
@@ -186,8 +222,9 @@ export function AiChat({ workspaceId }: { workspaceId: string }) {
           overflow: 'hidden',
           border: '1px solid rgba(0,0,0,0.06)',
           animation: 'aiSlideUp 0.25s ease',
+          ...panelStyle,
         }}
-          className="md:!inset-auto md:!bottom-[96px] md:!right-7 md:!left-auto md:!top-auto md:!w-[380px] md:!h-[520px] md:!rounded-[20px]"
+          className={pos ? '' : 'md:!inset-auto md:!bottom-[96px] md:!right-7 md:!left-auto md:!top-auto md:!w-[380px] md:!h-[520px] md:!rounded-[20px]'}
         >
           <style>{`
             @keyframes aiSlideUp {
@@ -201,7 +238,7 @@ export function AiChat({ workspaceId }: { workspaceId: string }) {
             .ai-msg-user { animation: aiSlideUp 0.2s ease; }
             .ai-msg-bot  { animation: aiSlideUp 0.2s ease; }
             .ai-input:focus { outline: none; }
-            .ai-suggest:hover { background: #ede9fe !important; color: #6366f1 !important; }
+
           `}</style>
 
           {/* Header */}
@@ -248,24 +285,14 @@ export function AiChat({ workspaceId }: { workspaceId: string }) {
             gap: '12px',
           }}>
             {isEmpty && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                <p style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', margin: '0 0 8px' }}>
-                  Ask me anything about your invoices
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '8px', padding: '24px 16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', margin: 0 }}>EASYfact AI</p>
+                <p style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', margin: 0, maxWidth: '260px', lineHeight: 1.5 }}>
+                  Ask anything about your invoices — amounts, vendors, status, trends…
                 </p>
-                {SUGGESTIONS.map(s => (
-                  <button key={s} className="ai-suggest" onClick={() => send(s)} style={{
-                    background: '#f5f3ff',
-                    border: '1px solid #e9d5ff',
-                    borderRadius: '10px',
-                    padding: '9px 14px',
-                    fontSize: '13px',
-                    color: '#7c3aed',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'background 0.15s, color 0.15s',
-                    fontFamily: 'inherit',
-                  }}>{s}</button>
-                ))}
               </div>
             )}
 

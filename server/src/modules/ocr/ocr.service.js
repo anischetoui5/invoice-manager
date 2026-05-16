@@ -69,7 +69,34 @@ const normalizeDate = (dateStr) => {
 // ── Clean amount string to float ───────────────────────────────────────────
 const parseAmount = (str) => {
   if (!str) return null;
-  const cleaned = str.replace(/[\s\$€£TND DT]/g, '').replace(',', '.');
+  let cleaned = str.replace(/[\s\$€£TNDT]/g, '').trim();
+
+  const dotCount   = (cleaned.match(/\./g)  || []).length;
+  const commaCount = (cleaned.match(/,/g)   || []).length;
+
+  if (dotCount > 1) {
+    // e.g. "1.133.120" — dots are thousands separators
+    cleaned = cleaned.replace(/\./g, '');
+  } else if (commaCount > 1) {
+    // e.g. "1,133,120" — commas are thousands separators
+    cleaned = cleaned.replace(/,/g, '');
+  } else if (dotCount === 1 && commaCount === 1) {
+    // mixed: "1.133,50" or "1,133.50" — last separator is decimal
+    const lastDot   = cleaned.lastIndexOf('.');
+    const lastComma = cleaned.lastIndexOf(',');
+    if (lastComma > lastDot) {
+      // comma is decimal: "1.133,50" → "1133.50"
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      // dot is decimal: "1,133.50" → "1133.50"
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  } else if (commaCount === 1) {
+    // single comma as decimal: "1133,50" → "1133.50"
+    cleaned = cleaned.replace(',', '.');
+  }
+  // single dot or no separator — pass through
+
   const val = parseFloat(cleaned);
   return isNaN(val) ? null : val;
 };
@@ -139,12 +166,12 @@ const parseInvoiceFields = (text, ocrConfidence) => {
 
   // ── Total Amount ──────────────────────────────────────────────────────────
   const subtotalMatch = text.match(
-    /sub\s*total\s*[:\-]?\s*[\$€£]?\s*([\d\s,]+\.?\d{0,2})/i
+    /sub\s*total\s*[:\-]?\s*[\$€£]?\s*([\d\s,\.]+)/i
   );
   const subtotalValue = subtotalMatch ? parseAmount(subtotalMatch[1]) : null;
 
   const allTotalMatches = [...text.matchAll(
-    /(?<![a-zA-Z])(?:total\s*(?:amount|due|ttc|net|price|général|general|à\s*payer|payable)?)\s*[:\-]?\s*[\$€£]?\s*([\d\s,]+\.?\d{0,2})\s*(?:EUR|USD|TND|DT|€|\$|dt)?/gi
+    /(?<![a-zA-Z])(?:total\s*(?:amount|due|ttc|net|price|général|general|à\s*payer|payable)?)\s*[:\-]?\s*[\$€£]?\s*([\d\s,\.]+)\s*(?:EUR|USD|TND|DT|€|\$|dt)?/gi
   )];
 
   let totalValue = null;
@@ -176,8 +203,8 @@ const parseInvoiceFields = (text, ocrConfidence) => {
 
   // ── Tax Amount ────────────────────────────────────────────────────────────
   const taxPatterns = [
-    /(?:tax|tva|vat|t\.v\.a)\s*(?:\d{1,2}\s*%\s*)?[:\-]?\s*[\$€£]?\s*([\d\s,]+\.?\d{0,2})/i,
-    /(?:taxe|impôt)\s*[:\-]?\s*[\$€£]?\s*([\d\s,]+\.?\d{0,2})/i,
+    /(?:tax|tva|vat|t\.v\.a)\s*(?:\d{1,2}\s*%\s*)?[:\-]?\s*[\$€£]?\s*([\d\s,\.]+)/i,
+    /(?:taxe|impôt)\s*[:\-]?\s*[\$€£]?\s*([\d\s,\.]+)/i,
   ];
 
   let taxMatch = null;

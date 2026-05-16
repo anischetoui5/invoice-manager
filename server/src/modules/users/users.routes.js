@@ -1,13 +1,31 @@
 // users.routes.js
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
 const router = express.Router();
 const { authenticate, authorizeInWorkspace, authorizeAdmin } = require('../../middlewares/auth.middleware');
 const { requireActiveSubscription } = require('../../middlewares/subscription.middleware');
 const {
-  getMe, updateMe, updatePassword,
+  getMe, updateMe, updatePassword, uploadAvatar,
   getWorkspaceMembers, updateMemberRole, removeMember,
   getAllUsers, getUserById, adminUpdateUser, deleteUser,
 } = require('./users.controller');
+
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => {
+    const unique = `avatar-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `${unique}${path.extname(file.originalname)}`);
+  },
+});
+const avatarUpload = multer({
+  storage: avatarStorage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'), false);
+  },
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
 
 router.use(authenticate);
 
@@ -15,6 +33,7 @@ router.use(authenticate);
 router.get('/me',          getMe);
 router.put('/me', authenticate, requireActiveSubscription, updateMe);
 router.put('/me/password', authenticate, requireActiveSubscription, updatePassword);
+router.post('/me/avatar', authenticate, avatarUpload.single('avatar'), uploadAvatar);
 
 // ── Workspace-scoped ──────────────────────────────────────────
 router.get('/workspace/:workspace_id/members',
