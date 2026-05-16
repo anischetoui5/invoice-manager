@@ -40,7 +40,7 @@ app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
 app.use(morgan('dev'));
 app.use(express.json());
-app.use('/uploads', require('express').static('uploads'));
+app.use('/uploads', express.static(require('path').join(process.cwd(), 'uploads')));
 
 app.get('/api/invoices', authenticate, authorizeAdmin, getAllInvoices);
 

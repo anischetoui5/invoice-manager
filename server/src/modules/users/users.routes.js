@@ -11,8 +11,10 @@ const {
   getAllUsers, getUserById, adminUpdateUser, deleteUser,
 } = require('./users.controller');
 
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+
 const avatarStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename: (req, file, cb) => {
     const unique = `avatar-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     cb(null, `${unique}${path.extname(file.originalname)}`);

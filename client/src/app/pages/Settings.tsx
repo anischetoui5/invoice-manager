@@ -553,6 +553,13 @@ export function Settings() {
   const [avatarUrl, setAvatarUrl]             = useState<string | null>((currentUser as any).avatar_url ?? null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [savingProfile, setSavingProfile]     = useState(false);
+
+  // Fetch latest user data (avatar_url may not be in localStorage)
+  useEffect(() => {
+    api.get('/users/me').then(({ data }) => {
+      if (data.user?.avatar_url) setAvatarUrl(data.user.avatar_url);
+    }).catch(() => {});
+  }, []);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword]         = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -613,6 +620,7 @@ export function Settings() {
       setAvatarUrl(url);
       const stored = localStorage.getItem('user');
       if (stored) localStorage.setItem('user', JSON.stringify({ ...JSON.parse(stored), avatar_url: url }));
+      window.dispatchEvent(new CustomEvent('user-avatar-changed', { detail: { avatarUrl: url } }));
       toast.success('Profile picture updated');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to upload avatar');

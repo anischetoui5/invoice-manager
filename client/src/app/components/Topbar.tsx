@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Bell, Search, ChevronDown, LogOut, User as UserIcon,
   Building2, Check, CheckCircle, Sun, Moon,
@@ -64,6 +64,23 @@ export function TopBar({
   };
 
   const initials = user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>((user as any).avatar_url ?? null);
+
+  useEffect(() => {
+    // Fetch fresh avatar on mount (localStorage may not have it yet)
+    const stored = localStorage.getItem('user');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.avatar_url) setAvatarUrl(parsed.avatar_url);
+      } catch { /* ignore */ }
+    }
+    const handler = (e: Event) => {
+      setAvatarUrl((e as CustomEvent).detail?.avatarUrl ?? null);
+    };
+    window.addEventListener('user-avatar-changed', handler);
+    return () => window.removeEventListener('user-avatar-changed', handler);
+  }, []);
 
   const roleBadgeStyle = (role: string): string => {
     switch (role) {
@@ -151,8 +168,10 @@ export function TopBar({
         {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted focus:outline-none ml-1">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
-              {initials}
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-primary text-xs font-bold text-white">
+              {avatarUrl
+                ? <img src={avatarUrl.startsWith('http') ? avatarUrl : `http://${window.location.hostname}:3000${avatarUrl}`} alt={user.name} className="h-full w-full object-cover" />
+                : initials}
             </div>
             <div className="hidden text-left md:block">
               <div className="text-sm font-semibold leading-tight text-foreground">{user.name}</div>
@@ -167,8 +186,10 @@ export function TopBar({
             <DropdownMenuLabel>
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
-                    {initials}
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-primary text-xs font-bold text-white">
+                    {avatarUrl
+                      ? <img src={avatarUrl.startsWith('http') ? avatarUrl : `http://${window.location.hostname}:3000${avatarUrl}`} alt={user.name} className="h-full w-full object-cover" />
+                      : initials}
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-foreground">{user.name}</p>
