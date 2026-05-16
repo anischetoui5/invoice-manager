@@ -736,6 +736,41 @@ export function Reports() {
           </Card>
         </div>
 
+        {/* Draft vs Paid breakdown — always shown for personal */}
+        {total > 0 && (() => {
+          const draft = statusDist.find((s: any) => s.status === 'draft');
+          const paidS = statusDist.find((s: any) => s.status === 'paid');
+          const draftCount = Number(draft?.count ?? 0);
+          const paidCount  = Number(paidS?.count ?? 0);
+          return (
+            <Card className="p-6">
+              <h3 className="mb-5 font-semibold text-foreground">Invoice Status</h3>
+              <div className="space-y-4">
+                {[
+                  { label: 'Draft',  value: draftCount, color: 'bg-slate-400',   text: 'text-slate-600 dark:text-slate-400' },
+                  { label: 'Paid',   value: paidCount,  color: 'bg-blue-500',    text: 'text-blue-600 dark:text-blue-400' },
+                ].map(({ label, value, color, text }) => (
+                  <div key={label}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-medium text-foreground">{label}</span>
+                      <span className={`text-sm font-bold tabular-nums ${text}`}>{value}</span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full ${color} transition-all duration-500`}
+                        style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%' }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {total > 0 ? `${Math.round((value / total) * 100)}%` : '0%'} of total
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          );
+        })()}
+
         {/* Vendors chart — paid plan only */}
         {isPaidPlan && (
           <Card className="p-6">

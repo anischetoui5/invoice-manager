@@ -282,7 +282,10 @@ export function InvoiceDetail() {
   const canEditStatus      = status === 'draft' || status === 'rejected';
   const canSubmitForReview = !isLocked && canEditStatus && (role === 'Employee' || role === 'Director');
   const canApproveReject   = !isLocked && role === 'Accountant' && status === 'pending_review';
-  const canMarkPaid        = !isLocked && role === 'Director' && status === 'approved';
+  const canMarkPaid        = !isLocked && (
+    (role === 'Director' && status === 'approved') ||
+    (role === 'Personal' && status === 'draft')
+  );
   const canEditOCR         = !isLocked && canEditStatus && (role === 'Director' || role === 'Employee' || role === 'Personal') && fields.length > 0;
   const canEditBasic       = !isLocked && canEditStatus && (role === 'Employee' || role === 'Director' || role === 'Personal');
   const canDelete          = !isLocked && role === 'Director' && !['approved', 'paid', 'archived'].includes(status);
@@ -862,7 +865,11 @@ export function InvoiceDetail() {
           {canMarkPaid && (
             <Card className="p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">Payment</h2>
-              <p className="text-sm text-muted-foreground mb-4">Confirm this invoice has been paid.</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                {role === 'Personal'
+                  ? 'Mark this invoice as paid to track it in your reports.'
+                  : 'Confirm this invoice has been paid.'}
+              </p>
               <Button
                 className="w-full"
                 style={{ backgroundColor: 'var(--success)', color: 'var(--success-foreground)' }}

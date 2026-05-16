@@ -46,9 +46,9 @@ router.put('/:invoice_id',
   updateInvoice
 );
 router.patch('/:invoice_id/status',
-  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee'),
-  authenticate, 
-  requireActiveSubscription, 
+  authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'),
+  authenticate,
+  requireActiveSubscription,
   updateInvoiceStatus
 );
 
