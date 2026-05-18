@@ -149,6 +149,7 @@ async function deleteCompany(workspaceId) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query(`UPDATE users SET last_active_workspace_id = NULL WHERE last_active_workspace_id = $1`, [workspaceId]);
     await client.query(`DELETE FROM invoices WHERE workspace_id = $1`, [workspaceId]);
     await client.query(`DELETE FROM memberships WHERE workspace_id = $1`, [workspaceId]);
     await client.query(`DELETE FROM companies WHERE workspace_id = $1`, [workspaceId]);
