@@ -60,6 +60,15 @@ async function getAllCompanies(req, res) {
   }
 }
 
+async function deleteCompany(req, res) {
+  try {
+    await companyService.deleteCompany(req.params.workspace_id);
+    res.status(200).json({ message: 'Company deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 async function adminUpdateCompany(req, res) {
   try {
     const company = await companyService.adminUpdateCompany(req.params.workspace_id, req.body);
@@ -70,6 +79,6 @@ async function adminUpdateCompany(req, res) {
 }
 
 module.exports = {
-  getCompany, updateCompany, adminUpdateCompany, getMembers,
+  getCompany, updateCompany, adminUpdateCompany, deleteCompany, getMembers,
   getInvitations, getAllCompanies,
 };

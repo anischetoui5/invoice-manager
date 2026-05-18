@@ -208,7 +208,7 @@ export function Companies() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await api.delete(`/company/${deleteTarget.workspace_id}`);
+      await api.delete(`/company/admin/${deleteTarget.workspace_id}`);
       setCompanies(prev => prev.filter(c => c.id !== deleteTarget.id));
       toast.success(`${deleteTarget.name} has been deleted`);
       setDeleteTarget(null);

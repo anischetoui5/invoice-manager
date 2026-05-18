@@ -145,6 +145,23 @@ async function getAllCompanies() {
   return result.rows;
 }
 
+async function deleteCompany(workspaceId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`DELETE FROM invoices WHERE workspace_id = $1`, [workspaceId]);
+    await client.query(`DELETE FROM memberships WHERE workspace_id = $1`, [workspaceId]);
+    await client.query(`DELETE FROM companies WHERE workspace_id = $1`, [workspaceId]);
+    await client.query(`DELETE FROM workspaces WHERE id = $1`, [workspaceId]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function adminUpdateCompany(workspaceId, { name, email, phone, address }) {
   const result = await pool.query(
     `UPDATE companies
@@ -161,5 +178,5 @@ async function adminUpdateCompany(workspaceId, { name, email, phone, address }) 
   return result.rows[0];
 }
 
-module.exports = { getCompany, updateCompany, adminUpdateCompany, getMembers, getInvitations, getAllCompanies };
+module.exports = { getCompany, updateCompany, adminUpdateCompany, deleteCompany, getMembers, getInvitations, getAllCompanies };
  

@@ -3,7 +3,7 @@ const router = express.Router();
 const { authenticate, authorizeInWorkspace, authorizeAdmin } = require('../../middlewares/auth.middleware');
 const { requireActiveSubscription } = require('../../middlewares/subscription.middleware');
 const {
-  getCompany, updateCompany, adminUpdateCompany,
+  getCompany, updateCompany, adminUpdateCompany, deleteCompany,
   getMembers, getInvitations,
   getAllCompanies,
 } = require('./company.controller');
@@ -13,6 +13,7 @@ router.use(authenticate);
 // ── Admin only ────────────────────────────────────────────────
 router.get('/', authorizeAdmin, getAllCompanies);
 router.put('/admin/:workspace_id', authorizeAdmin, adminUpdateCompany);
+router.delete('/admin/:workspace_id', authorizeAdmin, deleteCompany);
 
 // ── Workspace-scoped ──────────────────────────────────────────
 router.get(
