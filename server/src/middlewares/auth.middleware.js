@@ -29,6 +29,18 @@ function authorizeInWorkspace(...allowedRoles) {
     }
 
     try {
+      // Global admins bypass all workspace membership checks
+      const adminCheck = await pool.query(
+        `SELECT 1 FROM memberships m JOIN roles r ON r.id = m.role_id
+         WHERE m.user_id = $1 AND r.name = 'Admin' LIMIT 1`,
+        [req.user.id]
+      );
+      if (adminCheck.rows.length > 0) {
+        req.role = 'Admin';
+        req.workspaceId = workspaceId;
+        return next();
+      }
+
       const result = await pool.query(
         `SELECT r.name as role
          FROM memberships m

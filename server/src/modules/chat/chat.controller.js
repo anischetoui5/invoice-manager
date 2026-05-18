@@ -4,7 +4,9 @@ const {
 } = require('./chat.service');
 const pool = require('../../config/db');
 
-async function getPlanFeatures(workspace_id) {
+async function getPlanFeatures(workspace_id, role) {
+  // Admins get all features
+  if (role === 'Admin') return { has_chat: true, has_dm: true, can_create_channels: true };
   const { rows } = await pool.query(
     `SELECT sp.has_chat, sp.has_dm, sp.can_create_channels
      FROM subscriptions s
@@ -20,7 +22,7 @@ async function getPlanFeatures(workspace_id) {
 
 async function listConversations(req, res) {
   try {
-    const features = await getPlanFeatures(req.params.workspace_id);
+    const features = await getPlanFeatures(req.params.workspace_id, req.role);
     if (!features.has_chat) return res.status(403).json({ error: 'Chat is not available on your current plan' });
     const conversations = await getConversations(req.params.workspace_id, req.user.id);
     res.json({ conversations, features });
@@ -48,7 +50,7 @@ async function listMessages(req, res) {
 async function createConversation(req, res) {
   try {
     const { type, name, user_id } = req.body;
-    const features = await getPlanFeatures(req.params.workspace_id);
+    const features = await getPlanFeatures(req.params.workspace_id, req.role);
 
     if (!features.has_chat) return res.status(403).json({ error: 'Chat is not available on your current plan' });
 
