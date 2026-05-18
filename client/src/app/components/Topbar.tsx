@@ -15,6 +15,7 @@ import {
 } from './ui/dropdown-menu';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import api from '../../lib/api';
 
 interface TopBarProps {
   user: User;
@@ -67,7 +68,6 @@ export function TopBar({
   const [avatarUrl, setAvatarUrl] = useState<string | null>((user as any).avatar_url ?? null);
 
   useEffect(() => {
-    // Fetch fresh avatar on mount (localStorage may not have it yet)
     const stored = localStorage.getItem('user');
     if (stored) {
       try {
@@ -75,6 +75,17 @@ export function TopBar({
         if (parsed.avatar_url) setAvatarUrl(parsed.avatar_url);
       } catch { /* ignore */ }
     }
+    // Always fetch fresh from server — localStorage may be missing avatar_url after login
+    api.get('/users/me').then(({ data }) => {
+      if (data.user?.avatar_url) {
+        setAvatarUrl(data.user.avatar_url);
+        const s = localStorage.getItem('user');
+        if (s) {
+          try { localStorage.setItem('user', JSON.stringify({ ...JSON.parse(s), avatar_url: data.user.avatar_url })); }
+          catch { /* ignore */ }
+        }
+      }
+    }).catch(() => {});
     const handler = (e: Event) => {
       setAvatarUrl((e as CustomEvent).detail?.avatarUrl ?? null);
     };
@@ -168,7 +179,7 @@ export function TopBar({
         {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted focus:outline-none ml-1">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-primary text-xs font-bold text-white">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg overflow-hidden text-xs font-bold text-white" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)' }}>
               {avatarUrl
                 ? <img src={avatarUrl.startsWith('http') ? avatarUrl : `http://${window.location.hostname}:3000${avatarUrl}`} alt={user.name} className="h-full w-full object-cover" />
                 : initials}
@@ -186,7 +197,7 @@ export function TopBar({
             <DropdownMenuLabel>
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-primary text-xs font-bold text-white">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden text-xs font-bold text-white" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)' }}>
                     {avatarUrl
                       ? <img src={avatarUrl.startsWith('http') ? avatarUrl : `http://${window.location.hostname}:3000${avatarUrl}`} alt={user.name} className="h-full w-full object-cover" />
                       : initials}

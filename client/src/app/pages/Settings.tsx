@@ -690,15 +690,20 @@ export function Settings() {
                 <div className="flex items-end gap-4 -mt-9 mb-5">
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     {avatarUrl ? (
-                      <img
-                        src={avatarUrl.startsWith('http') ? avatarUrl : `http://${window.location.hostname}:3000${avatarUrl}`}
-                        alt={name}
-                        style={{
-                          width: 72, height: 72, borderRadius: '50%',
-                          objectFit: 'cover', border: '3px solid white',
-                          boxShadow: '0 4px 20px rgba(37,99,235,0.35)',
-                        }}
-                      />
+                      <div style={{
+                        width: 72, height: 72, borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+                        overflow: 'hidden',
+                        border: '3px solid white',
+                        boxShadow: '0 4px 20px rgba(37,99,235,0.35)',
+                        flexShrink: 0,
+                      }}>
+                        <img
+                          src={avatarUrl.startsWith('http') ? avatarUrl : `http://${window.location.hostname}:3000${avatarUrl}`}
+                          alt={name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
                     ) : (
                       <Avatar name={name} size={72} />
                     )}

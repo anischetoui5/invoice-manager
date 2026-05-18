@@ -193,7 +193,7 @@ async function login({ email, password }) {
   }
 
   const result = await pool.query(
-    `SELECT id, name, email, password_hash, last_active_workspace_id, is_verified
+    `SELECT id, name, email, avatar_url, password_hash, last_active_workspace_id, is_verified
      FROM users WHERE email = $1`,
     [email]
   );
@@ -233,10 +233,11 @@ async function login({ email, password }) {
   return {
     token: generateToken(user),
     user: {
-      id:    user.id,
-      name:  user.name,
-      email: user.email,
-      role:  workspace?.role_name ?? 'Personal', // ← capitalized, no mapping needed
+      id:         user.id,
+      name:       user.name,
+      email:      user.email,
+      role:       workspace?.role_name ?? 'Personal',
+      avatar_url: user.avatar_url ?? null,
     },
     activeWorkspaceId: workspace?.workspace_id ?? null,
   };
