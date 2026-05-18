@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, Search, Users, FileText, Loader2, X, Trash2, Eye } from 'lucide-react';
+import { Building2, Search, Users, FileText, Loader2, X, Trash2, Eye, Pencil, Save } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -17,6 +17,63 @@ interface Company {
   created_at: string;
   member_count: number;
   invoice_count: number;
+}
+
+function EditCompanyModal({ company, onClose, onSave }: { company: Company; onClose: () => void; onSave: (updated: Company) => void }) {
+  const [form, setForm] = useState({ name: company.name, email: company.email ?? '', phone: company.phone ?? '', address: company.address ?? '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { setError('Company name is required'); return; }
+    setSaving(true); setError(null);
+    try {
+      const { data } = await api.put(`/company/admin/${company.workspace_id}`, form);
+      toast.success('Company updated successfully');
+      onSave({ ...company, ...data.company });
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update company');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Edit Company</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-foreground">Company Name</label>
+            <Input className="mt-1" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Company name" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Email</label>
+            <Input className="mt-1" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="Company email" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Phone</label>
+            <Input className="mt-1" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="Phone number" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Address</label>
+            <Input className="mt-1" value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} placeholder="Address" />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <div className="flex gap-3 mt-6">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button className="flex-1" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+            Save Changes
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ViewCompanyModal({ company, onClose }: { company: Company; onClose: () => void }) {
@@ -129,9 +186,10 @@ export function Companies() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewCompany, setViewCompany] = useState<Company | null>(null);
+  const [viewCompany, setViewCompany]   = useState<Company | null>(null);
+  const [editCompany, setEditCompany]   = useState<Company | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting]         = useState(false);
 
   useEffect(() => {
     api.get('/company')
@@ -267,6 +325,9 @@ export function Companies() {
                   <Button size="sm" variant="outline" onClick={() => setViewCompany(company)}>
                     <Eye className="h-4 w-4" />
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditCompany(company)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <Button
                     size="sm"
                     className="transition-opacity hover:opacity-80"
@@ -283,6 +344,13 @@ export function Companies() {
       )}
 
       {viewCompany && <ViewCompanyModal company={viewCompany} onClose={() => setViewCompany(null)} />}
+      {editCompany && (
+        <EditCompanyModal
+          company={editCompany}
+          onClose={() => setEditCompany(null)}
+          onSave={updated => { setCompanies(prev => prev.map(c => c.id === updated.id ? updated : c)); setEditCompany(null); }}
+        />
+      )}
       {deleteTarget && (
         <DeleteCompanyModal
           company={deleteTarget}

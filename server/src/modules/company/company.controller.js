@@ -60,7 +60,16 @@ async function getAllCompanies(req, res) {
   }
 }
 
+async function adminUpdateCompany(req, res) {
+  try {
+    const company = await companyService.adminUpdateCompany(req.params.workspace_id, req.body);
+    res.status(200).json({ message: 'Company updated', company });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
 module.exports = {
-  getCompany, updateCompany, getMembers,
+  getCompany, updateCompany, adminUpdateCompany, getMembers,
   getInvitations, getAllCompanies,
 };

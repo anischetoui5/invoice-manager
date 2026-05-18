@@ -1,5 +1,13 @@
 const usersService = require('./users.service');
 
+async function adminCreateUser(req, res) {
+  try {
+    const user = await usersService.adminCreateUser(req.body);
+    res.status(201).json({ message: 'User created', user });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
 
 async function getAllUsers(req, res) {
   try {
@@ -117,4 +125,4 @@ async function uploadAvatar(req, res) {
   }
 }
 
-module.exports = { getMe, updateMe, updatePassword, uploadAvatar, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers, getUserById, adminUpdateUser, deleteUser };
+module.exports = { getMe, updateMe, updatePassword, uploadAvatar, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers, getUserById, adminCreateUser, adminUpdateUser, deleteUser };

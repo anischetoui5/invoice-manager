@@ -8,7 +8,7 @@ const { requireActiveSubscription } = require('../../middlewares/subscription.mi
 const {
   getMe, updateMe, updatePassword, uploadAvatar,
   getWorkspaceMembers, updateMemberRole, removeMember,
-  getAllUsers, getUserById, adminUpdateUser, deleteUser,
+  getAllUsers, getUserById, adminCreateUser, adminUpdateUser, deleteUser,
 } = require('./users.controller');
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
@@ -57,6 +57,7 @@ router.delete('/workspace/:workspace_id/members/:userId',
 
 // ── Admin only ────────────────────────────────────────────────
 router.get('/',           authorizeAdmin, getAllUsers);
+router.post('/',          authorizeAdmin, adminCreateUser);
 router.get('/:userId',    authorizeAdmin, getUserById);
 router.put('/:userId',    authorizeAdmin, adminUpdateUser);
 router.delete('/:userId', authorizeAdmin, deleteUser);

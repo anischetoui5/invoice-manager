@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Search, MoreVertical, Mail, Shield, Loader2, X, Save, Trash2} from 'lucide-react';
+import { UserPlus, Search, MoreVertical, Mail, Shield, Loader2, X, Save, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -27,6 +27,80 @@ const getRoleBadgeColor = (role: string) => {
     default:           return 'bg-slate-100 text-slate-700';
   }
 };
+
+// ── Create Modal ───────────────────────────────────────────────────────────
+function CreateUserModal({ onClose, onCreate }: { onClose: () => void; onCreate: (user: User) => void }) {
+  const [name, setName]           = useState('');
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
+  const [role, setRole]           = useState('Personal');
+  const [showPw, setShowPw]       = useState(false);
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+
+  const handleCreate = async () => {
+    if (!name.trim() || !email.trim() || !password) { setError('All fields are required'); return; }
+    setSaving(true); setError(null);
+    try {
+      const { data } = await api.post('/users', { name, email, password, role });
+      toast.success('User created successfully');
+      onCreate({ ...data.user, roles: [role], created_at: new Date().toISOString() });
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to create user');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Create User</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-foreground">Full Name</label>
+            <Input className="mt-1" value={name} onChange={e => setName(e.target.value)} placeholder="Full name" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Email</label>
+            <Input className="mt-1" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Password</label>
+            <div className="relative mt-1">
+              <Input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 characters" className="pr-10" />
+              <button type="button" onClick={() => setShowPw(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Role</label>
+            <select
+              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={role}
+              onChange={e => setRole(e.target.value)}
+            >
+              <option value="Personal">Personal</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <div className="flex gap-3 mt-6">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button className="flex-1" onClick={handleCreate} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UserPlus className="h-4 w-4 mr-2" />}
+            Create User
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── View Modal ─────────────────────────────────────────────────────────────
 function ViewUserModal({ user, onClose, onEdit }: { user: User; onClose: () => void; onEdit: () => void }) {
@@ -212,10 +286,11 @@ export function Users() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading]   = useState(true);
   const [error, setError]           = useState<string | null>(null);
-  const [viewUser, setViewUser]     = useState<User | null>(null);
-  const [editUser, setEditUser]     = useState<User | null>(null);
+  const [viewUser, setViewUser]         = useState<User | null>(null);
+  const [editUser, setEditUser]         = useState<User | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [deleting, setDeleting]         = useState(false);
+  const [showCreate, setShowCreate]     = useState(false);
 
 
   useEffect(() => {
@@ -267,7 +342,7 @@ export function Users() {
           <h1 className="text-2xl font-bold text-foreground">User Management</h1>
           <p className="mt-1 text-muted-foreground">{users.length} total users on the platform</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowCreate(true)}>
           <UserPlus className="mr-2 h-4 w-4" />
           Add User
         </Button>
@@ -384,6 +459,12 @@ export function Users() {
       )}
 
       {/* Modals */}
+      {showCreate && (
+        <CreateUserModal
+          onClose={() => setShowCreate(false)}
+          onCreate={user => { setUsers(prev => [user, ...prev]); setShowCreate(false); }}
+        />
+      )}
       {viewUser && (
         <ViewUserModal
           user={viewUser}

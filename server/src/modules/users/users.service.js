@@ -172,6 +172,44 @@ async function getUserById(userId) {
   return result.rows[0];
 }
 
+async function adminCreateUser({ name, email, password, role = 'Personal' }) {
+  if (!name || !email || !password) throw new Error('Name, email and password are required');
+  if (password.length < 8) throw new Error('Password must be at least 8 characters');
+
+  const existing = await pool.query(`SELECT id FROM users WHERE email = $1`, [email]);
+  if (existing.rows.length) throw new Error('Email already in use');
+
+  const hash = await bcrypt.hash(password, 10);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const userRes = await client.query(
+      `INSERT INTO users (name, email, password_hash, is_verified) VALUES ($1, $2, $3, true) RETURNING id, name, email`,
+      [name, email, hash]
+    );
+    const user = userRes.rows[0];
+    const wsRes = await client.query(
+      `INSERT INTO workspaces (name, type, owner_id) VALUES ($1, 'personal', $2) RETURNING id`,
+      [`${name}'s Workspace`, user.id]
+    );
+    const wsId = wsRes.rows[0].id;
+    const roleRes = await client.query(`SELECT id FROM roles WHERE name = $1`, [role]);
+    if (!roleRes.rows.length) throw new Error(`Role '${role}' not found`);
+    await client.query(
+      `INSERT INTO memberships (user_id, workspace_id, role_id) VALUES ($1, $2, $3)`,
+      [user.id, wsId, roleRes.rows[0].id]
+    );
+    await client.query(`UPDATE users SET last_active_workspace_id = $1 WHERE id = $2`, [wsId, user.id]);
+    await client.query('COMMIT');
+    return user;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function adminUpdateUser(userId, { name, email }) {
   if (email) {
     const existing = await pool.query(
@@ -236,4 +274,4 @@ async function deleteUser(targetUserId) {
 
 
 
-module.exports = { getMe, updateMe, updatePassword, uploadAvatar, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers, getUserById, adminUpdateUser, deleteUser };
+module.exports = { getMe, updateMe, updatePassword, uploadAvatar, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers, getUserById, adminCreateUser, adminUpdateUser, deleteUser };

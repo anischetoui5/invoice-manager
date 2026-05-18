@@ -145,5 +145,21 @@ async function getAllCompanies() {
   return result.rows;
 }
 
-module.exports = { getCompany, updateCompany, getMembers, getInvitations, getAllCompanies };
+async function adminUpdateCompany(workspaceId, { name, email, phone, address }) {
+  const result = await pool.query(
+    `UPDATE companies
+     SET name = COALESCE($1, name),
+         email = COALESCE($2, email),
+         phone = COALESCE($3, phone),
+         address = COALESCE($4, address),
+         updated_at = NOW()
+     WHERE workspace_id = $5
+     RETURNING *`,
+    [name || null, email || null, phone || null, address || null, workspaceId]
+  );
+  if (!result.rows.length) throw new Error('Company not found');
+  return result.rows[0];
+}
+
+module.exports = { getCompany, updateCompany, adminUpdateCompany, getMembers, getInvitations, getAllCompanies };
  
