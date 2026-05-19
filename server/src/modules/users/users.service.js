@@ -225,8 +225,9 @@ async function adminUpdateUser(userId, { name, email }) {
        email = COALESCE($2, email)
      WHERE id = $3
      RETURNING id, name, email, created_at`,
-    [name || null, email || null, userId]
+    [name ?? null, email ?? null, userId]
   );
+
   if (!result.rows.length) throw new Error('User not found');
   return result.rows[0];
 }

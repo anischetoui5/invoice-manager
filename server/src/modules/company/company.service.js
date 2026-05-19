@@ -52,45 +52,6 @@ async function getCompany(workspaceId, requestingUserId) {
   return company;
 }
  
-async function updateCompany(userId, workspaceId, { name, email, phone, address }) {
-  const memberCheck = await pool.query(
-    `SELECT r.name as role FROM memberships m
-     JOIN roles r ON r.id = m.role_id
-     WHERE m.user_id = $1 AND m.workspace_id = $2`,
-    [userId, workspaceId]
-  );
- 
-  if (!memberCheck.rows.length || memberCheck.rows[0].role !== 'Director') {
-    throw new Error('Only Directors can update company information');
-  }
- 
-  const result = await pool.query(
-    `UPDATE companies
-     SET name = COALESCE($1, name),
-         email = COALESCE($2, email),
-         phone = COALESCE($3, phone),
-         address = COALESCE($4, address),
-         updated_at = NOW()
-     WHERE workspace_id = $5
-     RETURNING *`,
-    [name, email, phone, address, workspaceId]
-  );
- 
-  if (!result.rows.length) throw new Error('Company not found');
-  const company = result.rows[0];
- 
-  await logActivity(pool, {
-    workspace_id: workspaceId,
-    user_id: userId,
-    action: 'company.updated',
-    entity_type: 'company',
-    entity_id: company.id,
-    metadata: { company_name: company.name },
-  });
- 
-  return company;
-}
- 
 async function getMembers(workspaceId) {
   const result = await pool.query(
     `SELECT u.id, u.name, u.email, r.name as role, m.joined_at,
@@ -163,6 +124,56 @@ async function deleteCompany(workspaceId) {
   }
 }
 
+async function updateCompany(userId, workspaceId, { name, email, phone, address }) {
+  const memberCheck = await pool.query(
+    `SELECT r.name as role FROM memberships m
+     JOIN roles r ON r.id = m.role_id
+     WHERE m.user_id = $1 AND m.workspace_id = $2`,
+    [userId, workspaceId]
+  );
+ 
+  if (!memberCheck.rows.length || memberCheck.rows[0].role !== 'Director') {
+    throw new Error('Only Directors can update company information');
+  }
+ 
+  // Update company details
+  const result = await pool.query(
+    `UPDATE companies
+     SET name = COALESCE($1, name),
+         email = COALESCE($2, email),
+         phone = COALESCE($3, phone),
+         address = COALESCE($4, address),
+         updated_at = NOW()
+     WHERE workspace_id = $5
+     RETURNING *`,
+    [name || null, email || null, phone || null, address || null, workspaceId]
+  );
+ 
+  if (!result.rows.length) throw new Error('Company not found');
+  const company = result.rows[0];
+ 
+  // Keep workspace name in sync with company name
+  if (name) {
+    const workspaceName = `${name}'s Workspace`;
+    await pool.query(
+      `UPDATE workspaces SET name = $1 WHERE id = $2`,
+      [workspaceName, workspaceId]
+    );
+  }
+ 
+  await logActivity(pool, {
+    workspace_id: workspaceId,
+    user_id: userId,
+    action: 'company.updated',
+    entity_type: 'company',
+    entity_id: company.id,
+    metadata: { company_name: company.name },
+  });
+ 
+  // Return updated workspace name too so frontend can sync
+  return { ...company, workspace_name: name || company.name };
+}
+ 
 async function adminUpdateCompany(workspaceId, { name, email, phone, address }) {
   const result = await pool.query(
     `UPDATE companies
@@ -175,8 +186,20 @@ async function adminUpdateCompany(workspaceId, { name, email, phone, address }) 
      RETURNING *`,
     [name || null, email || null, phone || null, address || null, workspaceId]
   );
+ 
   if (!result.rows.length) throw new Error('Company not found');
-  return result.rows[0];
+  const company = result.rows[0];
+ 
+  // Keep workspace name in sync
+  if (name) {
+    const workspaceName = `${name}'s Workspace`;
+    await pool.query(
+      `UPDATE workspaces SET name = $1 WHERE id = $2`,
+      [workspaceName, workspaceId]
+    );
+  }
+ 
+  return { ...company, workspace_name: name || company.name };
 }
 
 module.exports = { getCompany, updateCompany, adminUpdateCompany, deleteCompany, getMembers, getInvitations, getAllCompanies };

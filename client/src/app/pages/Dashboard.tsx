@@ -330,7 +330,7 @@ export function Dashboard({ userRole }: DashboardProps) {
     const total        = S('total');
 
     return (
-      <SortableSectionList role="personal" defaultOrder={['stats','plan','recent']}>
+      <SortableSectionList role="personal" defaultOrder={['stats','plan','recent','joinCompany']}>
         <DashboardSection id="stats">
         <div className="grid gap-4 md:grid-cols-3">
           <StatCard label="Total Uploaded" value={sv(total)}          icon={FileText}    color="blue"   loading={statsLoading} />
@@ -456,8 +456,10 @@ export function Dashboard({ userRole }: DashboardProps) {
             <RecentActivity workspaceId={currentWorkspace.id} limit={5} />
           </div>
         </div>
-
-        {isPersonalOnly && <JoinCompany userRole="normal" />}
+        </DashboardSection>
+        <DashboardSection id="joinCompany">
+          {isPersonalOnly && <JoinCompany userRole="normal" />}
+          {isAccountant && <JoinCompany userRole='accountant' />}
         </DashboardSection>
       </SortableSectionList>
     );

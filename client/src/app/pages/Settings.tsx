@@ -771,7 +771,7 @@ export function Settings() {
           <div className="space-y-4">
             {showCompanyTab ? (
               <>
-                {isPersonalOnly && <JoinCompany userRole={currentUser.role} />}
+                {isPersonalOnly && <JoinCompany userRole='normal' />}
                 {isAccountant   && <JoinCompany userRole="accountant" lockedRole />}
                 {companyWorkspaces.length === 0 ? (
                   <Card className="p-6">
