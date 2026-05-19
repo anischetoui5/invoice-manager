@@ -1,5 +1,16 @@
 const usersService = require('./users.service');
 
+async function updateMemberContract(req, res) {
+  try {
+    const member = await usersService.updateMemberContract(
+      req.user.id, req.params.workspace_id, req.params.userId, req.body
+    );
+    res.status(200).json({ message: 'Contract dates updated', member });
+  } catch (err) {
+    res.status(403).json({ error: err.message });
+  }
+}
+
 async function adminCreateUser(req, res) {
   try {
     const user = await usersService.adminCreateUser(req.body);
@@ -94,11 +105,11 @@ async function getUserById(req, res) {
 
 async function adminUpdateUser(req, res) {
   try {
-    const { name, email } = req.body;
-    if (!name && !email) {
+    const { name, email, role } = req.body;
+    if (!name && !email && !role) {
       return res.status(400).json({ error: 'Nothing to update' });
     }
-    const user = await usersService.adminUpdateUser(req.params.userId, { name, email });
+    const user = await usersService.adminUpdateUser(req.params.userId, { name, email, role });
     res.status(200).json({ message: 'User updated', user });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -125,4 +136,4 @@ async function uploadAvatar(req, res) {
   }
 }
 
-module.exports = { getMe, updateMe, updatePassword, uploadAvatar, getWorkspaceMembers, updateMemberRole, removeMember, getAllUsers, getUserById, adminCreateUser, adminUpdateUser, deleteUser };
+module.exports = { getMe, updateMe, updatePassword, uploadAvatar, getWorkspaceMembers, updateMemberContract, updateMemberRole, removeMember, getAllUsers, getUserById, adminCreateUser, adminUpdateUser, deleteUser };

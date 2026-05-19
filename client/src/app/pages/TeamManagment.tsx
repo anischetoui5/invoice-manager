@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import {
-  Users, Check, X, Loader2, Calendar, LogOut, AlertTriangle, RefreshCw, Copy,
+  Users, Check, X, Loader2, Calendar, LogOut, AlertTriangle, RefreshCw, Copy, Pencil,
 } from 'lucide-react';
 import { useSubscriptionGuard } from '../hooks/useSubscriptionGuard';
 import { Card } from '../components/ui/card';
@@ -70,8 +70,66 @@ function ConfirmDialog({ dialog, onClose }: { dialog: ConfirmDialog; onClose: ()
   );
 }
 
-function MemberRow({ member, onRemove, isLocked }: {
-  member: Member; onRemove: (id: string, name: string) => void; isLocked: boolean;
+function EditContractModal({ member, workspaceId, onClose, onSaved }: {
+  member: Member; workspaceId: string; onClose: () => void; onSaved: (updated: Member) => void;
+}) {
+  const [start, setStart] = useState(member.contract_start?.slice(0, 10) ?? '');
+  const [end, setEnd]     = useState(member.contract_end?.slice(0, 10) ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (start && end && new Date(end) <= new Date(start)) {
+      setError('End date must be after start date'); return;
+    }
+    setSaving(true); setError(null);
+    try {
+      await api.patch(`/users/workspace/${workspaceId}/members/${member.id}/contract`, {
+        contractStart: start || null, contractEnd: end || null,
+      });
+      onSaved({ ...member, contract_start: start || undefined, contract_end: end || undefined });
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update contract');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-semibold">Edit Contract — {member.name}</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contract Start</label>
+            <input type="date" value={start} onChange={e => setStart(e.target.value)}
+              className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contract End</label>
+            <input type="date" value={end} onChange={e => setEnd(e.target.value)}
+              className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <div className="flex gap-3 mt-5">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button className="flex-1" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Save
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MemberRow({ member, onRemove, onEditContract, isDirector, isLocked }: {
+  member: Member; onRemove: (id: string, name: string) => void;
+  onEditContract?: (member: Member) => void; isDirector: boolean; isLocked: boolean;
 }) {
   const contractExpired = member.contract_end ? new Date(member.contract_end) < new Date() : false;
   return (
@@ -82,18 +140,26 @@ function MemberRow({ member, onRemove, isLocked }: {
       <div className="flex-1 min-w-0">
         <p className="font-medium text-foreground text-sm">{member.name}</p>
         <p className="text-xs text-muted-foreground truncate">{member.email}</p>
-        {member.contract_end && (
+        {(member.contract_start || member.contract_end) && (
           <p className={`text-xs mt-0.5 flex items-center gap-1 ${contractExpired ? 'text-destructive' : 'text-muted-foreground'}`}>
             {contractExpired
-              ? <><AlertTriangle className="h-3 w-3" /> Contract expired {new Date(member.contract_end).toLocaleDateString()}</>
-              : <><Calendar className="h-3 w-3" /> Until {new Date(member.contract_end).toLocaleDateString()}</>
+              ? <><AlertTriangle className="h-3 w-3" /> Contract expired</>
+              : <><Calendar className="h-3 w-3" /></>
             }
+            {member.contract_start && <span>{new Date(member.contract_start).toLocaleDateString()}</span>}
+            {member.contract_start && member.contract_end && <span>→</span>}
+            {member.contract_end && <span>{new Date(member.contract_end).toLocaleDateString()}</span>}
           </p>
         )}
       </div>
       <span className={`rounded px-2 py-0.5 text-[11px] font-medium ${getRoleBadgeColor(member.role)}`}>
         {member.role}
       </span>
+      {isDirector && member.role !== 'Director' && (
+        <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={isLocked} onClick={() => onEditContract?.(member)}>
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      )}
       {member.role !== 'Director' && (
         <Button variant="outline" size="sm" className="h-7 text-xs" disabled={isLocked} onClick={() => onRemove(member.id, member.name)}>
           Remove
@@ -206,6 +272,7 @@ export function TeamManagement() {
   const [isLoading, setIsLoading]             = useState(true);
   const [actionLoading, setActionLoading]     = useState<string | null>(null);
   const [contractDates, setContractDates]     = useState<Record<string, { start: string; end: string }>>({});
+  const [editContractMember, setEditContractMember] = useState<Member | null>(null);
   const [companyCode, setCompanyCode]         = useState<string | null>(null);
 
   const [dialog, setDialog] = useState<ConfirmDialog>({
@@ -344,6 +411,17 @@ export function TeamManagement() {
   return (
     <>
       <ConfirmDialog dialog={dialog} onClose={closeDialog} />
+      {editContractMember && (
+        <EditContractModal
+          member={editContractMember}
+          workspaceId={currentWorkspace.id}
+          onClose={() => setEditContractMember(null)}
+          onSaved={updated => {
+            setMembers(prev => prev.map(m => m.id === updated.id ? updated : m));
+            setEditContractMember(null);
+          }}
+        />
+      )}
       <div className="space-y-5 page-enter">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Team Management</h1>
@@ -406,7 +484,7 @@ export function TeamManagement() {
         {director && (
           <div className="erp-card rounded-lg p-5">
             <h3 className="mb-3 text-sm font-semibold text-foreground">Director</h3>
-            <MemberRow member={director} onRemove={handleRemoveMember} isLocked={isLocked} />
+            <MemberRow member={director} onRemove={handleRemoveMember} onEditContract={setEditContractMember} isDirector={isDirector} isLocked={isLocked} />
           </div>
         )}
 
@@ -415,7 +493,7 @@ export function TeamManagement() {
           <h3 className="mb-3 text-sm font-semibold text-foreground">Accountants ({accountants.length})</h3>
           {accountants.length === 0
             ? <p className="text-sm text-muted-foreground">No accountants yet.</p>
-            : <div className="space-y-2">{accountants.map(m => <MemberRow key={m.id} member={m} onRemove={handleRemoveMember} isLocked={isLocked} />)}</div>
+            : <div className="space-y-2">{accountants.map(m => <MemberRow key={m.id} member={m} onRemove={handleRemoveMember} onEditContract={setEditContractMember} isDirector={isDirector} isLocked={isLocked} />)}</div>
           }
         </div>
 
@@ -424,7 +502,7 @@ export function TeamManagement() {
           <h3 className="mb-3 text-sm font-semibold text-foreground">Employees ({employees.length})</h3>
           {employees.length === 0
             ? <p className="text-sm text-muted-foreground">No employees yet.</p>
-            : <div className="space-y-2">{employees.map(m => <MemberRow key={m.id} member={m} onRemove={handleRemoveMember} isLocked={isLocked} />)}</div>
+            : <div className="space-y-2">{employees.map(m => <MemberRow key={m.id} member={m} onRemove={handleRemoveMember} onEditContract={setEditContractMember} isDirector={isDirector} isLocked={isLocked} />)}</div>
           }
         </div>
 

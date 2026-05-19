@@ -1,5 +1,14 @@
 const companyService = require('./company.service');
 
+async function adminCreateCompany(req, res) {
+  try {
+    const result = await companyService.adminCreateCompany(req.body);
+    res.status(201).json({ message: 'Company created', ...result });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
 // GET /company/:workspace_id
 async function getCompany(req, res) {
   try {
@@ -79,6 +88,6 @@ async function adminUpdateCompany(req, res) {
 }
 
 module.exports = {
-  getCompany, updateCompany, adminUpdateCompany, deleteCompany, getMembers,
+  getCompany, updateCompany, adminCreateCompany, adminUpdateCompany, deleteCompany, getMembers,
   getInvitations, getAllCompanies,
 };

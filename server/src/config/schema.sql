@@ -104,6 +104,7 @@ CREATE TABLE invoices (
     invoice_date date,
     due_date date,
     notes text,
+    category varchar(255),
     current_status varchar(50) NOT NULL DEFAULT 'draft' REFERENCES invoice_status(code),
     created_at timestamp DEFAULT now(),
     updated_at timestamp DEFAULT now(),

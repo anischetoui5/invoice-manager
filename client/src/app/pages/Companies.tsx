@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, Search, Users, FileText, Loader2, X, Trash2, Eye, Pencil, Save } from 'lucide-react';
+import { Building2, Search, Users, FileText, Loader2, X, Trash2, Eye, Pencil, Save, Plus, EyeOff, Eye as EyeIcon } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -17,6 +17,100 @@ interface Company {
   created_at: string;
   member_count: number;
   invoice_count: number;
+}
+
+function CreateCompanyModal({ onClose, onCreate }: { onClose: () => void; onCreate: (company: Company) => void }) {
+  const [form, setForm] = useState({ companyName: '', companyEmail: '', companyPhone: '', companyAddress: '', directorName: '', directorEmail: '', directorPassword: '' });
+  const [showPw, setShowPw] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState<string | null>(null);
+  const set = (field: string, val: string) => setForm(p => ({ ...p, [field]: val }));
+
+  const handleCreate = async () => {
+    if (!form.companyName.trim() || !form.directorName.trim() || !form.directorEmail.trim() || !form.directorPassword) {
+      setError('Company name and director details are required'); return;
+    }
+    setSaving(true); setError(null);
+    try {
+      const { data } = await api.post('/company/admin', form);
+      toast.success('Company created successfully');
+      onCreate(data.company);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to create company');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Create Company</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Company Details</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-foreground">Company Name *</label>
+                <Input className="mt-1" value={form.companyName} onChange={e => set('companyName', e.target.value)} placeholder="Acme Corporation" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Email</label>
+                  <Input className="mt-1" type="email" value={form.companyEmail} onChange={e => set('companyEmail', e.target.value)} placeholder="contact@company.com" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Phone</label>
+                  <Input className="mt-1" value={form.companyPhone} onChange={e => set('companyPhone', e.target.value)} placeholder="+1 555 000-0000" />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Address</label>
+                <Input className="mt-1" value={form.companyAddress} onChange={e => set('companyAddress', e.target.value)} placeholder="123 Main St, City" />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Director Account</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-foreground">Full Name *</label>
+                <Input className="mt-1" value={form.directorName} onChange={e => set('directorName', e.target.value)} placeholder="John Doe" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Email *</label>
+                <Input className="mt-1" type="email" value={form.directorEmail} onChange={e => set('directorEmail', e.target.value)} placeholder="director@company.com" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Password *</label>
+                <div className="relative mt-1">
+                  <Input type={showPw ? 'text' : 'password'} value={form.directorPassword} onChange={e => set('directorPassword', e.target.value)} placeholder="Min. 8 characters" className="pr-10" />
+                  <button type="button" onClick={() => setShowPw(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showPw ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button className="flex-1" onClick={handleCreate} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+            Create Company
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function EditCompanyModal({ company, onClose, onSave }: { company: Company; onClose: () => void; onSave: (updated: Company) => void }) {
@@ -190,6 +284,7 @@ export function Companies() {
   const [editCompany, setEditCompany]   = useState<Company | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
   const [deleting, setDeleting]         = useState(false);
+  const [showCreate, setShowCreate]     = useState(false);
 
   useEffect(() => {
     api.get('/company')
@@ -227,6 +322,10 @@ export function Companies() {
           <h1 className="text-2xl font-bold text-foreground">Companies</h1>
           <p className="mt-1 text-muted-foreground">{companies.length} companies registered on the platform</p>
         </div>
+        <Button onClick={() => setShowCreate(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Company
+        </Button>
       </div>
 
       {/* Search */}
@@ -343,6 +442,12 @@ export function Companies() {
         </div>
       )}
 
+      {showCreate && (
+        <CreateCompanyModal
+          onClose={() => setShowCreate(false)}
+          onCreate={company => { setCompanies(prev => [company, ...prev]); setShowCreate(false); }}
+        />
+      )}
       {viewCompany && <ViewCompanyModal company={viewCompany} onClose={() => setViewCompany(null)} />}
       {editCompany && (
         <EditCompanyModal

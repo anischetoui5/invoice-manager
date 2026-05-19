@@ -160,7 +160,7 @@ export function UploadInvoice() {
       const invoiceRes = await fetch(`http://localhost:3000/api/workspaces/${workspaceId}/invoices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ vendor_name: vendor || 'Unknown Vendor', notes: notes || null }),
+        body: JSON.stringify({ vendor_name: vendor || 'Unknown Vendor', notes: notes || null, category: category || null }),
       });
       const invoiceData = await invoiceRes.json();
       if (!invoiceRes.ok) { toast.error(invoiceData.error || 'Failed to create invoice'); setIsUploading(false); return; }

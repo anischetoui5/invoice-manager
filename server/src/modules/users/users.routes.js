@@ -7,7 +7,7 @@ const { authenticate, authorizeInWorkspace, authorizeAdmin } = require('../../mi
 const { requireActiveSubscription } = require('../../middlewares/subscription.middleware');
 const {
   getMe, updateMe, updatePassword, uploadAvatar,
-  getWorkspaceMembers, updateMemberRole, removeMember,
+  getWorkspaceMembers, updateMemberContract, updateMemberRole, removeMember,
   getAllUsers, getUserById, adminCreateUser, adminUpdateUser, deleteUser,
 } = require('./users.controller');
 
@@ -42,10 +42,16 @@ router.get('/workspace/:workspace_id/members',
   authorizeInWorkspace('Admin', 'Director', 'Accountant', 'Employee', 'Personal'),
   getWorkspaceMembers
 );
+router.patch('/workspace/:workspace_id/members/:userId/contract',
+  authorizeInWorkspace('Admin', 'Director'),
+  authenticate,
+  requireActiveSubscription,
+  updateMemberContract
+);
 router.patch('/workspace/:workspace_id/members/:userId/role',
   authorizeInWorkspace('Admin', 'Director'),
-  authenticate, 
-  requireActiveSubscription, 
+  authenticate,
+  requireActiveSubscription,
   updateMemberRole
 );
 router.delete('/workspace/:workspace_id/members/:userId',

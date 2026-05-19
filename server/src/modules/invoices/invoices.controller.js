@@ -3,14 +3,14 @@ const invoicesService = require('./invoices.service.js');
 
 async function createInvoice(req, res) {
   try {
-    const { invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes } = req.body;
+    const { invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes, category } = req.body;
     const workspace_id = req.params.workspace_id;
     const created_by = req.user.id;
 
     const invoice = await invoicesService.createInvoice({
       workspace_id, created_by, invoice_number,
       vendor_name, amount, currency,
-      invoice_date, due_date, notes,
+      invoice_date, due_date, notes, category,
     });
 
     res.status(201).json({ message: 'Invoice created successfully', invoice });

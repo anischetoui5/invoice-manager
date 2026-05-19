@@ -2,7 +2,7 @@ const pool = require('../../config/db');
 const { createNotification } = require('../notifications/notifications.service');
 const { logActivity } = require('../activity/activity.service');
 
-async function createInvoice({ workspace_id, created_by, invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes }) {
+async function createInvoice({ workspace_id, created_by, invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes, category }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -47,10 +47,10 @@ async function createInvoice({ workspace_id, created_by, invoice_number, vendor_
 
     const invoiceResult = await client.query(
       `INSERT INTO invoices
-        (workspace_id, created_by, invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes, current_status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft')
+        (workspace_id, created_by, invoice_number, vendor_name, amount, currency, invoice_date, due_date, notes, category, current_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'draft')
        RETURNING *`,
-      [workspace_id, created_by, invoice_number || null, vendor_name, amount || null, currency || 'USD', invoice_date || null, due_date || null, notes]
+      [workspace_id, created_by, invoice_number || null, vendor_name, amount || null, currency || 'USD', invoice_date || null, due_date || null, notes, category || null]
     );
 
     const invoice = invoiceResult.rows[0];

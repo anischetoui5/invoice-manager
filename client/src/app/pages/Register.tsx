@@ -266,11 +266,29 @@ export function Register() {
 
   const handleSubscriptionSubmit = () => setStep('payment');
 
+  const formatCardNumber = (value: string) =>
+    value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+
+  const formatExpiry = (value: string) => {
+    const clean = value.replace(/\D/g, '').slice(0, 4);
+    if (clean.length >= 2) return clean.slice(0, 2) + '/' + clean.slice(2);
+    return clean;
+  };
+
+  const validatePayment = () => {
+    const cleanCard = formData.cardNumber.replace(/\s/g, '');
+    if (!formData.cardName.trim())           { toast.error('Please enter cardholder name'); return false; }
+    if (cleanCard.length !== 16)             { toast.error('Card number must be 16 digits'); return false; }
+    if (formData.cardExpiry.length !== 5)    { toast.error('Please enter a valid expiry date (MM/YY)'); return false; }
+    if (formData.cardCVC.length < 3)         { toast.error('CVC must be 3 or 4 digits'); return false; }
+    const [mm] = formData.cardExpiry.split('/');
+    if (parseInt(mm) < 1 || parseInt(mm) > 12) { toast.error('Invalid expiry month'); return false; }
+    return true;
+  };
+
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.cardNumber || !formData.cardExpiry || !formData.cardCVC || !formData.cardName) {
-      toast.error('Please fill in all payment details'); return;
-    }
+    if (!validatePayment()) return;
     try {
       const response = await api.post('/auth/register', {
         name: formData.name, email: formData.email, password: formData.password,
@@ -927,19 +945,25 @@ export function Register() {
                     </div>
                     <div>
                       <label style={labelStyle}>Card Number</label>
-                      <input className="reg-input" style={inputStyle} type="text" placeholder="1234 5678 9012 3456"
-                        value={formData.cardNumber} onChange={(e) => handleInputChange('cardNumber', e.target.value)} maxLength={19} required />
+                      <input className="reg-input" style={{ ...inputStyle, letterSpacing: '2px' }} type="text" placeholder="1234 5678 9012 3456"
+                        value={formData.cardNumber}
+                        onChange={(e) => handleInputChange('cardNumber', formatCardNumber(e.target.value))}
+                        maxLength={19} required inputMode="numeric" />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                       <div>
                         <label style={labelStyle}>Expiry Date</label>
                         <input className="reg-input" style={inputStyle} type="text" placeholder="MM/YY"
-                          value={formData.cardExpiry} onChange={(e) => handleInputChange('cardExpiry', e.target.value)} maxLength={5} required />
+                          value={formData.cardExpiry}
+                          onChange={(e) => handleInputChange('cardExpiry', formatExpiry(e.target.value))}
+                          maxLength={5} required inputMode="numeric" />
                       </div>
                       <div>
                         <label style={labelStyle}>CVC</label>
                         <input className="reg-input" style={inputStyle} type="text" placeholder="123"
-                          value={formData.cardCVC} onChange={(e) => handleInputChange('cardCVC', e.target.value)} maxLength={4} required />
+                          value={formData.cardCVC}
+                          onChange={(e) => handleInputChange('cardCVC', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          maxLength={4} required inputMode="numeric" />
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: t.securityBg, borderRadius: isDark ? '6px' : '10px', transition: 'background 0.4s ease' }}>

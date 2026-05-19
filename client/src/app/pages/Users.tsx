@@ -29,20 +29,26 @@ const getRoleBadgeColor = (role: string) => {
 };
 
 // ── Create Modal ───────────────────────────────────────────────────────────
+const COMPANY_ROLES = ['Director', 'Employee', 'Accountant'];
+
 function CreateUserModal({ onClose, onCreate }: { onClose: () => void; onCreate: (user: User) => void }) {
-  const [name, setName]           = useState('');
-  const [email, setEmail]         = useState('');
-  const [password, setPassword]   = useState('');
-  const [role, setRole]           = useState('Personal');
-  const [showPw, setShowPw]       = useState(false);
-  const [saving, setSaving]       = useState(false);
-  const [error, setError]         = useState<string | null>(null);
+  const [name, setName]             = useState('');
+  const [email, setEmail]           = useState('');
+  const [password, setPassword]     = useState('');
+  const [role, setRole]             = useState('Personal');
+  const [companyCode, setCompanyCode] = useState('');
+  const [showPw, setShowPw]         = useState(false);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState<string | null>(null);
+
+  const needsCompany = COMPANY_ROLES.includes(role);
 
   const handleCreate = async () => {
     if (!name.trim() || !email.trim() || !password) { setError('All fields are required'); return; }
+    if (needsCompany && !companyCode.trim()) { setError('Company code is required for this role'); return; }
     setSaving(true); setError(null);
     try {
-      const { data } = await api.post('/users', { name, email, password, role });
+      const { data } = await api.post('/users', { name, email, password, role, companyCode: companyCode.trim() || undefined });
       toast.success('User created successfully');
       onCreate({ ...data.user, roles: [role], created_at: new Date().toISOString() });
     } catch (err: any) {
@@ -86,8 +92,24 @@ function CreateUserModal({ onClose, onCreate }: { onClose: () => void; onCreate:
             >
               <option value="Personal">Personal</option>
               <option value="Admin">Admin</option>
+              <option value="Director">Director (Company)</option>
+              <option value="Employee">Employee (Company)</option>
+              <option value="Accountant">Accountant (Company)</option>
             </select>
           </div>
+          {needsCompany && (
+            <div>
+              <label className="text-sm font-medium text-foreground">
+                Company Code <span className="text-muted-foreground font-normal">{role === 'Director' ? '(optional — creates standalone)' : '(required)'}</span>
+              </label>
+              <Input
+                className="mt-1 uppercase"
+                value={companyCode}
+                onChange={e => setCompanyCode(e.target.value.toUpperCase())}
+                placeholder="e.g. ACME2024"
+              />
+            </div>
+          )}
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <div className="flex gap-3 mt-6">
@@ -155,19 +177,22 @@ function ViewUserModal({ user, onClose, onEdit }: { user: User; onClose: () => v
 
 // ── Edit Modal ─────────────────────────────────────────────────────────────
 function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => void; onSave: (updated: User) => void }) {
-  const [name, setName]       = useState(user.name);
-  const [email, setEmail]     = useState(user.email);
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const platformRole = user.roles?.includes('Admin') ? 'Admin' : 'Personal';
+  const [name, setName]     = useState(user.name);
+  const [email, setEmail]   = useState(user.email);
+  const [role, setRole]     = useState(platformRole);
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState<string | null>(null);
 
   const handleSave = async () => {
-    if (!name && !email) return;
+    if (!name && !email && role === platformRole) return;
     setSaving(true);
     setError(null);
     try {
-      const { data } = await api.put(`/users/${user.id}`, { name, email });
+      const { data } = await api.put(`/users/${user.id}`, { name, email, role });
       toast.success('User updated successfully');
-      onSave({ ...user, name: data.user.name, email: data.user.email });
+      const updatedRoles = user.roles?.filter(r => r !== 'Admin' && r !== 'Personal');
+      onSave({ ...user, name: data.user.name, email: data.user.email, roles: [...(updatedRoles ?? []), role] });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update user');
     } finally {
@@ -188,33 +213,28 @@ function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => v
         <div className="space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground">Full Name</label>
-            <Input
-              className="mt-1"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Full name"
-            />
+            <Input className="mt-1" value={name} onChange={e => setName(e.target.value)} placeholder="Full name" />
           </div>
           <div>
             <label className="text-sm font-medium text-foreground">Email</label>
-            <Input
-              className="mt-1"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="Email address"
-            />
+            <Input className="mt-1" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" />
           </div>
-
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          <div>
+            <label className="text-sm font-medium text-foreground">Platform Role</label>
+            <select
+              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={role}
+              onChange={e => setRole(e.target.value)}
+            >
+              <option value="Personal">Personal</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
         <div className="flex gap-3 mt-6">
-          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
-            Cancel
-          </Button>
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button className="flex-1" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             Save Changes

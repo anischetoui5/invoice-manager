@@ -32,6 +32,7 @@ interface Invoice {
   due_date: string;
   current_status: string;
   created_at: string;
+  category?: string;
 }
 
 type SortKey = 'invoice_number' | 'vendor_name' | 'amount' | 'invoice_date' | 'due_date' | 'current_status';
@@ -338,6 +339,7 @@ export function InvoiceList() {
                     <SortableHead label="Invoice #"    sortKey="invoice_number" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                     {isAdmin && <TableHead>Company</TableHead>}
                     <SortableHead label="Vendor"       sortKey="vendor_name"    currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <TableHead>Category</TableHead>
                     {role !== 'Employee' && role !== 'Personal' && <TableHead>Uploaded By</TableHead>}
                     <SortableHead label="Amount"       sortKey="amount"         currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHead label="Invoice Date" sortKey="invoice_date"   currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
@@ -362,6 +364,7 @@ export function InvoiceList() {
                           </TableCell>
                         )}
                         <TableCell className="text-sm">{invoice.vendor_name ?? '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{invoice.category ?? '—'}</TableCell>
                         {role !== 'Employee' && role !== 'Personal' && (
                           <TableCell className="text-sm text-muted-foreground">{invoice.created_by_name}</TableCell>
                         )}
