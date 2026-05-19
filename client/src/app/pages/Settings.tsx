@@ -120,6 +120,97 @@ function Section({ children, className = '' }: { children: React.ReactNode; clas
   );
 }
 
+function SubscriptionSection({ sub, expiryFormatted }: {
+  sub: Subscription;
+  expiryFormatted: string | null;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <Section className="p-0">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/40 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 flex-shrink-0">
+            <CreditCard className="h-4 w-4 text-purple-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground text-sm">Subscription</p>
+            <p className="text-xs text-muted-foreground">Your current plan and billing</p>
+          </div>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-6 pb-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">{sub.plan_name}</p>
+              <p className="text-xs text-muted-foreground">${sub.price}/mo</p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
+              <div className="mt-1"><SubscriptionBadge status={sub.status} /></div>
+            </div>
+            {expiryFormatted && (
+              <div className="rounded-lg bg-muted/40 p-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {sub.status === 'trialing' ? 'Trial ends' : 'Renews'}
+                </p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm font-medium text-foreground">{expiryFormatted}</p>
+                </div>
+              </div>
+            )}
+            {Number(sub.credits) > 0 && (
+              <div className="rounded-lg bg-muted/40 p-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Credits</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">${Number(sub.credits).toFixed(2)}</p>
+              </div>
+            )}
+            {(sub.max_invoices || sub.max_users) && (
+              <div className="rounded-lg bg-muted/40 p-3 sm:col-span-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Plan Limits</p>
+                <div className="flex gap-6">
+                  {sub.max_invoices && (
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{sub.max_invoices.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Max invoices/mo</p>
+                    </div>
+                  )}
+                  {sub.max_users && (
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{sub.max_users}</p>
+                      <p className="text-xs text-muted-foreground">Max users</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {(sub.status === 'past_due' || sub.status === 'expired') && (
+            <div className="mt-3 flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 p-3">
+              <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-800">Action required</p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  Your subscription is {sub.status === 'past_due' ? 'past due' : 'expired'}.
+                  Please update your billing to avoid service interruption.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Section>
+  );
+}
 // ── CompanyCard ────────────────────────────────────────────────────────────
 
 function CompanyCard({
@@ -280,66 +371,7 @@ function CompanyCard({
         <>
           {/* Subscription — Directors only */}
           {isDirector && sub && (
-            <Section>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 flex-shrink-0">
-                  <CreditCard className="h-4 w-4 text-purple-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground text-sm">Subscription</p>
-                  <p className="text-xs text-muted-foreground">Your current plan and billing</p>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg bg-muted/40 p-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">{sub.plan_name}</p>
-                  <p className="text-xs text-muted-foreground">${sub.price}/mo</p>
-                </div>
-                <div className="rounded-lg bg-muted/40 p-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
-                  <div className="mt-1"><SubscriptionBadge status={sub.status} /></div>
-                </div>
-                {expiryFormatted && (
-                  <div className="rounded-lg bg-muted/40 p-3">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      {sub.status === 'trialing' ? 'Trial ends' : 'Renews'}
-                    </p>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm font-medium text-foreground">{expiryFormatted}</p>
-                    </div>
-                  </div>
-                )}
-                {Number(sub.credits) > 0 && (
-                  <div className="rounded-lg bg-muted/40 p-3">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Credits</p>
-                    <p className="mt-1 text-sm font-semibold text-foreground">${Number(sub.credits).toFixed(2)}</p>
-                  </div>
-                )}
-                {(sub.max_invoices || sub.max_users) && (
-                  <div className="rounded-lg bg-muted/40 p-3 sm:col-span-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Plan Limits</p>
-                    <div className="flex gap-6">
-                      {sub.max_invoices && <div><p className="text-sm font-semibold text-foreground">{sub.max_invoices.toLocaleString()}</p><p className="text-xs text-muted-foreground">Max invoices/mo</p></div>}
-                      {sub.max_users    && <div><p className="text-sm font-semibold text-foreground">{sub.max_users}</p><p className="text-xs text-muted-foreground">Max users</p></div>}
-                    </div>
-                  </div>
-                )}
-              </div>
-              {(sub.status === 'past_due' || sub.status === 'expired') && (
-                <div className="mt-3 flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 p-3">
-                  <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-red-800">Action required</p>
-                    <p className="text-xs text-red-600 mt-0.5">
-                      Your subscription is {sub.status === 'past_due' ? 'past due' : 'expired'}.
-                      Please update your billing to avoid service interruption.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </Section>
+            <SubscriptionSection sub={sub} expiryFormatted={expiryFormatted} />
           )}
 
           {/* Contract + actions — Accountants only */}
