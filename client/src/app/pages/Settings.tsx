@@ -752,11 +752,6 @@ export function Settings() {
                       <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="pl-10" required />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Input id="role" value={currentUser?.role ?? ''} disabled className="capitalize" />
-                    <p className="text-xs text-muted-foreground">Contact your administrator to change your role</p>
-                  </div>
                   <Button type="submit" className="w-full" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)', color: 'white' }} disabled={savingProfile}>
                     <Save className="mr-2 h-4 w-4" />{savingProfile ? 'Saving…' : 'Save Changes'}
                   </Button>
