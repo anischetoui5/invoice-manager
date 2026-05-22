@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 interface Plan {
   id: number; name: string; price: number;
   max_invoices: number; max_users: number; ocr_accuracy: number; popular?: boolean;
+  has_chat?: boolean; has_dm?: boolean; can_create_channels?: boolean;
 }
 
 interface SubscriptionType {
@@ -225,18 +226,21 @@ export function Subscription() {
                   </div>
                 </div>
                 <div className="mb-4 flex-1 space-y-2 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
-                    {plan.max_invoices === null ? 'Unlimited invoices' : `${plan.max_invoices} invoices/mo`}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
-                    {plan.max_users === null ? 'Unlimited users' : `Up to ${plan.max_users} users`}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
-                    {plan.ocr_accuracy}% OCR accuracy
-                  </div>
+                  {[
+                    { label: plan.max_invoices === null ? 'Unlimited invoices' : `${plan.max_invoices} invoices/mo`, enabled: true },
+                    { label: plan.max_users === null ? 'Unlimited users' : `Up to ${plan.max_users} users`, enabled: true },
+                    { label: `${plan.ocr_accuracy}% OCR accuracy`, enabled: true },
+                    { label: 'Team chat', enabled: !!plan.has_chat },
+                    { label: 'Direct messages', enabled: !!plan.has_dm },
+                    { label: 'Custom channels', enabled: !!plan.can_create_channels },
+                  ].map(({ label, enabled }) => (
+                    <div key={label} className={`flex items-center gap-2 ${enabled ? '' : 'opacity-40'}`}>
+                      {enabled
+                        ? <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                        : <X className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                      <span className={enabled ? '' : 'line-through'}>{label}</span>
+                    </div>
+                  ))}
                 </div>
                 <Button
                   size="sm"
