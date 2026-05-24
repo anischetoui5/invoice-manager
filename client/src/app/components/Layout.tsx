@@ -289,7 +289,7 @@ export function Layout({
       <AiChat workspaceId={currentWorkspace.id} />
 
       <div className="md:hidden">
-        <MobileNav />
+        <MobileNav role={currentWorkspace?.role} />
       </div>
 
       <InstallPWA />

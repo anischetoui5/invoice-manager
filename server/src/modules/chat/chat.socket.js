@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { createMessage } = require('./chat.service');
+const { createMessage, deleteMessage } = require('./chat.service');
 
 module.exports = function setupChatSocket(io) {
   io.use((socket, next) => {
@@ -32,6 +32,16 @@ module.exports = function setupChatSocket(io) {
           ...message,
           sender_name: socket.userName || message.sender_name,
         });
+      } catch (err) {
+        socket.emit('message:error', { error: err.message });
+      }
+    });
+
+    socket.on('message:delete', async ({ message_id, conversation_id }) => {
+      if (!message_id || !conversation_id) return;
+      try {
+        await deleteMessage(message_id, socket.userId);
+        io.to(`conv:${conversation_id}`).emit('message:deleted', { message_id, conversation_id });
       } catch (err) {
         socket.emit('message:error', { error: err.message });
       }

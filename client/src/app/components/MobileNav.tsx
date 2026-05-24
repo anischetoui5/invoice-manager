@@ -1,15 +1,22 @@
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, FileText, Upload, History, User } from 'lucide-react';
 
-const links = [
-  { to: '/dashboard',          icon: LayoutDashboard, label: 'Home'     },
-  { to: '/dashboard/invoices', icon: FileText,         label: 'Invoices' },
-  { to: '/dashboard/upload',   icon: Upload,           label: 'Scan'     },
-  { to: '/dashboard/history',  icon: History,          label: 'History'  },
-  { to: '/dashboard/settings', icon: User,             label: 'Profile'  },
+const ALL_LINKS = [
+  { to: '/dashboard',          icon: LayoutDashboard, label: 'Home',     roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
+  { to: '/dashboard/invoices', icon: FileText,         label: 'Invoices', roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
+  { to: '/dashboard/upload',   icon: Upload,           label: 'Scan',     roles: ['employee', 'normal'] },
+  { to: '/dashboard/history',  icon: History,          label: 'History',  roles: ['admin', 'accountant', 'normal', 'employee', 'director'] },
+  { to: '/dashboard/settings', icon: User,             label: 'Profile',  roles: ['admin', 'employee', 'accountant', 'director', 'normal'] },
 ];
 
-export function MobileNav() {
+interface MobileNavProps {
+  role?: string;
+}
+
+export function MobileNav({ role }: MobileNavProps) {
+  const normalizedRole = (role ?? 'normal').toLowerCase();
+  const links = ALL_LINKS.filter(l => l.roles.includes(normalizedRole));
+
   return (
     <nav style={{
       position: 'fixed',

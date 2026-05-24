@@ -178,6 +178,15 @@ async function createDirectMessage(workspace_id, user_id, other_user_id) {
   return conv;
 }
 
+async function deleteMessage(messageId, userId) {
+  const result = await pool.query(
+    `UPDATE chat_messages SET deleted_at = NOW() WHERE id = $1 AND sender_id = $2 RETURNING id, conversation_id`,
+    [messageId, userId]
+  );
+  if (!result.rows.length) throw new Error('Message not found or not yours');
+  return result.rows[0];
+}
+
 async function markAsRead(conversation_id, user_id) {
   await pool.query(
     `UPDATE chat_members SET last_read_at = NOW() WHERE conversation_id = $1 AND user_id = $2`,
@@ -202,6 +211,7 @@ module.exports = {
   getConversations,
   getMessages,
   createMessage,
+  deleteMessage,
   createChannel,
   createDirectMessage,
   markAsRead,

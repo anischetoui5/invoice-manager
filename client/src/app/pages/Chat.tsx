@@ -3,7 +3,7 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import {
   Hash, MessageSquare, Plus, Send, X, Users, AtSign, ChevronDown,
-  Lock, Sparkles, ArrowUpRight, Loader2,
+  Lock, Sparkles, ArrowUpRight, Loader2, Trash2,
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { toast } from 'sonner';
@@ -162,6 +162,10 @@ export function Chat() {
       ));
     });
 
+    socket.on('message:deleted', ({ message_id }: { message_id: string }) => {
+      setMessages(prev => prev.filter(m => m.id !== message_id));
+    });
+
     socket.on('typing', ({ user_id, user_name, typing }: { user_id: string; user_name: string; conversation_id: string; typing: boolean }) => {
       if (user_id === currentUser.id) return;
       if (typing) {
@@ -270,6 +274,10 @@ export function Chat() {
     typingTimers.current['self'] = setTimeout(() => {
       socketRef.current?.emit('typing:stop', { conversation_id: selectedId });
     }, 2000);
+  };
+
+  const handleDeleteMessage = (messageId: string, conversationId: string) => {
+    socketRef.current?.emit('message:delete', { message_id: messageId, conversation_id: conversationId });
   };
 
   // ── Create channel ────────────────────────────────────────────────────────────
@@ -592,6 +600,15 @@ export function Chat() {
                                     style={{ [isMe ? 'right' : 'left']: 0 }}>
                                     {formatMsgTime(msg.created_at)}
                                   </span>
+                                )}
+                                {isMe && (
+                                  <button
+                                    onClick={() => handleDeleteMessage(msg.id, msg.conversation_id)}
+                                    className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                    title="Delete message"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
                                 )}
                               </div>
                             </div>
