@@ -81,7 +81,7 @@ CREATE TABLE memberships (
     joined_at timestamp DEFAULT now(),
     contract_start timestamp,
     contract_end timestamp,
-    UNIQUE(user_id, workspace_id),
+    UNIQUE(user_id, workspace_id)
 );
 
 CREATE INDEX idx_memberships_user ON memberships(user_id);
@@ -267,7 +267,8 @@ INSERT INTO roles (name) VALUES
   ('Director'),
   ('Accountant'),
   ('Employee'),
-  ('Personal')
+  ('Personal'),
+  ('Admin')
 ON CONFLICT (name) DO NOTHING;
 
 -- SUBSCRIPTION PLANS
