@@ -139,7 +139,10 @@ export function Chat() {
   useEffect(() => {
     if (!hasChat) return;
     const token = localStorage.getItem('token');
-    const socket = io(`http://${window.location.hostname}:3000`, {
+    const backendUrl = import.meta.env.VITE_API_URL
+      ? import.meta.env.VITE_API_URL.replace('/api', '')
+      : `http://${window.location.hostname}:3000`;
+    const socket = io(backendUrl, {
       auth: { token },
       transports: ['websocket'],
     });
