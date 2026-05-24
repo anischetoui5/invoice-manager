@@ -159,10 +159,10 @@ export function AiChat({ workspaceId }: { workspaceId: string }) {
 
     return {
       position: 'fixed',
-      left: left === 'auto' ? undefined : left,
-      right: right === 'auto' ? undefined : right,
-      top: top === 'auto' ? undefined : top,
-      bottom: bottom === 'auto' ? undefined : bottom,
+      left: typeof left === 'number' ? left : undefined,
+      right: typeof right === 'number' ? right : undefined,
+      top: typeof top === 'number' ? top : undefined,
+      bottom: typeof bottom === 'number' ? bottom : undefined,
       width: PANEL_W,
       height: PANEL_H,
       borderRadius: '20px',
