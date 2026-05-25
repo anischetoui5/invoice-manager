@@ -1,16 +1,11 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM = `EASYfact <${process.env.RESEND_FROM ?? 'onboarding@resend.dev'}>`;
 
 async function sendVerificationCode(toEmail, code) {
-  await transporter.sendMail({
-    from: `EASYfact <${process.env.GMAIL_USER}>`,
+  await resend.emails.send({
+    from: FROM,
     to: toEmail,
     subject: 'Your EASYfact verification code',
     html: `
@@ -25,8 +20,8 @@ async function sendVerificationCode(toEmail, code) {
 }
 
 async function sendPasswordResetCode(toEmail, code) {
-  await transporter.sendMail({
-    from: `EASYfact <${process.env.GMAIL_USER}>`,
+  await resend.emails.send({
+    from: FROM,
     to: toEmail,
     subject: 'Reset your EASYfact password',
     html: `
