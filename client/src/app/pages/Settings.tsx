@@ -705,7 +705,7 @@ export function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className={`bg-background grid w-full ${showCompanyTab ? 'grid-cols-5' : 'grid-cols-4'}`}>
+        <TabsList className={`bg-background grid w-full ${showCompanyTab ? 'grid-cols-3 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           {showCompanyTab && <TabsTrigger value="company">Company</TabsTrigger>}
           <TabsTrigger value="security">Security</TabsTrigger>
@@ -731,7 +731,7 @@ export function Settings() {
                         flexShrink: 0,
                       }}>
                         <img
-                          src={avatarUrl.startsWith('http') ? avatarUrl : `http://${window.location.hostname}:3000${avatarUrl}`}
+                          src={avatarUrl.startsWith('http') ? avatarUrl : `${import.meta.env.VITE_API_URL?.replace('/api', '') ?? `http://${window.location.hostname}:3000`}${avatarUrl}`}
                           alt={name}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />

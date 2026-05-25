@@ -181,7 +181,7 @@ export function TopBar({
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted focus:outline-none ml-1">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg overflow-hidden text-xs font-bold text-white" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)' }}>
               {avatarUrl
-                ? <img src={avatarUrl.startsWith('http') ? avatarUrl : `http://${window.location.hostname}:3000${avatarUrl}`} alt={user.name} className="h-full w-full object-cover" />
+                ? <img src={avatarUrl.startsWith('http') ? avatarUrl : `${import.meta.env.VITE_API_URL?.replace('/api', '') ?? `http://${window.location.hostname}:3000`}${avatarUrl}`} alt={user.name} className="h-full w-full object-cover" />
                 : initials}
             </div>
             <div className="hidden text-left md:block">
@@ -199,7 +199,7 @@ export function TopBar({
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden text-xs font-bold text-white" style={{ background: 'linear-gradient(135deg,#1e40af,#3b82f6)' }}>
                     {avatarUrl
-                      ? <img src={avatarUrl.startsWith('http') ? avatarUrl : `http://${window.location.hostname}:3000${avatarUrl}`} alt={user.name} className="h-full w-full object-cover" />
+                      ? <img src={avatarUrl.startsWith('http') ? avatarUrl : `${import.meta.env.VITE_API_URL?.replace('/api', '') ?? `http://${window.location.hostname}:3000`}${avatarUrl}`} alt={user.name} className="h-full w-full object-cover" />
                       : initials}
                   </div>
                   <div className="min-w-0">

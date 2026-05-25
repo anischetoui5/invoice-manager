@@ -28,7 +28,7 @@ export function CustomizationPanel() {
   return (
     <>
       <style>{PANEL_CSS}</style>
-      <div style={{ position:'fixed', bottom:'24px', left:'24px', zIndex:9990 }}>
+      <div className="hidden md:block" style={{ position:'fixed', bottom:'24px', left:'24px', zIndex:9990 }}>
 
         {/* ── Dropdown panel ── */}
         {open && (
