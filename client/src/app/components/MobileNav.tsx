@@ -36,7 +36,8 @@ interface MobileNavProps {
 
 export function MobileNav({ role, hasChat }: MobileNavProps) {
   const [showMore, setShowMore] = useState(false);
-  const normalizedRole = (role ?? 'normal').toLowerCase();
+  const raw = (role ?? 'personal').toLowerCase();
+  const normalizedRole = raw === 'personal' ? 'normal' : raw;
 
   const accessible = ALL_ITEMS.filter(item => {
     if (!item.roles.includes(normalizedRole)) return false;
