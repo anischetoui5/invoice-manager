@@ -39,8 +39,8 @@ async function register({
     await client.query('BEGIN');
 
     const userResult = await client.query(
-      `INSERT INTO users (name, email, password_hash)
-       VALUES ($1, $2, $3)
+      `INSERT INTO users (name, email, password_hash, is_verified)
+       VALUES ($1, $2, $3, true)
        RETURNING id, name, email`,
       [name, email, password_hash]
     );
@@ -179,6 +179,19 @@ if (isCompany) {
   } catch (err) {
     await client.query('ROLLBACK');
     if (err.code === '23505' && err.constraint === 'users_email_key') {
+      // User already exists — if unverified, resend the code so they can continue
+      const existing = await pool.query(
+        `SELECT id, is_verified FROM users WHERE email = $1`, [email]
+      );
+      if (existing.rows[0] && !existing.rows[0].is_verified) {
+        const code = generateCode();
+        await pool.query(
+          `UPDATE users SET verification_code = $1, verification_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2`,
+          [code, existing.rows[0].id]
+        );
+        await sendVerificationCode(email, code);
+        return { requiresVerification: true, email };
+      }
       throw new Error('Email already in use');
     }
     throw err;
