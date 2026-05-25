@@ -33,16 +33,17 @@ async function register({
   const isJoin     = registrationType === 'join';
   const isPersonal = registrationType === 'personal';
   const password_hash = await bcrypt.hash(password, 10);
+  const verificationCode = generateCode();
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
     const userResult = await client.query(
-      `INSERT INTO users (name, email, password_hash, is_verified)
-       VALUES ($1, $2, $3, true)
+      `INSERT INTO users (name, email, password_hash, is_verified, verification_code, verification_expires_at)
+       VALUES ($1, $2, $3, false, $4, NOW() + INTERVAL '15 minutes')
        RETURNING id, name, email`,
-      [name, email, password_hash]
+      [name, email, password_hash, verificationCode]
     );
     const user = userResult.rows[0];
 
@@ -159,8 +160,10 @@ if (isCompany) {
       await invitationsService.createInvitationRequest(user.id, companyCode, joinRole);
     }
 
+    await sendVerificationCode(email, verificationCode);
+
     return {
-      requiresVerification: false,
+      requiresVerification: true,
       email,
       companyCode: companyCodeResult,
     };
@@ -178,7 +181,8 @@ if (isCompany) {
           `UPDATE users SET verification_code = $1, verification_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2`,
           [code, existing.rows[0].id]
         );
-        return { requiresVerification: false, email };
+        await sendVerificationCode(email, code);
+        return { requiresVerification: true, email };
       }
       throw new Error('Email already in use');
     }
@@ -204,7 +208,9 @@ async function login({ email, password }) {
     throw new Error('Invalid email or password');
   }
 
-  // Email verification disabled — all users are auto-verified on registration
+  if (!user.is_verified) {
+    throw new Error('Please verify your email before logging in');
+  }
 
   const workspaceResult = await pool.query(
     `SELECT w.id AS workspace_id, r.name AS role_name

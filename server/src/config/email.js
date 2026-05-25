@@ -1,13 +1,22 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = `EASYfact <${process.env.RESEND_FROM ?? 'onboarding@resend.dev'}>`;
+const transporter = nodemailer.createTransport({
+  host: 'smtp-relay.brevo.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.BREVO_USER ?? 'easyfact.app@gmail.com',
+    pass: process.env.BREVO_SMTP_KEY,
+  },
+});
+
+const FROM = `EasyFact <${process.env.BREVO_FROM ?? 'easyfact.app@gmail.com'}>`;
 
 async function sendVerificationCode(toEmail, code) {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: toEmail,
-    subject: 'Your EASYfact verification code',
+    subject: 'Your EasyFact verification code',
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
         <h2 style="color:#1d4ed8">Verify your email</h2>
@@ -20,10 +29,10 @@ async function sendVerificationCode(toEmail, code) {
 }
 
 async function sendPasswordResetCode(toEmail, code) {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: toEmail,
-    subject: 'Reset your EASYfact password',
+    subject: 'Reset your EasyFact password',
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
         <h2 style="color:#1d4ed8">Reset your password</h2>
