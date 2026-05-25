@@ -82,12 +82,12 @@ export function MobileNav({ role, hasChat }: MobileNavProps) {
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
           height: '64px',
-          background: 'white',
-          borderTop: '1px solid #e2e8f0',
+          background: 'var(--card)',
+          borderTop: '1px solid var(--border)',
           display: 'flex',
           zIndex: 100,
           paddingBottom: 'env(safe-area-inset-bottom)',
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.08)',
+          boxShadow: '0 -4px 24px rgba(0,0,0,0.07)',
         }}
       >
         {bottomItems.map(item => <NavBtn key={item.to} {...item} />)}
@@ -100,12 +100,11 @@ export function MobileNav({ role, hasChat }: MobileNavProps) {
               alignItems: 'center', justifyContent: 'center',
               gap: '3px', border: 'none', background: 'none', cursor: 'pointer',
             }}
-            className="text-slate-400"
           >
             <div style={{ width: '36px', height: '36px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Grid3x3 size={20} strokeWidth={1.8} color="#94a3b8" />
             </div>
-            <span style={{ fontSize: '10px', fontWeight: '500', letterSpacing: '0.01em' }}>More</span>
+            <span style={{ fontSize: '10px', fontWeight: '500', letterSpacing: '0.01em', color: '#94a3b8' }}>More</span>
           </button>
         )}
       </nav>
@@ -116,13 +115,13 @@ export function MobileNav({ role, hasChat }: MobileNavProps) {
           {/* Backdrop */}
           <div
             onClick={() => setShowMore(false)}
-            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
           />
           {/* Sheet */}
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
-            background: 'white',
-            borderRadius: '20px 20px 0 0',
+            background: 'var(--card)',
+            borderRadius: '24px 24px 0 0',
             padding: '12px 16px 20px',
             paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
             boxShadow: '0 -8px 40px rgba(0,0,0,0.15)',
@@ -131,15 +130,20 @@ export function MobileNav({ role, hasChat }: MobileNavProps) {
             <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
 
             {/* Handle */}
-            <div style={{ width: '36px', height: '4px', borderRadius: '2px', background: '#e2e8f0', margin: '0 auto 16px' }} />
+            <div style={{ width: '40px', height: '4px', borderRadius: '2px', background: 'var(--border)', margin: '0 auto 20px' }} />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <span style={{ fontWeight: '700', fontSize: '16px', color: '#0f172a' }}>More</span>
+            {/* Sheet header with logo */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <img src="/logo-icon.png" alt="EasyFact" style={{ width: 32, height: 32, borderRadius: 10, objectFit: 'cover' }} />
+                <span className="text-foreground" style={{ fontWeight: '700', fontSize: '16px' }}>All Pages</span>
+              </div>
               <button
                 onClick={() => setShowMore(false)}
-                style={{ border: 'none', background: '#f1f5f9', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                className="text-muted-foreground"
+                style={{ border: 'none', background: 'var(--muted)', borderRadius: '10px', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
-                <X size={16} color="#64748b" />
+                <X size={16} />
               </button>
             </div>
 
@@ -149,20 +153,19 @@ export function MobileNav({ role, hasChat }: MobileNavProps) {
                   key={to}
                   to={to}
                   onClick={() => setShowMore(false)}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textDecoration: 'none', padding: '14px 8px', borderRadius: '14px', background: '#f8fafc' }}
-                  className={({ isActive }) => isActive ? 'text-blue-600' : 'text-slate-600'}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textDecoration: 'none', padding: '14px 8px', borderRadius: '16px', background: 'var(--muted)' }}
                 >
                   {({ isActive }) => (
                     <>
                       <div style={{
                         width: '46px', height: '46px', borderRadius: '13px',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: isActive ? '#eff6ff' : 'white',
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                        background: isActive ? 'rgba(37,99,235,0.12)' : 'var(--card)',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
                       }}>
                         <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} color={isActive ? '#2563eb' : '#64748b'} />
                       </div>
-                      <span style={{ fontSize: '11px', fontWeight: isActive ? '700' : '500', color: isActive ? '#2563eb' : '#475569', textAlign: 'center', lineHeight: '1.2' }}>
+                      <span style={{ fontSize: '11px', fontWeight: isActive ? '700' : '500', color: isActive ? '#2563eb' : '#64748b', textAlign: 'center', lineHeight: '1.2' }}>
                         {label}
                       </span>
                     </>

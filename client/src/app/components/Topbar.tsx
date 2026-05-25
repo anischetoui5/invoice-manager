@@ -105,8 +105,16 @@ export function TopBar({
 
   return (
     <header className="glass-panel flex h-16 shrink-0 items-center justify-between px-4 md:px-6">
-      {/* ── Left: search + enterprise switcher ── */}
+      {/* ── Left: logo (mobile) + search + enterprise switcher ── */}
       <div className="flex flex-1 items-center gap-3">
+        {/* Logo — mobile only */}
+        <div className="flex md:hidden items-center gap-2.5">
+          <img src="/logo-icon.png" alt="EasyFact" className="h-8 w-8 rounded-xl object-cover" />
+          <span className="text-[17px] font-bold tracking-tight text-foreground" style={{ fontFamily: "'Syne', sans-serif" }}>
+            EasyFact
+          </span>
+        </div>
+
         <div className="relative hidden md:block w-72">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
