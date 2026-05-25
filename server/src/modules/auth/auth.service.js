@@ -153,29 +153,14 @@ if (isCompany) {
       if (!companyCode) throw new Error('Company code is required to join');
     }
 
-    // Generate verification code
-    const code = generateCode();
-    await client.query(
-      `UPDATE users
-       SET verification_code = $1, verification_expires_at = NOW() + INTERVAL '15 minutes'
-       WHERE id = $2`,
-      [code, user.id]
-    );
-
     await client.query('COMMIT');
 
     if (isJoin) {
       await invitationsService.createInvitationRequest(user.id, companyCode, joinRole);
     }
 
-    try {
-      await sendVerificationCode(email, code);
-    } catch (mailErr) {
-      console.error('Email send failed:', mailErr.message);
-    }
-
     return {
-      requiresVerification: true,
+      requiresVerification: false,
       email,
       companyCode: companyCodeResult,
     };
@@ -193,8 +178,7 @@ if (isCompany) {
           `UPDATE users SET verification_code = $1, verification_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2`,
           [code, existing.rows[0].id]
         );
-        try { await sendVerificationCode(email, code); } catch (mailErr) { console.error('Email resend failed:', mailErr.message); }
-        return { requiresVerification: true, email };
+        return { requiresVerification: false, email };
       }
       throw new Error('Email already in use');
     }
@@ -220,15 +204,7 @@ async function login({ email, password }) {
     throw new Error('Invalid email or password');
   }
 
-  if (!user.is_verified) {
-    const code = generateCode();
-    await pool.query(
-      `UPDATE users SET verification_code = $1, verification_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2`,
-      [code, user.id]
-    );
-    await sendVerificationCode(email, code);
-    throw Object.assign(new Error('Email not verified. A new code has been sent to your email.'), { code: 'EMAIL_NOT_VERIFIED', email });
-  }
+  // Email verification disabled — all users are auto-verified on registration
 
   const workspaceResult = await pool.query(
     `SELECT w.id AS workspace_id, r.name AS role_name
