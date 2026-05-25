@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Upload, FileText, BarChart3,
   Settings, Users, History, CreditCard, UserPlus,
-  Building2, Zap, MessageSquare, GripVertical,
+  Building2, MessageSquare, GripVertical,
 } from 'lucide-react';
 import type { Workspace } from '../types';
 import {
@@ -187,12 +187,7 @@ export function Sidebar({ currentWorkspace, chatUnreadCount = 0, orientation = '
     return (
       <aside className="flex h-12 w-full items-center bg-sidebar border-b border-sidebar-border shrink-0 px-3 gap-2">
         {/* Compact logo */}
-        <div
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg mr-3"
-          style={{ background: 'var(--gradient-brand)', boxShadow: '0 4px 12px rgba(88,101,242,0.4)' }}
-        >
-          <Zap className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-        </div>
+        <img src="/logo-icon.png" alt="EasyFact" className="h-7 w-7 shrink-0 rounded-lg mr-3 object-cover" />
 
         {/* Nav items */}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -226,12 +221,7 @@ export function Sidebar({ currentWorkspace, chatUnreadCount = 0, orientation = '
     <aside className="flex h-screen w-60 flex-col bg-sidebar border-r border-sidebar-border">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 px-4 shrink-0 border-b border-sidebar-border">
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-          style={{ background: 'var(--gradient-brand)', boxShadow: '0 4px 12px rgba(88,101,242,0.4)' }}
-        >
-          <Zap className="h-4 w-4 text-white" strokeWidth={2.5} />
-        </div>
+        <img src="/logo-icon.png" alt="EasyFact" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
         <span className="text-base font-bold tracking-tight text-sidebar-foreground" style={{ fontFamily: "'Syne', sans-serif" }}>
           EasyFact
         </span>
