@@ -160,9 +160,9 @@ if (isCompany) {
       await invitationsService.createInvitationRequest(user.id, companyCode, joinRole);
     }
 
-    sendVerificationCode(email, verificationCode).catch(err =>
-      console.error('Verification email failed:', err.message)
-    );
+    sendVerificationCode(email, verificationCode)
+      .then(() => console.log('Verification email sent to', email))
+      .catch(err => console.error('Verification email failed:', err));
 
     return {
       requiresVerification: true,
