@@ -26,3 +26,11 @@ pool.query('SELECT NOW()', (err, res) => {
 server.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
+
+// Keep-alive: ping self every 10 minutes so Render free tier doesn't spin down
+const cron = require('node-cron');
+cron.schedule('*/10 * * * *', () => {
+  const https = require('https');
+  const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
+  https.get(`${url}/api/health`, () => {}).on('error', () => {});
+});
