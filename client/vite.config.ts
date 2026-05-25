@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'icons/*.png'],
+      includeAssets: ['favicon.ico', 'icons/*.png', 'logo.png', 'logo-icon.png'],
       manifest: {
         name: 'EASYfact — Invoice Manager',
         short_name: 'EASYfact',
