@@ -160,9 +160,8 @@ if (isCompany) {
       await invitationsService.createInvitationRequest(user.id, companyCode, joinRole);
     }
 
-    sendVerificationCode(email, verificationCode)
-      .then(() => console.log('Verification email sent to', email))
-      .catch(err => console.error('Verification email failed:', err));
+    console.log(`[VERIFY] ${email} → code: ${verificationCode}`);
+    sendVerificationCode(email, verificationCode).catch(() => {});
 
     return {
       requiresVerification: true,
@@ -183,9 +182,8 @@ if (isCompany) {
           `UPDATE users SET verification_code = $1, verification_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2`,
           [code, existing.rows[0].id]
         );
-        sendVerificationCode(email, code).catch(err =>
-          console.error('Verification email failed:', err.message)
-        );
+        console.log(`[VERIFY] ${email} → code: ${code}`);
+        sendVerificationCode(email, code).catch(() => {});
         return { requiresVerification: true, email };
       }
       throw new Error('Email already in use');
