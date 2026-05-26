@@ -211,7 +211,17 @@ async function login({ email, password }) {
   }
 
   if (!user.is_verified) {
-    throw new Error('Please verify your email before logging in');
+    const code = generateCode();
+    await pool.query(
+      `UPDATE users SET verification_code = $1, verification_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2`,
+      [code, user.id]
+    );
+    console.log(`[VERIFY] ${user.email} → code: ${code}`);
+    sendVerificationCode(user.email, code).catch(() => {});
+    const err = new Error('Please verify your email before logging in');
+    err.code = 'EMAIL_NOT_VERIFIED';
+    err.email = user.email;
+    throw err;
   }
 
   const workspaceResult = await pool.query(
@@ -330,4 +340,17 @@ async function resetPassword(email, code, newPassword) {
   );
 }
 
-module.exports = { register, login, switchWorkspace, verifyEmail, forgotPassword, resetPassword };
+async function resendVerification(email) {
+  const result = await pool.query(`SELECT id, is_verified FROM users WHERE email = $1`, [email]);
+  const user = result.rows[0];
+  if (!user || user.is_verified) return; // silent — don't reveal account state
+  const code = generateCode();
+  await pool.query(
+    `UPDATE users SET verification_code = $1, verification_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2`,
+    [code, user.id]
+  );
+  console.log(`[VERIFY] ${email} → code: ${code}`);
+  sendVerificationCode(email, code).catch(() => {});
+}
+
+module.exports = { register, login, switchWorkspace, verifyEmail, forgotPassword, resetPassword, resendVerification };

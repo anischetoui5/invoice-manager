@@ -401,7 +401,7 @@ export function Register() {
           </form>
           <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '20px' }}>
             Didn't receive the code?{' '}
-            <button onClick={async () => { try { await api.post('/auth/forgot-password', { email: pendingEmail }); toast.success('New code sent!'); } catch { toast.error('Failed to resend'); } }} style={{ color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', padding: 0 }}>Resend</button>
+            <button onClick={async () => { try { await api.post('/auth/resend-verification', { email: pendingEmail }); toast.success('New code sent!'); } catch { toast.error('Failed to resend'); } }} style={{ color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', padding: 0 }}>Resend</button>
           </p>
         </div>
       </div>

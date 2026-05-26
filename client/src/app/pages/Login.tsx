@@ -664,7 +664,7 @@ export function Login() {
                     Didn't receive the code?{' '}
                     <button type="button" onClick={async () => {
                       try {
-                        await api.post('/auth/forgot-password', { email: pendingEmail });
+                        await api.post('/auth/resend-verification', { email: pendingEmail });
                         toast.success('Code resent!');
                       } catch { toast.error('Failed to resend'); }
                     }} style={{

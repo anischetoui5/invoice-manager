@@ -70,4 +70,15 @@ async function switchWorkspace(req, res) {
   }
 }
 
-module.exports = { register, login, switchWorkspace, verifyEmail, forgotPassword, resetPassword };
+async function resendVerification(req, res) {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    await authService.resendVerification(email);
+    res.status(200).json({ message: 'Code resent' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { register, login, switchWorkspace, verifyEmail, forgotPassword, resetPassword, resendVerification };
