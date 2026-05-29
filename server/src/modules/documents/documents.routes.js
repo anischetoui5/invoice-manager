@@ -17,6 +17,7 @@ const ALLOWED_MIME_TYPES = [
   'image/jpeg',
   'image/png',
   'image/tiff',
+  'image/webp',
 ];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
