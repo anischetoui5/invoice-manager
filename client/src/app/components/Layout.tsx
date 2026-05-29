@@ -58,7 +58,7 @@ export function Layout({
   }, []);
 
   const fetchChatUnread = useCallback(async () => {
-    if (!currentWorkspace?.id) return;
+    if (!currentWorkspace?.id || !currentSubscription?.has_chat) return;
     try {
       const { data } = await api.get(`/workspaces/${currentWorkspace.id}/chat/conversations`);
       const total = (data.conversations ?? []).reduce(
@@ -68,7 +68,7 @@ export function Layout({
     } catch {
       // silently ignore
     }
-  }, [currentWorkspace?.id]);
+  }, [currentWorkspace?.id, currentSubscription?.has_chat]);
 
   // Clear chat badge the moment the user lands on the chat page
   useEffect(() => {
