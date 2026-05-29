@@ -86,10 +86,11 @@ export function Layout({
   }, [fetchNotifications]);
 
   useEffect(() => {
+    if (!currentSubscription?.has_chat) return;
     fetchChatUnread();
     chatPollRef.current = setInterval(fetchChatUnread, 30_000);
     return () => { if (chatPollRef.current) clearInterval(chatPollRef.current); };
-  }, [fetchChatUnread]);
+  }, [fetchChatUnread, currentSubscription?.has_chat]);
 
   // Page Visibility API — pause polling when tab is hidden, refetch on return
   useEffect(() => {
