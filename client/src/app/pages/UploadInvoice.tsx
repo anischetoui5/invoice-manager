@@ -157,19 +157,25 @@ export function UploadInvoice() {
     setIsUploading(true);
     try {
       const workspaceId = currentWorkspace.id;
+      const baseUrl = import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:3000/api`;
+      const token = localStorage.getItem('token');
+
       const invoiceRes = await api.post(`/workspaces/${workspaceId}/invoices`, {
         vendor_name: vendor || 'Unknown Vendor', notes: notes || null, category: category || null,
       });
       const invoiceId = invoiceRes.data.invoice.id;
+
       for (let i = 0; i < entries.length; i++) {
         const fd = new FormData();
         fd.append('file', entries[i].file);
         fd.append('is_primary', i === 0 ? 'true' : 'false');
-        const uploadRes = await api.post(
-          `/workspaces/${workspaceId}/invoices/${invoiceId}/documents`, fd
+        const uploadRes = await fetch(
+          `${baseUrl}/workspaces/${workspaceId}/invoices/${invoiceId}/documents`,
+          { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd }
         );
-        if (!uploadRes.data) {
-          toast.error(`Failed to upload ${entries[i].file.name}`);
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json().catch(() => ({}));
+          toast.error(`Failed to upload ${entries[i].file.name}: ${err.error ?? uploadRes.status}`);
           setIsUploading(false); return;
         }
       }
