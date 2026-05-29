@@ -13,6 +13,7 @@ import {
 } from '../components/ui/select';
 import { toast } from 'sonner';
 import type { Workspace } from '../types';
+import api from '../../lib/api';
 
 interface FileEntry {
   file: File;
@@ -155,27 +156,20 @@ export function UploadInvoice() {
     if (!category) { toast.error('Please select a category'); return; }
     setIsUploading(true);
     try {
-      const token = localStorage.getItem('token');
       const workspaceId = currentWorkspace.id;
-      const invoiceRes = await fetch(`http://localhost:3000/api/workspaces/${workspaceId}/invoices`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ vendor_name: vendor || 'Unknown Vendor', notes: notes || null, category: category || null }),
+      const invoiceRes = await api.post(`/workspaces/${workspaceId}/invoices`, {
+        vendor_name: vendor || 'Unknown Vendor', notes: notes || null, category: category || null,
       });
-      const invoiceData = await invoiceRes.json();
-      if (!invoiceRes.ok) { toast.error(invoiceData.error || 'Failed to create invoice'); setIsUploading(false); return; }
-      const invoiceId = invoiceData.invoice.id;
+      const invoiceId = invoiceRes.data.invoice.id;
       for (let i = 0; i < entries.length; i++) {
         const fd = new FormData();
         fd.append('file', entries[i].file);
         fd.append('is_primary', i === 0 ? 'true' : 'false');
-        const uploadRes = await fetch(
-          `http://localhost:3000/api/workspaces/${workspaceId}/invoices/${invoiceId}/documents`,
-          { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd }
+        const uploadRes = await api.post(
+          `/workspaces/${workspaceId}/invoices/${invoiceId}/documents`, fd
         );
-        const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) {
-          toast.error(`Failed to upload ${entries[i].file.name}: ${uploadData.error}`);
+        if (!uploadRes.data) {
+          toast.error(`Failed to upload ${entries[i].file.name}`);
           setIsUploading(false); return;
         }
       }
