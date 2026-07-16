@@ -1,0 +1,2173 @@
+=====================================================================
+ EASYfact — Sequence Diagram Generation Reference (seq.txt)
+ Source of truth: actual server/ and client/ source code, cross-checked
+ against rapport.txt (Sprints 1-3). This file is NOT a diagram. It is
+ the complete specification another AI uses to draw the diagrams.
+=====================================================================
+
+
+#####################################################################
+# 1. UML STYLE
+#####################################################################
+
+## 1.1 Abstraction level chosen: layered Boundary–Control–Entity (BCE),
+adapted to the project's real 3-tier code structure.
+
+The codebase is NOT a classic ORM/repository architecture. Every module
+under server/src/modules/<name>/ follows exactly this chain:
+
+    Route (Express path) -> Controller (req/res only) -> Service
+    (business logic + raw SQL via a shared pg Pool, transactions with
+    BEGIN/COMMIT/ROLLBACK when multiple writes must be atomic) -> rows
+
+There is no separate Repository/DAO/Model class anywhere in the code —
+the Service function IS the data-access layer (it issues the SQL
+itself). Inventing a "Repository" lifeline would therefore NOT be
+faithful to the implementation. Instead, the persisted object that a
+Service reads or writes is represented as an **Entity** participant
+(e.g. :Invoice, :User, :Membership). The Entity lifeline does not show
+SQL — it receives abstract operation calls such as "persist()",
+"findById()", "updateStatus()" and is understood to represent the
+row(s) in the corresponding table.
+
+This yields a 4-role BCE-derived stereotype set:
+
+| Stereotype   | Maps to (code)                                   | Shown as |
+|--------------|---------------------------------------------------|----------|
+| «boundary»   | a React page/component (client/src/app/pages/*)  | :PageName |
+| «control»    | an Express controller (*.controller.js)           | :XController |
+| «control»    | a Service module (*.service.js) — business logic  | :XService |
+| «entity»     | the persisted domain object/table the Service acts on | :EntityName |
+
+Both the Controller and the Service are tagged «control» (UML allows
+multiple control objects collaborating). They are kept as two distinct
+lifelines — never merged — because the code itself separates HTTP
+concerns (status codes, req/res shape, validation of presence of
+fields) from business rules (authorization logic beyond role-gating,
+calculations, multi-table transactions, notification/activity side
+effects). Merging them would hide real branching logic that exists in
+the Service layer and would not match the implementation.
+
+## 1.2 Participants — naming convention
+
+- Boundary lifelines are named after the actual frontend page/component
+  that fires the request, e.g. `:LoginPage`, `:UploadInvoicePage`,
+  `:TeamManagementPage`. Never use "React Frontend", "Client", or "UI".
+- Control (Controller) lifelines are named `:<Module>Controller`,
+  matching the real file, e.g. `:AuthController`, `:InvoicesController`,
+  `:OcrController`. Never use "Express API", "Router", or "REST API".
+- Control (Service) lifelines are named `:<Module>Service`, e.g.
+  `:AuthService`, `:InvoicesService`, `:OcrService`,
+  `:InvitationsService`, `:SubscriptionService`, `:NotificationsService`,
+  `:ActivityService`, `:EmailService`.
+- Entity lifelines are named after the singular domain concept, matching
+  the class-diagram class names, e.g. `:User`, `:Workspace`, `:Company`,
+  `:Membership`, `:Invoice`, `:Document`, `:ExtractedField`,
+  `:StatusHistory`, `:Invitation`, `:Subscription`, `:Notification`,
+  `:ActivityLog`. Never use "PostgreSQL", "Database", "Pool", or a table
+  name in snake_case.
+- The non-human background actor is `:Scheduler` (the node-cron job
+  runner), never "node-cron" or "Cron Job" as a class name — keep
+  "Scheduler" as the UML-facing label; node-cron is an implementation
+  detail that may appear only in a side note, not as the lifeline name.
+- External systems sit outside the boundary and are named for what they
+  do, not their brand mechanics: `:BrevoEmailService` (email delivery)
+  and, per the academic report's documented architecture for Sprint 3,
+  `:GroqVisionAPI` (OCR extraction). These are the only two external
+  participants permitted in Sprints 1–3.
+
+## 1.3 What must NEVER appear
+
+- No SQL keywords (SELECT, INSERT, UPDATE, DELETE, JOIN, WHERE, BEGIN,
+  COMMIT) in any message label, anywhere.
+- No technology/framework names as lifelines: "React Frontend",
+  "Express API", "PostgreSQL", "Axios", "Multer", "node-cron",
+  "pg Pool", "Tesseract", "bcrypt".
+- No raw HTTP route strings as message labels (no "POST /api/auth/login").
+  Use the equivalent operation call instead: `login(email, password)`.
+- No middleware shown as its own lifeline in ordinary CRUD diagrams
+  (see §1.4). Middleware logic is folded into a guard condition.
+- No file-system or disk-path detail (e.g. "uploads/", "fs.writeFile").
+  Use "store document" as an abstract Entity-creation step.
+
+## 1.4 Middleware policy
+
+The code has 4 middleware functions: `authenticate` (JWT check),
+`authorizeInWorkspace(...)` (role gate), `authorizeAdmin`, and
+`requireActiveSubscription`. None of these has meaningful internal
+collaboration worth a dedicated lifeline in every diagram — showing 4
+extra lifelines on 30+ diagrams, all doing the same JWT/role check,
+would clutter the diagrams without adding insight, and would violate
+the "keep it useful for an academic reader" goal.
+
+Rule applied throughout this document:
+- In the **Global Sequence Diagram** and in **User Login** /
+  **User Registration**, show authentication explicitly as a self-call
+  on the Controller: `validateSession()` / JWT issuance, because
+  authentication IS the subject of those diagrams.
+- In every other diagram, represent the middleware chain as a single
+  **opt/alt guard fragment** at the very top of the diagram, e.g.:
+    `opt [session valid AND role authorized]`
+  with a one-line note: "JWT + role check performed by AuthGuard
+  (authenticate + authorizeInWorkspace); diagram continues only on
+  success." Do not draw a separate `:AuthGuard` lifeline unless a
+  diagram's Notes section explicitly says to.
+- `requireActiveSubscription` is shown the same way, folded into the
+  same guard fragment, only for the diagrams explicitly marked
+  "subscription-gated" below (Upload Invoice, Update Invoice Status,
+  Update Invoice, Delete Invoice, OCR field edits).
+
+## 1.5 HTTP requests and status codes
+
+- Do not write HTTP verbs/paths as messages. Translate each REST call
+  into the equivalent UML operation call on the Controller, named after
+  the actual controller export, e.g. `createInvoice(payload)`,
+  `updateInvoiceStatus(id, status, comment)`.
+- Return messages MAY carry a short semantic outcome label including the
+  status code where it clarifies the result of an alt branch, e.g.
+  `return 201: invoice created` / `return 403: role not authorized`.
+  This is acceptable because it communicates outcome, not protocol — but
+  keep it on the **return arrow only**, never on the request arrow.
+
+## 1.6 Verdict: BCE (adapted) is the right fit
+
+Plain BCE (only 3 stereotypes) under-represents this codebase because
+Controller and Service are genuinely separate files with separate
+responsibilities. A strict 3-tier "Presentation/Business/Data" model
+under-represents it because there is no Data layer distinct from the
+Service. The 4-role model in §1.1 (boundary / control-controller /
+control-service / entity) is the smallest model that stays faithful to
+every module inspected (auth, users, company, workspace, invoices,
+documents, ocr, invitations, subscription, notifications, activity) and
+is what the rest of this document uses uniformly.
+
+
+#####################################################################
+# 2. GLOBAL SEQUENCE DIAGRAM
+#####################################################################
+
+Title: EASYfact — Global Interaction Overview (Authenticated Request Lifecycle)
+
+Objective: show, once, the canonical path every authenticated feature
+request takes through the system's layers, including the
+authentication/authorization guard, so that every later diagram can
+omit re-explaining it. This is the only diagram in which the guard
+middleware is drawn as its own lifeline.
+
+Participants (left to right):
+1. `User` (actor — generic; stands for any of Admin/Director/Accountant/
+   Employee/Personal, since the path is identical for all of them)
+2. `:AppPage` «boundary» — generic stand-in for "whichever page the user
+   is on" (Login/Dashboard/Invoices/etc.) — used only in this overview
+   diagram; every later diagram replaces it with the specific page.
+3. `:FeatureController` «control» — generic stand-in for the specific
+   controller of the feature being invoked.
+4. `:AuthGuard` «control» — composite representation of
+   `authenticate` + `authorizeInWorkspace` (+ `requireActiveSubscription`
+   when applicable).
+5. `:FeatureService` «control» — generic stand-in for the specific
+   service handling the business logic.
+6. `:Entity` «entity» — generic stand-in for whichever domain object is
+   read/written.
+
+Responsibilities:
+- `AppPage`: collects user input, fires the operation call, renders the
+  result or the error toast.
+- `FeatureController`: parses/validates the presence of required
+  request fields, delegates to `AuthGuard`, then to `FeatureService`,
+  and maps the outcome to a return value/status.
+- `AuthGuard`: verifies the JWT signature/expiry; resolves the caller's
+  role inside the target workspace; rejects if no membership or role
+  not permitted; (optionally) rejects if the workspace's subscription
+  is expired.
+- `FeatureService`: executes the business rule(s), opens a transaction
+  if more than one Entity must change atomically, triggers any side
+  effects (Notification, ActivityLog).
+- `Entity`: represents the persisted row(s); responds to find/persist/
+  update calls with the resulting state.
+
+Main flow:
+1. User -> AppPage : performs an action (click/submit)
+2. AppPage -> FeatureController : invoke(operation, payload)
+3. FeatureController -> AuthGuard : authorize(token, workspaceId, requiredRoles)
+4. AuthGuard --> FeatureController : return ok(role) | reject(reason)
+5. [alt: ok] FeatureController -> FeatureService : execute(payload, role)
+6. FeatureService -> Entity : find/persist/update(...)
+7. Entity --> FeatureService : return entityState
+8. FeatureService --> FeatureController : return result
+9. FeatureController --> AppPage : return 200/201 result
+10. AppPage -> User : render success state
+
+Alternative flows:
+- alt [AuthGuard rejects — no/invalid token]: AuthGuard --> FeatureController:
+  return reject("401 Unauthorized") ; FeatureController --> AppPage:
+  return 401 ; AppPage -> User : redirect to Login
+- alt [AuthGuard rejects — role not permitted]: return reject("403
+  Forbidden") ; AppPage -> User : show "Access denied"
+- alt [AuthGuard rejects — subscription expired, when applicable]:
+  return reject("403 SUBSCRIPTION_EXPIRED") ; AppPage -> User : show
+  SubscriptionLock screen
+- opt [FeatureService raises a business error, e.g. invalid state
+  transition]: FeatureService --> FeatureController : return error ;
+  FeatureController --> AppPage : return 400/409 ; AppPage -> User :
+  show error toast
+
+Notes for the generating AI:
+- This diagram is intentionally generic. Every concrete diagram in
+  Sections 3–5 below reuses this skeleton but renames AppPage,
+  FeatureController, FeatureService and Entity to the concrete classes,
+  and — per §1.4 — collapses AuthGuard into a single `opt` guard
+  fragment instead of a full lifeline.
+- Do not add Repository/DAO lifelines anywhere.
+- Keep arrowheads as plain synchronous calls (filled arrowhead, solid
+  line) for all controller/service/entity messages; dashed arrows for
+  all `return` messages.
+
+
+#####################################################################
+# 3. SPRINT 1 SEQUENCE DIAGRAMS — Authentication & Administration
+#####################################################################
+
+------------------------------------------------------------
+3.1 Diagram: User Registration
+------------------------------------------------------------
+Objective: register a new account, auto-provision a personal workspace,
+and send a verification code.
+Actor: User (unauthenticated)
+Participants: :RegisterPage, :AuthController, :AuthService, :User
+(entity), :Workspace (entity), :Membership (entity), :EmailService,
+:BrevoEmailService (external)
+
+Ordered messages:
+1. User -> RegisterPage : submit(name, email, password)
+2. RegisterPage -> AuthController : register({name, email, password})
+3. AuthController -> AuthService : register(payload)
+4. AuthService -> User : findByEmail(email)
+5. User --> AuthService : return null (not found)
+6. AuthService -> AuthService : hashPassword(password)  [self-call]
+7. AuthService -> User : persist(name, email, passwordHash)
+8. User --> AuthService : return newUser
+9. AuthService -> Workspace : createPersonal(owner=newUser)
+10. Workspace --> AuthService : return personalWorkspace
+11. AuthService -> Membership : create(newUser, personalWorkspace, role=Personal)
+12. Membership --> AuthService : return membership
+13. AuthService -> AuthService : generateVerificationCode()  [self-call]
+14. AuthService -> EmailService : sendVerificationCode(email, code)
+15. EmailService -> BrevoEmailService : deliver(email, code)
+16. BrevoEmailService --> EmailService : return ack
+17. EmailService --> AuthService : return (fire-and-forget; failure is
+    swallowed, code is logged server-side as a fallback — see Notes)
+18. AuthService --> AuthController : return {userId, email}
+19. AuthController --> RegisterPage : return 201 "verify your email"
+20. RegisterPage -> User : navigate to Verify-Email screen
+
+Alternative flows:
+- alt [email already registered]: User --> AuthService returns existing
+  row at step 5 ; AuthService --> AuthController : return error("email in
+  use") ; AuthController --> RegisterPage : return 409 Conflict
+- opt [Brevo delivery fails/unreachable]: EmailService --> AuthService :
+  return failure (caught, not thrown) ; flow continues normally to step
+  18 — the verification code is still valid and is also written to the
+  server console as a fallback channel.
+
+Notes: this is the only diagram besides Login where `AuthGuard` is
+irrelevant (the user has no token yet) — do not draw it at all.
+
+------------------------------------------------------------
+3.2 Diagram: User Login and JWT Issuance
+------------------------------------------------------------
+Objective: authenticate credentials and issue a signed JWT.
+Actor: User (unauthenticated)
+Participants: :LoginPage, :AuthController, :AuthService, :User (entity)
+
+Ordered messages:
+1. User -> LoginPage : submit(email, password)
+2. LoginPage -> AuthController : login({email, password})
+3. AuthController -> AuthService : login(payload)
+4. AuthService -> User : findByEmail(email)
+5. User --> AuthService : return userRecord
+6. AuthService -> AuthService : checkPassword(password, userRecord.passwordHash) [self-call]
+7. AuthService -> AuthService : signJwt(userId, email, workspaceId) [self-call]
+8. AuthService --> AuthController : return {token, user}
+9. AuthController --> LoginPage : return 200 {token, user}
+10. LoginPage -> User : store token, navigate to Dashboard
+
+Alternative flows:
+- alt [no user found OR password mismatch]: AuthService --> AuthController :
+  return error("invalid credentials") ; AuthController --> LoginPage :
+  return 401 Unauthorized
+- alt [user.isVerified == false]: AuthService -> AuthService :
+  generateVerificationCode() ; AuthService -> EmailService :
+  sendVerificationCode(email, code) [fire-and-forget] ;
+  AuthService --> AuthController : return error("EMAIL_NOT_VERIFIED") ;
+  AuthController --> LoginPage : return 403 {code:"EMAIL_NOT_VERIFIED"} ;
+  LoginPage -> User : prompt to verify, code already (re)sent
+
+Notes: do not draw AuthGuard — there is no prior session to guard; this
+diagram IS the act of creating one.
+
+------------------------------------------------------------
+3.3 Diagram: Admin Create User
+------------------------------------------------------------
+Objective: an Admin provisions a new account directly (pre-verified).
+Actor: Admin
+Participants: :UsersPage, :UsersController, :UsersService, :User (entity),
+:Workspace (entity), :Membership (entity), :Company (entity, opt)
+
+Ordered messages:
+1. Admin -> UsersPage : submit(name, email, password, role[, companyCode])
+2. UsersPage -> UsersController : adminCreateUser(payload)
+3. UsersController -> UsersService : adminCreateUser(payload)
+4. UsersService -> User : findByEmail(email)
+5. User --> UsersService : return null
+6. opt [role requires a company AND companyCode provided]
+   6a. UsersService -> Company : findByCode(companyCode)
+   6b. Company --> UsersService : return companyWorkspaceId
+7. UsersService -> User : persist(name, email, passwordHash, isVerified=true)
+8. User --> UsersService : return newUser
+9. UsersService -> Workspace : createPersonal(owner=newUser)
+10. Workspace --> UsersService : return personalWorkspace
+11. UsersService -> Membership : create(newUser, personalWorkspace, role=Personal)
+12. opt [companyWorkspaceId resolved in step 6]
+    12a. UsersService -> Membership : create(newUser, companyWorkspace, role)
+13. UsersService --> UsersController : return newUser
+14. UsersController --> UsersPage : return 201 newUser
+15. UsersPage -> Admin : show new user in list
+
+Alternative flows:
+- alt [email already in use]: return error("email in use") ; return 409
+- alt [companyCode invalid]: return error("company not found") ; return 400
+
+Guard fragment: opt [AuthGuard: role==Admin] wraps the whole flow (per §1.4).
+
+------------------------------------------------------------
+3.4 Diagram: View Users (Admin CRUD)
+------------------------------------------------------------
+Objective: Admin lists all platform users with their roles.
+Actor: Admin
+Participants: :UsersPage, :UsersController, :UsersService, :User (entity)
+
+1. Admin -> UsersPage : open Users panel
+2. UsersPage -> UsersController : getAllUsers()
+3. UsersController -> UsersService : getAllUsers()
+4. UsersService -> User : findAllWithRoles()
+5. User --> UsersService : return userList
+6. UsersService --> UsersController : return userList
+7. UsersController --> UsersPage : return 200 userList
+8. UsersPage -> Admin : render table
+
+Guard fragment: opt [AuthGuard: role==Admin].
+
+------------------------------------------------------------
+3.5 Diagram: Update User Role (Admin CRUD)
+------------------------------------------------------------
+Objective: Admin edits a user's profile fields and/or role.
+Actor: Admin
+Participants: :UsersPage, :UsersController, :UsersService, :User (entity),
+:Membership (entity), :Role (entity)
+
+1. Admin -> UsersPage : submit(userId, {name, email, role})
+2. UsersPage -> UsersController : adminUpdateUser(userId, payload)
+3. UsersController -> UsersService : adminUpdateUser(userId, payload)
+4. opt [email changed]
+   4a. UsersService -> User : findByEmail(newEmail)
+   4b. User --> UsersService : return null
+5. UsersService -> User : update(userId, name, email)
+6. User --> UsersService : return updatedUser
+7. opt [role provided]
+   7a. UsersService -> Role : findByName(role)
+   7b. Role --> UsersService : return roleId
+   7c. UsersService -> Membership : updateRole(userId, roleId)
+8. UsersService --> UsersController : return updatedUser
+9. UsersController --> UsersPage : return 200 updatedUser
+10. UsersPage -> Admin : show confirmation
+
+Alternative flows: alt [new email already taken] -> return 400.
+Guard fragment: opt [AuthGuard: role==Admin].
+
+------------------------------------------------------------
+3.6 Diagram: Delete User (Admin CRUD)
+------------------------------------------------------------
+Objective: Admin permanently removes a user and everything they own.
+Actor: Admin
+Participants: :UsersPage, :UsersController, :UsersService, :Workspace
+(entity), :Company (entity), :Invoice (entity), :Membership (entity),
+:User (entity)
+
+1. Admin -> UsersPage : confirm delete(userId)
+2. UsersPage -> UsersController : deleteUser(userId)
+3. UsersController -> UsersService : deleteUser(userId)
+4. UsersService -> Workspace : findOwnedBy(userId)
+5. Workspace --> UsersService : return ownedWorkspaces
+6. loop [for each owned workspace]
+   6a. UsersService -> Company : deleteByWorkspace(workspaceId)
+   6b. UsersService -> Invoice : deleteByWorkspace(workspaceId)
+   6c. UsersService -> Membership : deleteByWorkspace(workspaceId)
+7. UsersService -> Workspace : deleteOwnedBy(userId)
+8. UsersService -> Invoice : deleteCreatedBy(userId)
+9. UsersService -> Membership : deleteByUser(userId)
+10. UsersService -> User : delete(userId)
+11. UsersService --> UsersController : return success
+12. UsersController --> UsersPage : return 200
+13. UsersPage -> Admin : remove row from list
+
+Notes: this is one atomic transaction in the Service (BEGIN…COMMIT in
+code) — represent it as a single `opt [transactional]` fragment wrapping
+steps 4–10 if the rendering tool supports nested fragments; otherwise a
+side note is sufficient. Guard fragment: opt [AuthGuard: role==Admin].
+
+------------------------------------------------------------
+3.7 Diagram: Admin Create Company
+------------------------------------------------------------
+Objective: Admin provisions a company, its workspace, and a pre-verified
+Director account in one operation.
+Actor: Admin
+Participants: :CompaniesPage, :CompanyController, :CompanyService, :User
+(entity), :Workspace (entity), :Company (entity), :Membership (entity)
+
+1. Admin -> CompaniesPage : submit(companyName, companyContact, directorName,
+   directorEmail, directorPassword)
+2. CompaniesPage -> CompanyController : adminCreateCompany(payload)
+3. CompanyController -> CompanyService : adminCreateCompany(payload)
+4. CompanyService -> User : findByEmail(directorEmail)
+5. User --> CompanyService : return null
+6. CompanyService -> User : persist(directorName, directorEmail,
+   passwordHash, isVerified=true)
+7. User --> CompanyService : return director
+8. CompanyService -> Workspace : createCompany(owner=director, companyName)
+9. Workspace --> CompanyService : return companyWorkspace
+10. CompanyService -> Company : persist(companyWorkspace, companyName,
+    contact, generatedJoinCode)
+11. Company --> CompanyService : return company
+12. CompanyService -> Membership : create(director, companyWorkspace, role=Director)
+13. CompanyService -> Workspace : createPersonal(owner=director)
+14. Workspace --> CompanyService : return personalWorkspace
+15. CompanyService -> Membership : create(director, personalWorkspace, role=Personal)
+16. CompanyService --> CompanyController : return {company, director}
+17. CompanyController --> CompaniesPage : return 201 {company, director}
+18. CompaniesPage -> Admin : show new company + join code
+
+Alternative flows: alt [director email already in use] -> return 400/409.
+Guard fragment: opt [AuthGuard: role==Admin].
+
+------------------------------------------------------------
+3.8 Diagram: View Companies (Admin CRUD)
+------------------------------------------------------------
+Objective: Admin lists all companies with member/invoice counts.
+Actor: Admin
+Participants: :CompaniesPage, :CompanyController, :CompanyService,
+:Company (entity)
+
+1. Admin -> CompaniesPage : open Companies panel
+2. CompaniesPage -> CompanyController : getAllCompanies()
+3. CompanyController -> CompanyService : getAllCompanies()
+4. CompanyService -> Company : findAllWithCounts()
+5. Company --> CompanyService : return companyList
+6. CompanyService --> CompanyController : return companyList
+7. CompanyController --> CompaniesPage : return 200 companyList
+8. CompaniesPage -> Admin : render table
+
+Guard fragment: opt [AuthGuard: role==Admin].
+
+------------------------------------------------------------
+3.9 Diagram: Update Company (Admin CRUD)
+------------------------------------------------------------
+Objective: Admin edits a company's contact information.
+Actor: Admin
+Participants: :CompaniesPage, :CompanyController, :CompanyService,
+:Company (entity), :Workspace (entity)
+
+1. Admin -> CompaniesPage : submit(workspaceId, {name, email, phone, address})
+2. CompaniesPage -> CompanyController : adminUpdateCompany(workspaceId, payload)
+3. CompanyController -> CompanyService : adminUpdateCompany(workspaceId, payload)
+4. CompanyService -> Company : update(workspaceId, payload)
+5. Company --> CompanyService : return updatedCompany
+6. opt [name changed]
+   6a. CompanyService -> Workspace : rename(workspaceId, name)
+7. CompanyService --> CompanyController : return updatedCompany
+8. CompanyController --> CompaniesPage : return 200 updatedCompany
+9. CompaniesPage -> Admin : show confirmation
+
+Alternative flows: alt [company not found] -> return 404.
+Guard fragment: opt [AuthGuard: role==Admin].
+
+------------------------------------------------------------
+3.10 Diagram: Delete Company (Admin CRUD)
+------------------------------------------------------------
+Objective: Admin permanently removes a company workspace and all its data.
+Actor: Admin
+Participants: :CompaniesPage, :CompanyController, :CompanyService,
+:User (entity), :Invoice (entity), :Membership (entity), :Company
+(entity), :Workspace (entity)
+
+1. Admin -> CompaniesPage : confirm delete(workspaceId)
+2. CompaniesPage -> CompanyController : deleteCompany(workspaceId)
+3. CompanyController -> CompanyService : deleteCompany(workspaceId)
+4. CompanyService -> User : clearLastActiveWorkspace(workspaceId)
+5. CompanyService -> Invoice : deleteByWorkspace(workspaceId)
+6. CompanyService -> Membership : deleteByWorkspace(workspaceId)
+7. CompanyService -> Company : delete(workspaceId)
+8. CompanyService -> Workspace : delete(workspaceId)
+9. CompanyService --> CompanyController : return success
+10. CompanyController --> CompaniesPage : return 200
+11. CompaniesPage -> Admin : remove row from list
+
+Guard fragment: opt [AuthGuard: role==Admin].
+
+------------------------------------------------------------
+3.11 Diagram: Create Company Workspace (Director)
+------------------------------------------------------------
+Objective: a regular authenticated user converts/creates a company
+workspace and becomes its Director, with a generated join code.
+Actor: Director (post-login user creating their first company)
+Participants: :ModeSelectPage, :WorkspaceController, :WorkspaceService,
+:Workspace (entity), :Membership (entity), :Company (entity)
+
+1. User -> ModeSelectPage : submit(companyName, industry[, address])
+2. ModeSelectPage -> WorkspaceController : createWorkspace({name, type:'company'})
+3. WorkspaceController -> WorkspaceService : createWorkspace(userId, payload)
+4. WorkspaceService -> Workspace : persist(name, type='company', owner=userId)
+5. Workspace --> WorkspaceService : return companyWorkspace
+6. WorkspaceService -> Membership : create(userId, companyWorkspace, role=Director)
+7. Membership --> WorkspaceService : return membership
+8. WorkspaceService -> Company : persist(companyWorkspace, name, generatedJoinCode)
+9. Company --> WorkspaceService : return company
+10. WorkspaceService --> WorkspaceController : return {workspace, company}
+11. WorkspaceController --> ModeSelectPage : return 201 {workspace, joinCode}
+12. ModeSelectPage -> User : navigate to new company dashboard, show join code
+
+Guard fragment: opt [AuthGuard: authenticated, no role restriction].
+
+------------------------------------------------------------
+3.12 Diagram: Join Company with Code (Employee/Accountant)
+------------------------------------------------------------
+Objective: a user requests membership in an existing company using its
+join code; the Director must approve before membership is created.
+Actor: Employee or Accountant (requester); Director (approver, shown as
+a parallel continuation)
+Participants: :JoinCompanyPage, :InvitationsController, :InvitationsService,
+:Company (entity), :Membership (entity), :Invitation (entity),
+:NotificationsService, :Notification (entity)
+
+1. User -> JoinCompanyPage : submit(joinCode, requestedRole)
+2. JoinCompanyPage -> InvitationsController : createInvitationRequest({joinCode, requestedRole})
+3. InvitationsController -> InvitationsService : createInvitationRequest(userId, joinCode, requestedRole)
+4. InvitationsService -> Company : findByCode(joinCode)
+5. Company --> InvitationsService : return workspaceId
+6. InvitationsService -> Membership : exists(userId, workspaceId)
+7. Membership --> InvitationsService : return false
+8. InvitationsService -> Invitation : hasPending(userId, workspaceId, type='join_request')
+9. Invitation --> InvitationsService : return false
+10. InvitationsService -> Invitation : persist(workspaceId, userId, requestedRole, status='pending', type='join_request')
+11. Invitation --> InvitationsService : return invitation
+12. InvitationsService -> NotificationsService : notifyDirector(workspaceId, "New Join Request")
+13. NotificationsService -> Notification : persist(directorId, "New Join Request")
+14. InvitationsService --> InvitationsController : return invitation
+15. InvitationsController --> JoinCompanyPage : return 201 "request sent"
+16. JoinCompanyPage -> User : show "pending approval"
+
+Alternative flows:
+- alt [join code invalid] -> return error("invalid company code") -> 404
+- alt [already a member] -> return error("already a member") -> 409
+- alt [already has a pending request] -> return error("pending request exists") -> 409
+
+Notes: the Director's subsequent approval is a SEPARATE diagram —
+see §4.6 "Accept Join Request with Contract Dates" — because in code it
+is a different controller action (`handleInvitation`), triggered later
+by the Director, not a continuation of this same HTTP request.
+
+
+#####################################################################
+# 4. SPRINT 2 SEQUENCE DIAGRAMS — Invoice Ingestion & Team Management
+#####################################################################
+
+------------------------------------------------------------
+4.1 Diagram: Upload Invoice (Create)
+------------------------------------------------------------
+Objective: create a draft invoice, attach the uploaded file as a
+Document, and asynchronously trigger OCR after responding to the client.
+Actor: Employee, Director, or Personal
+Participants: :UploadInvoicePage, :InvoicesController, :InvoicesService,
+:Invoice (entity), :StatusHistory (entity), :ActivityService,
+:NotificationsService, :DocumentsController, :DocumentsService,
+:Document (entity), :OcrService
+
+Ordered messages (two sequential HTTP calls in the real flow: first
+create the invoice record, then attach the file — represent both in one
+diagram since they are one user-perceived action):
+1. User -> UploadInvoicePage : submit(invoiceMetadata, file)
+2. UploadInvoicePage -> InvoicesController : createInvoice(metadata)
+3. InvoicesController -> InvoicesService : createInvoice(metadata)
+4. InvoicesService -> Subscription : checkInvoiceQuota(workspaceId)  [entity from Subscription domain]
+5. Subscription --> InvoicesService : return {withinQuota: true}
+6. InvoicesService -> Invoice : persist(metadata, status='draft')
+7. Invoice --> InvoicesService : return invoice
+8. InvoicesService -> StatusHistory : record(invoice, status='draft')
+9. InvoicesService -> ActivityService : logActivity('invoice.created', invoice)
+10. InvoicesService --> InvoicesController : return invoice
+11. InvoicesController --> UploadInvoicePage : return 201 invoice
+12. UploadInvoicePage -> DocumentsController : uploadDocument(invoice.id, file)
+13. DocumentsController -> InvoicesService : getInvoiceById(invoice.id) [ownership check]
+14. InvoicesService --> DocumentsController : return invoice
+15. DocumentsController -> DocumentsService : attachDocument(invoice.id, fileMeta)
+16. DocumentsService -> Document : persist(invoice.id, fileMeta)
+17. Document --> DocumentsService : return document
+18. DocumentsService --> DocumentsController : return document
+19. DocumentsController --> UploadInvoicePage : return 201 document
+20. UploadInvoicePage -> User : show "uploaded, processing…"
+21. par [asynchronous, after response already sent]
+    21a. DocumentsController -> OcrService : processInvoice(invoice.id, filePath)
+    (continues in §5.1 "OCR Processing and Confidence Scoring")
+
+Alternative flows:
+- alt [quota exceeded] at step 5: Subscription --> InvoicesService :
+  return {withinQuota:false} ; InvoicesService --> InvoicesController :
+  return error("limit reached") ; return 403
+- opt [usage crosses 80%/100% threshold]: InvoicesService ->
+  NotificationsService : notify(user, "approaching/at limit")
+
+Guard fragment: opt [AuthGuard: authenticated AND active subscription]
+wraps the whole diagram (subscription-gated, per §1.4).
+
+------------------------------------------------------------
+4.2 Diagram: View Invoice Details (Read)
+------------------------------------------------------------
+Objective: load full invoice metadata, extracted fields, and document
+list for the detail page.
+Actor: Employee (own only), Accountant, Director, Personal
+Participants: :InvoiceDetailPage, :InvoicesController, :InvoicesService,
+:Invoice (entity), :OcrController, :ExtractedField (entity),
+:DocumentsController, :Document (entity)
+
+1. User -> InvoiceDetailPage : open invoice(invoiceId)
+2. InvoiceDetailPage -> InvoicesController : getInvoice(invoiceId)
+3. InvoicesController -> InvoicesService : getInvoiceById(invoiceId, workspaceId)
+4. InvoicesService -> Invoice : findById(invoiceId, workspaceId)
+5. Invoice --> InvoicesService : return invoice
+6. InvoicesService --> InvoicesController : return invoice
+7. InvoicesController --> InvoiceDetailPage : return 200 invoice
+8. InvoiceDetailPage -> OcrController : getExtractedFields(invoiceId)
+9. OcrController -> ExtractedField : findByInvoice(invoiceId)
+10. ExtractedField --> OcrController : return fieldList
+11. OcrController --> InvoiceDetailPage : return 200 fieldList
+12. InvoiceDetailPage -> DocumentsController : getDocuments(invoiceId)
+13. DocumentsController -> Document : findByInvoice(invoiceId)
+14. Document --> DocumentsController : return documentList
+15. DocumentsController --> InvoiceDetailPage : return 200 documentList
+16. InvoiceDetailPage -> User : render detail panel + viewer + confidence badges
+
+Alternative flows: alt [invoice not in caller's workspace] -> return 403/404.
+Guard fragment: opt [AuthGuard: authenticated, workspace member].
+
+------------------------------------------------------------
+4.3 Diagram: List and Search Invoices (Read)
+------------------------------------------------------------
+Objective: paginated, filterable, role-scoped invoice listing.
+Actor: Employee (own only), Accountant, Director, Personal
+Participants: :InvoicesPage, :InvoicesController, :InvoicesService,
+:Invoice (entity)
+
+1. User -> InvoicesPage : apply filters(status, vendor, dateRange, page)
+2. InvoicesPage -> InvoicesController : searchInvoices(filters)
+3. InvoicesController -> InvoicesService : searchInvoices({workspaceId, role, filters})
+4. alt [role == Employee or Personal]
+   4a. InvoicesService -> Invoice : findByCreator(workspaceId, userId, filters)
+   else [role == Accountant or Director]
+   4b. InvoicesService -> Invoice : findByWorkspace(workspaceId, filters)
+5. Invoice --> InvoicesService : return {rows, total}
+6. InvoicesService --> InvoicesController : return {invoices, total, page}
+7. InvoicesController --> InvoicesPage : return 200 {invoices, total, page}
+8. InvoicesPage -> User : render paginated table
+
+Notes: 400ms debounce on the vendor-name filter is a client-side UI
+behavior, not a message — represent it as a one-line note next to step 1,
+not as a loop.
+Guard fragment: opt [AuthGuard: authenticated, workspace member].
+
+------------------------------------------------------------
+4.4 Diagram: Delete Draft Invoice (Delete)
+------------------------------------------------------------
+Objective: permanently remove a draft invoice and its dependent records.
+Actor: Employee (own drafts only), Director
+Participants: :InvoicesPage, :InvoicesController, :InvoicesService,
+:Invoice (entity), :ExtractedField (entity), :StatusHistory (entity),
+:Document (entity), :ActivityService
+
+1. User -> InvoicesPage : confirm delete(invoiceId)
+2. InvoicesPage -> InvoicesController : deleteInvoice(invoiceId)
+3. InvoicesController -> InvoicesService : deleteInvoice(invoiceId, workspaceId, userId)
+4. InvoicesService -> Invoice : findWithRole(invoiceId, workspaceId, userId)
+5. Invoice --> InvoicesService : return {invoice, role}
+6. InvoicesService -> InvoicesService : checkDeletePermission(invoice, role, userId) [self-call]
+7. InvoicesService -> ExtractedField : deleteByInvoice(invoiceId)
+8. InvoicesService -> StatusHistory : deleteByInvoice(invoiceId)
+9. InvoicesService -> Document : deleteByInvoice(invoiceId)
+10. InvoicesService -> Invoice : delete(invoiceId)
+11. InvoicesService -> ActivityService : logActivity('invoice.deleted', invoice)
+12. InvoicesService --> InvoicesController : return success
+13. InvoicesController --> InvoicesPage : return 200
+14. InvoicesPage -> User : remove from list
+
+Alternative flows:
+- alt [invoice not in 'draft' status AND role==Employee] -> return error
+  ("only draft invoices can be deleted") -> 409
+- alt [Employee attempts to delete another user's invoice] -> return
+  error("not your invoice") -> 403
+- alt [Director attempts to delete an already-approved/paid/archived
+  invoice] -> return error("cannot delete approved invoice") -> 409
+
+Guard fragment: opt [AuthGuard: authenticated AND active subscription].
+
+------------------------------------------------------------
+4.5 Diagram: View Team Members (Read)
+------------------------------------------------------------
+Objective: Director views all members grouped by role with contract dates.
+Actor: Director
+Participants: :TeamManagementPage, :CompanyController, :CompanyService,
+:Membership (entity), :InvitationsController, :InvitationsService,
+:Invitation (entity)
+
+1. Director -> TeamManagementPage : open Team Management
+2. TeamManagementPage -> CompanyController : getMembers(workspaceId)
+3. CompanyController -> CompanyService : getMembers(workspaceId)
+4. CompanyService -> Membership : findByWorkspace(workspaceId)
+5. Membership --> CompanyService : return memberList
+6. CompanyService --> CompanyController : return memberList
+7. CompanyController --> TeamManagementPage : return 200 memberList
+8. TeamManagementPage -> InvitationsController : getPendingInvitations(workspaceId)
+9. InvitationsController -> InvitationsService : getPendingInvitations(workspaceId, requesterId)
+10. InvitationsService -> Invitation : findPending(workspaceId)
+11. Invitation --> InvitationsService : return pendingList
+12. InvitationsService --> InvitationsController : return pendingList
+13. InvitationsController --> TeamManagementPage : return 200 pendingList
+14. TeamManagementPage -> Director : render members + pending tabs (join/leave/renewal)
+
+Guard fragment: opt [AuthGuard: role==Director].
+
+------------------------------------------------------------
+4.6 Diagram: Accept Join Request with Contract Dates (Update)
+------------------------------------------------------------
+Objective: Director approves a pending join request, creating the
+membership (mandatory contract dates if role==Accountant).
+Actor: Director
+Participants: :TeamManagementPage, :InvitationsController,
+:InvitationsService, :Invitation (entity), :Membership (entity),
+:NotificationsService, :Notification (entity), :ActivityService
+
+1. Director -> TeamManagementPage : accept(invitationId[, contractStart, contractEnd])
+2. TeamManagementPage -> InvitationsController : handleInvitation(invitationId, 'accept', dates)
+3. InvitationsController -> InvitationsService : handleInvitation(directorId, invitationId, 'accept', dates)
+4. InvitationsService -> Invitation : findById(invitationId)
+5. Invitation --> InvitationsService : return invitation
+6. opt [invitation.requestedRole == Accountant]
+   6a. InvitationsService -> InvitationsService : assertContractDatesPresent(dates) [self-call]
+7. InvitationsService -> Membership : create(invitation.user, invitation.workspace,
+   invitation.requestedRole, contractStart, contractEnd)
+8. Membership --> InvitationsService : return membership
+9. InvitationsService -> Invitation : updateStatus(invitationId, 'accepted')
+10. InvitationsService -> NotificationsService : notify(invitation.user, "Join Request Accepted")
+11. NotificationsService -> Notification : persist(...)
+12. InvitationsService -> ActivityService : logActivity('member.joined', ...)
+13. InvitationsService --> InvitationsController : return success
+14. InvitationsController --> TeamManagementPage : return 200
+15. TeamManagementPage -> Director : move request to "active members"
+
+Alternative flows: alt [Accountant request missing contract dates] ->
+return error("contract dates required") -> 400.
+Guard fragment: opt [AuthGuard: role==Director].
+
+------------------------------------------------------------
+4.7 Diagram: Reject Join Request (Update)
+------------------------------------------------------------
+Objective: Director declines a pending join request.
+Actor: Director
+Participants: :TeamManagementPage, :InvitationsController,
+:InvitationsService, :Invitation (entity), :NotificationsService,
+:Notification (entity)
+
+1. Director -> TeamManagementPage : reject(invitationId)
+2. TeamManagementPage -> InvitationsController : handleInvitation(invitationId, 'reject')
+3. InvitationsController -> InvitationsService : handleInvitation(directorId, invitationId, 'reject')
+4. InvitationsService -> Invitation : findById(invitationId)
+5. Invitation --> InvitationsService : return invitation
+6. InvitationsService -> Invitation : updateStatus(invitationId, 'rejected')
+7. InvitationsService -> NotificationsService : notify(invitation.user, "Join Request Rejected")
+8. NotificationsService -> Notification : persist(...)
+9. InvitationsService --> InvitationsController : return success
+10. InvitationsController --> TeamManagementPage : return 200
+11. TeamManagementPage -> Director : remove from pending list
+
+Guard fragment: opt [AuthGuard: role==Director].
+
+------------------------------------------------------------
+4.8 Diagram: Accept Leave Request (Update)
+------------------------------------------------------------
+Objective: Director approves a member's request to leave the company;
+membership is deleted and the member's active workspace resets to personal.
+Actor: Director
+Participants: :TeamManagementPage, :InvitationsController,
+:InvitationsService, :Invitation (entity), :Membership (entity),
+:Workspace (entity), :User (entity), :NotificationsService,
+:Notification (entity), :ActivityService
+
+1. Director -> TeamManagementPage : accept(invitationId) [leave_request]
+2. TeamManagementPage -> InvitationsController : handleInvitation(invitationId, 'accept')
+3. InvitationsController -> InvitationsService : handleInvitation(directorId, invitationId, 'accept')
+4. InvitationsService -> Invitation : findById(invitationId)
+5. Invitation --> InvitationsService : return invitation [type='leave_request']
+6. InvitationsService -> Membership : delete(invitation.user, invitation.workspace)
+7. InvitationsService -> Workspace : findPersonalOf(invitation.user)
+8. Workspace --> InvitationsService : return personalWorkspaceId
+9. InvitationsService -> User : setLastActiveWorkspace(invitation.user, personalWorkspaceId)
+10. InvitationsService -> Invitation : updateStatus(invitationId, 'accepted')
+11. InvitationsService -> NotificationsService : notify(invitation.user, "Leave Request Accepted")
+12. NotificationsService -> Notification : persist(...)
+13. InvitationsService -> ActivityService : logActivity('member.left', ...)
+14. InvitationsService --> InvitationsController : return success
+15. InvitationsController --> TeamManagementPage : return 200
+16. TeamManagementPage -> Director : remove member from active list
+
+Guard fragment: opt [AuthGuard: role==Director].
+
+------------------------------------------------------------
+4.9 Diagram: Accept Renewal Request (Update)
+------------------------------------------------------------
+Objective: Director approves an Accountant's contract renewal request,
+extending the contract end date.
+Actor: Director
+Participants: :TeamManagementPage, :InvitationsController,
+:InvitationsService, :Invitation (entity), :Membership (entity),
+:NotificationsService, :Notification (entity), :ActivityService
+
+1. Director -> TeamManagementPage : accept(invitationId, newContractEnd)
+2. TeamManagementPage -> InvitationsController : handleInvitation(invitationId, 'accept', {contractEnd})
+3. InvitationsController -> InvitationsService : handleInvitation(directorId, invitationId, 'accept', contractEnd)
+4. InvitationsService -> Invitation : findById(invitationId)
+5. Invitation --> InvitationsService : return invitation [type='renewal_request']
+6. InvitationsService -> InvitationsService : assertContractEndProvided(contractEnd) [self-call]
+7. InvitationsService -> Membership : updateContractEnd(invitation.user, invitation.workspace, contractEnd)
+8. Membership --> InvitationsService : return updatedMembership
+9. InvitationsService -> Invitation : updateStatus(invitationId, 'accepted')
+10. InvitationsService -> NotificationsService : notify(invitation.user, "Contract Renewed")
+11. NotificationsService -> Notification : persist(...)
+12. InvitationsService -> ActivityService : logActivity('contract.renewed', ...) [x2: director + accountant, see Notes]
+13. InvitationsService --> InvitationsController : return success
+14. InvitationsController --> TeamManagementPage : return 200
+15. TeamManagementPage -> Director : show updated contract end date
+
+Alternative flows: alt [no new contract end date supplied] -> return
+error("new contract end date required") -> 400.
+Notes: the real code writes two ActivityLog rows for this action (one
+attributed to the Director who acted, one attributed to the Accountant
+who was affected) — show this as `loop [2 times: actor=director,
+actor=accountant]` around step 12, not as a single call.
+Guard fragment: opt [AuthGuard: role==Director].
+
+------------------------------------------------------------
+4.10 Diagram: Remove Member (Delete)
+------------------------------------------------------------
+Objective: Director removes a member from the company workspace.
+Actor: Director
+Participants: :TeamManagementPage, :CompanyController/:UsersController,
+:UsersService, :Membership (entity), :ActivityService
+
+1. Director -> TeamManagementPage : confirm remove(targetUserId)
+2. TeamManagementPage -> UsersController : removeMember(workspaceId, targetUserId)
+3. UsersController -> UsersService : removeMember(directorId, workspaceId, targetUserId)
+4. UsersService -> UsersService : assertNotSelfRemoval(directorId, targetUserId) [self-call]
+5. UsersService -> Membership : findMemberInfo(targetUserId, workspaceId)
+6. Membership --> UsersService : return {name, role}
+7. UsersService -> Membership : delete(targetUserId, workspaceId)
+8. Membership --> UsersService : return deletedRow
+9. UsersService -> ActivityService : logActivity('member.left', ...)
+10. UsersService --> UsersController : return success
+11. UsersController --> TeamManagementPage : return 200
+12. TeamManagementPage -> Director : remove row from member list
+
+Alternative flows:
+- alt [director attempts to remove self] -> return error("cannot remove
+  yourself") -> 400
+- alt [target not a member] -> return error("member not found") -> 404
+
+Guard fragment: opt [AuthGuard: role==Director].
+
+
+#####################################################################
+# 5. SPRINT 3 SEQUENCE DIAGRAMS — OCR, Validation Workflow & Subscription
+#####################################################################
+
+------------------------------------------------------------
+5.1 Diagram: OCR Processing and Confidence Scoring
+------------------------------------------------------------
+Objective: extract structured invoice fields from the uploaded document
+with per-field confidence scoring, fully decoupled from the upload HTTP
+response.
+Actor: System (background trigger, no human actor) + GroqVisionAPI
+(external, per the documented Sprint-3 architecture)
+Participants: :DocumentsController (trigger), :OcrService, :Invoice
+(entity), :GroqVisionAPI (external), :ExtractedField (entity),
+:NotificationsService, :Notification (entity)
+
+1. DocumentsController -> OcrService : processInvoice(invoiceId, documentPath) [fired
+   after the 201 Created response was already sent — see §4.1 step 21]
+2. OcrService -> Invoice : updateOcrStatus(invoiceId, 'processing')
+3. OcrService -> OcrService : encodeDocumentAsBase64(documentPath) [self-call]
+4. OcrService -> GroqVisionAPI : extract(base64Document, extractionPrompt)
+5. GroqVisionAPI --> OcrService : return {sixFieldsJson, confidenceDescriptors}
+6. OcrService -> OcrService : mapDescriptorToScore(confidenceDescriptors) [self-call]
+7. OcrService -> OcrService : validateAmountAndDateFormats(sixFieldsJson) [self-call]
+8. loop [for each of the six fields]
+   8a. OcrService -> ExtractedField : upsert(invoiceId, fieldName, value,
+       confidence, needsReview = confidence < threshold)
+9. OcrService -> Invoice : updateOcrStatus(invoiceId, 'completed', avgConfidence)
+10. OcrService -> NotificationsService : notify(uploader, "OCR complete")
+11. NotificationsService -> Notification : persist(...)
+
+Alternative flows:
+- alt [GroqVisionAPI errors or times out]: GroqVisionAPI --> OcrService :
+  return error/timeout ; OcrService -> Invoice : updateOcrStatus(invoiceId,
+  'failed') ; OcrService -> NotificationsService : notify(uploader,
+  "OCR failed")
+
+Notes: no human actor and no AuthGuard fragment — this runs as an
+internal background continuation, not an HTTP request.
+
+------------------------------------------------------------
+5.2 Diagram: Create Extracted Fields (OCR writes to DB)
+------------------------------------------------------------
+Objective: zoom-in on step 8 of §5.1 — persisting the six parsed fields.
+Actor: System
+Participants: :OcrService, :ExtractedField (entity)
+
+1. OcrService -> OcrService : for each field in {invoice_number,
+   invoice_date, due_date, total_amount, tax_amount, supplier_name}
+2. loop [6 iterations]
+   2a. OcrService -> ExtractedField : upsert(invoiceId, fieldName, value,
+       confidence, needsReview)
+   2b. ExtractedField --> OcrService : return savedField
+3. OcrService -> OcrService : computeAverageConfidence(savedFields) [self-call]
+
+Notes: this diagram exists to show the upsert-on-conflict semantics
+explicitly (re-running OCR overwrites prior values) — do not collapse
+it into §5.1 if the report wants it separate, since rapport.txt lists
+it as its own figure.
+
+------------------------------------------------------------
+5.3 Diagram: View Extracted Fields
+------------------------------------------------------------
+Objective: load OCR field values with confidence indicators for the
+invoice detail page.
+Actor: Employee, Accountant, Director, Personal
+Participants: :InvoiceDetailPage, :OcrController, :ExtractedField (entity)
+
+1. User -> InvoiceDetailPage : open OCR panel
+2. InvoiceDetailPage -> OcrController : getExtractedFields(invoiceId)
+3. OcrController -> ExtractedField : findByInvoice(invoiceId)
+4. ExtractedField --> OcrController : return fieldList
+5. OcrController --> InvoiceDetailPage : return 200 fieldList
+6. InvoiceDetailPage -> User : render fields with confidence badges +
+   needsReview highlighting
+
+Guard fragment: opt [AuthGuard: authenticated, workspace member].
+
+------------------------------------------------------------
+5.4 Diagram: Update Extracted Fields (Manual Correction)
+------------------------------------------------------------
+Objective: user manually corrects one or more low-confidence fields.
+Actor: Employee, Accountant, Director, Personal
+Participants: :InvoiceDetailPage, :OcrController, :OcrService,
+:ExtractedField (entity)
+
+1. User -> InvoiceDetailPage : submit corrected field values
+2. InvoiceDetailPage -> OcrController : updateExtractedFields(invoiceId, fieldsObj)
+3. OcrController -> OcrService : updateExtractedFields(invoiceId, fieldsObj, userId)
+4. loop [for each corrected field]
+   4a. OcrService -> ExtractedField : update(invoiceId, fieldName, newValue,
+       manuallyCorrected=true, correctedBy=userId, needsReview=false)
+5. OcrService --> OcrController : return success
+6. OcrController --> InvoiceDetailPage : return 200
+7. InvoiceDetailPage -> User : clear needsReview highlighting
+
+Guard fragment: opt [AuthGuard: authenticated AND active subscription].
+
+------------------------------------------------------------
+5.5 Diagram: Submit Invoice for Review
+------------------------------------------------------------
+Objective: transition an invoice from draft to pending_review and alert
+reviewers.
+Actor: Employee, Director, Personal
+Participants: :InvoiceDetailPage, :InvoicesController, :InvoicesService,
+:Invoice (entity), :StatusHistory (entity), :Membership (entity),
+:NotificationsService, :Notification (entity), :ActivityService
+
+1. User -> InvoiceDetailPage : click "Submit for Review"
+2. InvoiceDetailPage -> InvoicesController : updateInvoiceStatus(invoiceId, 'pending_review')
+3. InvoicesController -> InvoicesService : updateInvoiceStatus(invoiceId, 'pending_review', userId)
+4. InvoicesService -> Invoice : findById(invoiceId)
+5. Invoice --> InvoicesService : return invoice [status='draft']
+6. InvoicesService -> InvoicesService : assertValidTransition('draft','pending_review') [self-call]
+7. InvoicesService -> Invoice : updateStatus(invoiceId, 'pending_review')
+8. InvoicesService -> StatusHistory : record(invoiceId, 'pending_review', userId)
+9. InvoicesService -> Membership : findReviewers(workspaceId) [Director + Accountant]
+10. Membership --> InvoicesService : return reviewerList
+11. loop [for each reviewer]
+    11a. InvoicesService -> NotificationsService : notify(reviewer, "Invoice Awaiting Review")
+    11b. NotificationsService -> Notification : persist(...)
+12. InvoicesService -> ActivityService : logActivity('invoice.status_changed', ...)
+13. InvoicesService --> InvoicesController : return success
+14. InvoicesController --> InvoiceDetailPage : return 200
+15. InvoiceDetailPage -> User : show "submitted" state
+
+Alternative flows: alt [invoice not in 'draft'] -> return error("invalid
+transition") -> 409.
+Guard fragment: opt [AuthGuard: authenticated AND active subscription].
+
+------------------------------------------------------------
+5.6 Diagram: Resubmit Rejected Invoice
+------------------------------------------------------------
+Objective: after correction, return a rejected invoice to pending_review.
+Actor: Employee, Director, Personal
+Participants: :InvoiceDetailPage, :InvoicesController, :InvoicesService,
+:Invoice (entity), :StatusHistory (entity), :NotificationsService,
+:Notification (entity), :ActivityService
+
+1. User -> InvoiceDetailPage : click "Resubmit" [after editing fields]
+2. InvoiceDetailPage -> InvoicesController : updateInvoiceStatus(invoiceId, 'pending_review')
+3. InvoicesController -> InvoicesService : updateInvoiceStatus(invoiceId, 'pending_review', userId)
+4. InvoicesService -> Invoice : findById(invoiceId)
+5. Invoice --> InvoicesService : return invoice [status='rejected']
+6. InvoicesService -> InvoicesService : assertValidTransition('rejected','pending_review') [self-call]
+7. InvoicesService -> Invoice : updateStatus(invoiceId, 'pending_review')
+8. InvoicesService -> StatusHistory : record(invoiceId, 'pending_review', userId)
+9. InvoicesService -> NotificationsService : notify(reviewers, "Invoice Resubmitted")
+10. InvoicesService -> ActivityService : logActivity('invoice.status_changed', ...)
+11. InvoicesService --> InvoicesController : return success
+12. InvoicesController --> InvoiceDetailPage : return 200
+13. InvoiceDetailPage -> User : show "resubmitted" state
+
+Notes: this diagram is identical in shape to §5.5 but is kept separate
+per rapport.txt because its precondition/extension point differs
+(`rejected -> pending_review` instead of `draft -> pending_review`) —
+mark it in the diagram title as "extends Submit Invoice for Review".
+Guard fragment: opt [AuthGuard: authenticated AND active subscription].
+
+------------------------------------------------------------
+5.7 Diagram: Approve Invoice (Accountant)
+------------------------------------------------------------
+Objective: Accountant approves a pending invoice.
+Actor: Accountant
+Participants: :InvoiceDetailPage, :InvoicesController, :InvoicesService,
+:Invoice (entity), :StatusHistory (entity), :NotificationsService,
+:Notification (entity), :ActivityService
+
+1. Accountant -> InvoiceDetailPage : click "Approve"
+2. InvoiceDetailPage -> InvoicesController : updateInvoiceStatus(invoiceId, 'approved')
+3. InvoicesController -> InvoicesService : updateInvoiceStatus(invoiceId, 'approved', accountantId)
+4. InvoicesService -> Invoice : findById(invoiceId)
+5. Invoice --> InvoicesService : return invoice [status='pending_review']
+6. InvoicesService -> InvoicesService : assertValidTransition('pending_review','approved') [self-call]
+7. InvoicesService -> Invoice : updateStatus(invoiceId, 'approved')
+8. InvoicesService -> StatusHistory : record(invoiceId, 'approved', accountantId)
+9. InvoicesService -> NotificationsService : notify(invoice.createdBy, "Invoice Approved")
+10. NotificationsService -> Notification : persist(...)
+11. InvoicesService -> ActivityService : logActivity('invoice.status_changed', ...)
+12. InvoicesService --> InvoicesController : return success
+13. InvoicesController --> InvoiceDetailPage : return 200
+14. InvoiceDetailPage -> Accountant : show "approved" state
+
+Alternative flows: alt [invoice not in 'pending_review'] -> return
+error("invalid transition") -> 409.
+Guard fragment: opt [AuthGuard: role==Accountant, active contract].
+
+------------------------------------------------------------
+5.8 Diagram: Reject Invoice with Notes (Accountant)
+------------------------------------------------------------
+Objective: Accountant rejects a pending invoice with a mandatory note.
+Actor: Accountant
+Participants: :InvoiceDetailPage, :InvoicesController, :InvoicesService,
+:Invoice (entity), :StatusHistory (entity), :NotificationsService,
+:Notification (entity), :ActivityService
+
+1. Accountant -> InvoiceDetailPage : submit reject(note)
+2. InvoiceDetailPage -> InvoicesController : updateInvoiceStatus(invoiceId, 'rejected', note)
+3. InvoicesController -> InvoicesService : updateInvoiceStatus(invoiceId, 'rejected', accountantId, note)
+4. InvoicesService -> InvoicesService : assertNoteNotEmpty(note) [self-call]
+5. InvoicesService -> Invoice : findById(invoiceId)
+6. Invoice --> InvoicesService : return invoice [status='pending_review']
+7. InvoicesService -> Invoice : updateStatus(invoiceId, 'rejected')
+8. InvoicesService -> StatusHistory : record(invoiceId, 'rejected', accountantId, note)
+9. InvoicesService -> NotificationsService : notify(invoice.createdBy, "Invoice Rejected", note)
+10. NotificationsService -> Notification : persist(...)
+11. InvoicesService -> ActivityService : logActivity('invoice.status_changed', ...)
+12. InvoicesService --> InvoicesController : return success
+13. InvoicesController --> InvoiceDetailPage : return 200
+14. InvoiceDetailPage -> Accountant : show "rejected" state
+
+Alternative flows: alt [note is empty] -> return error("rejection note
+required") -> 400.
+Guard fragment: opt [AuthGuard: role==Accountant, active contract].
+
+------------------------------------------------------------
+5.9 Diagram: Mark Invoice as Paid (Director)
+------------------------------------------------------------
+Objective: Director marks an approved invoice as paid.
+Actor: Director, Personal
+Participants: :InvoiceDetailPage, :InvoicesController, :InvoicesService,
+:Invoice (entity), :StatusHistory (entity), :NotificationsService,
+:Notification (entity), :ActivityService
+
+1. Director -> InvoiceDetailPage : click "Mark as Paid"
+2. InvoiceDetailPage -> InvoicesController : updateInvoiceStatus(invoiceId, 'paid')
+3. InvoicesController -> InvoicesService : updateInvoiceStatus(invoiceId, 'paid', directorId)
+4. InvoicesService -> Invoice : findById(invoiceId)
+5. Invoice --> InvoicesService : return invoice [status='approved']
+6. InvoicesService -> InvoicesService : assertValidTransition('approved','paid') [self-call]
+7. InvoicesService -> Invoice : updateStatus(invoiceId, 'paid')
+8. InvoicesService -> StatusHistory : record(invoiceId, 'paid', directorId)
+9. InvoicesService -> NotificationsService : notify(invoice.createdBy, "Invoice Marked as Paid")
+10. InvoicesService -> ActivityService : logActivity('invoice.status_changed', ...)
+11. InvoicesService --> InvoicesController : return success
+12. InvoicesController --> InvoiceDetailPage : return 200
+13. InvoiceDetailPage -> Director : show "paid" state
+
+Guard fragment: opt [AuthGuard: authenticated AND active subscription].
+
+------------------------------------------------------------
+5.10 Diagram: Mark Invoice as Archived (Director)
+------------------------------------------------------------
+Objective: Director archives a paid invoice for record-keeping.
+Actor: Director
+Participants: :InvoiceDetailPage, :InvoicesController, :InvoicesService,
+:Invoice (entity), :StatusHistory (entity), :ActivityService
+
+1. Director -> InvoiceDetailPage : click "Archive"
+2. InvoiceDetailPage -> InvoicesController : updateInvoiceStatus(invoiceId, 'archived')
+3. InvoicesController -> InvoicesService : updateInvoiceStatus(invoiceId, 'archived', directorId)
+4. InvoicesService -> Invoice : findById(invoiceId)
+5. Invoice --> InvoicesService : return invoice [status='paid']
+6. InvoicesService -> InvoicesService : assertValidTransition('paid','archived') [self-call]
+7. InvoicesService -> Invoice : updateStatus(invoiceId, 'archived')
+8. InvoicesService -> StatusHistory : record(invoiceId, 'archived', directorId)
+9. InvoicesService -> ActivityService : logActivity('invoice.status_changed', ...)
+10. InvoicesService --> InvoicesController : return success
+11. InvoicesController --> InvoiceDetailPage : return 200
+12. InvoiceDetailPage -> Director : move invoice to Archive view
+
+Guard fragment: opt [AuthGuard: authenticated AND active subscription].
+
+------------------------------------------------------------
+5.11 Diagram: View Status History
+------------------------------------------------------------
+Objective: display the full audit trail of status transitions for an invoice.
+Actor: Employee, Accountant, Director, Personal
+Participants: :InvoiceDetailPage, :InvoicesController, :InvoicesService,
+:StatusHistory (entity)
+
+1. User -> InvoiceDetailPage : open "History" tab
+2. InvoiceDetailPage -> InvoicesController : getStatusHistory(invoiceId)
+3. InvoicesController -> InvoicesService : getStatusHistory(invoiceId)
+4. InvoicesService -> StatusHistory : findByInvoice(invoiceId)
+5. StatusHistory --> InvoicesService : return historyList (chronological)
+6. InvoicesService --> InvoicesController : return historyList
+7. InvoicesController --> InvoiceDetailPage : return 200 historyList
+8. InvoiceDetailPage -> User : render timeline (actor, timestamp, comment)
+
+Guard fragment: opt [AuthGuard: authenticated, workspace member].
+
+------------------------------------------------------------
+5.12 Diagram: Subscribe to Plan (Create)
+------------------------------------------------------------
+Objective: Director (or Personal user) subscribes a workspace to a plan
+for the first time.
+Actor: Director, Personal
+Participants: :SubscriptionPage, :SubscriptionController,
+:SubscriptionService, :SubscriptionPlan (entity), :Company (entity),
+:Subscription (entity)
+
+1. User -> SubscriptionPage : select plan, confirm
+2. SubscriptionPage -> SubscriptionController : upgradePlan(planId)
+3. SubscriptionController -> SubscriptionService : upgradePlan(userId, workspaceId, planId)
+4. SubscriptionService -> SubscriptionPlan : findById(planId)
+5. SubscriptionPlan --> SubscriptionService : return plan
+6. SubscriptionService -> Subscription : findCurrent(userId or workspaceId)
+7. Subscription --> SubscriptionService : return none
+8. opt [plan.planType == 'company']
+   8a. SubscriptionService -> Company : findByWorkspace(workspaceId)
+   8b. Company --> SubscriptionService : return companyId
+9. SubscriptionService -> Subscription : persist(owner, planId, status='active',
+   currentPeriodEnd = now + 30 days, credits=0)
+10. Subscription --> SubscriptionService : return subscription
+11. SubscriptionService --> SubscriptionController : return {subscription, plan, amountCharged: plan.price, credit: 0}
+12. SubscriptionController --> SubscriptionPage : return 201 result
+13. SubscriptionPage -> User : show active-subscription badge, gated
+    features unlocked
+
+Guard fragment: opt [AuthGuard: authenticated; role==Director for company plans].
+
+------------------------------------------------------------
+5.13 Diagram: Upgrade or Renew Subscription (Update)
+------------------------------------------------------------
+Objective: change an existing subscription's plan, applying a pro-rated
+credit for company workspaces (personal workspaces never get credit).
+Actor: Director, Personal
+Participants: :SubscriptionPage, :SubscriptionController,
+:SubscriptionService, :SubscriptionPlan (entity), :Subscription (entity)
+
+1. User -> SubscriptionPage : select new plan, confirm
+2. SubscriptionPage -> SubscriptionController : upgradePlan(newPlanId)
+3. SubscriptionController -> SubscriptionService : upgradePlan(userId, workspaceId, newPlanId)
+4. SubscriptionService -> SubscriptionPlan : findById(newPlanId)
+5. SubscriptionPlan --> SubscriptionService : return newPlan
+6. SubscriptionService -> Subscription : findCurrent(owner)
+7. Subscription --> SubscriptionService : return currentSubscription
+8. alt [currentSubscription.planId == newPlanId AND not expired]
+   8a. SubscriptionService --> SubscriptionController : return error("already on this plan")
+   else
+   8b. alt [newPlan.planType == 'company']
+       8b-i. SubscriptionService -> SubscriptionService :
+             calculateRemainingCredit(billingStart, currentPlan.price) [self-call]
+       else [personal]
+       8b-ii. SubscriptionService -> SubscriptionService : credit = 0 [self-call]
+   8c. SubscriptionService -> Subscription : update(currentSubscription.id,
+       newPlanId, status='active', billingStart=now,
+       currentPeriodEnd=now+30days, credits)
+   8d. Subscription --> SubscriptionService : return updatedSubscription
+9. SubscriptionService --> SubscriptionController : return {subscription,
+   plan, amountCharged, credit, previousPlan}
+10. SubscriptionController --> SubscriptionPage : return 200 result
+11. SubscriptionPage -> User : show new plan + amount charged (minus credit)
+
+Alternative flows: alt [same active plan re-selected] -> return error
+("already on this plan") -> 400.
+Guard fragment: opt [AuthGuard: authenticated; role==Director for company plans].
+
+------------------------------------------------------------
+5.14 Diagram: View Current Subscription (Read)
+------------------------------------------------------------
+Objective: display the active subscription, usage, and limits; auto
+-provision a Free plan for a Personal workspace with no subscription yet.
+Actor: Director, Personal
+Participants: :SubscriptionPage, :SubscriptionController,
+:SubscriptionService, :Subscription (entity), :SubscriptionPlan (entity)
+
+1. User -> SubscriptionPage : open Subscription page
+2. SubscriptionPage -> SubscriptionController : getMySubscription()
+3. SubscriptionController -> SubscriptionService : getMySubscription(userId, workspaceId)
+4. SubscriptionService -> Subscription : findCurrent(owner)
+5. Subscription --> SubscriptionService : return existing | none
+6. opt [none found AND workspace is personal]
+   6a. SubscriptionService -> SubscriptionPlan : findFreePlan()
+   6b. SubscriptionPlan --> SubscriptionService : return freePlan
+   6c. SubscriptionService -> Subscription : persist(userId, freePlan.id, status='active')
+   6d. Subscription --> SubscriptionService : return newSubscription
+7. SubscriptionService -> SubscriptionService : checkExpiry(subscription.currentPeriodEnd) [self-call]
+8. SubscriptionService --> SubscriptionController : return subscription
+9. SubscriptionController --> SubscriptionPage : return 200 subscription
+10. SubscriptionPage -> User : render plan card, usage meters, renewal CTA
+
+Guard fragment: opt [AuthGuard: authenticated].
+
+------------------------------------------------------------
+5.15 Diagram: Subscription Expiry Detection (Hourly Cron)
+------------------------------------------------------------
+Objective: automatically mark expired company subscriptions and notify
+the Director.
+Actor: System (Scheduler) — no human actor, no Boundary lifeline
+Participants: :Scheduler, :SubscriptionService, :Subscription (entity),
+:Membership (entity), :NotificationsService, :Notification (entity)
+
+1. Scheduler -> SubscriptionService : checkAndExpireSubscriptions() [hourly trigger]
+2. SubscriptionService -> Subscription : findExpired(currentPeriodEnd < now, status not in {expired, cancelled})
+3. Subscription --> SubscriptionService : return expiredList
+4. loop [for each expired subscription]
+   4a. SubscriptionService -> Subscription : updateStatus(subscriptionId, 'expired')
+   4b. SubscriptionService -> Membership : findDirector(workspaceId)
+   4c. Membership --> SubscriptionService : return directorId
+   4d. opt [director not already notified in last 24h]
+       4d-i. SubscriptionService -> NotificationsService : notify(directorId, "Subscription Expired")
+       4d-ii. NotificationsService -> Notification : persist(...)
+5. SubscriptionService --> Scheduler : return expiredCount
+
+Notes: no AuthGuard — this is an internal, non-HTTP, time-triggered
+flow. On the client side, the consequence of this job (SubscriptionLock
+full-screen lock for non-Director roles) is a separate, later read-path
+interaction and is out of scope for this diagram.
+
+
+#####################################################################
+# 6. SPRINT 4 SEQUENCE DIAGRAMS — Reporting, Analytics, Notifications &
+#    Settings
+#####################################################################
+
+------------------------------------------------------------
+6.1 Diagram: Generate KPI Dashboard
+------------------------------------------------------------
+Objective: load role-specific aggregated metrics for the dashboard cards.
+Actor: Employee, Accountant, Director, Personal, Admin
+Participants: :Dashboard, :InvoicesController, :InvoicesService,
+:Invoice (entity), :Membership (entity)
+
+1. User -> Dashboard : open dashboard
+2. Dashboard -> InvoicesController : getDashboardStats()
+3. InvoicesController -> InvoicesService : getDashboardStats(workspaceId, userId, role)
+4. alt [role == Personal]
+   4a. InvoicesService -> Invoice : aggregateForOwner(workspaceId, userId)
+   else [role == Employee]
+   4b. InvoicesService -> Invoice : aggregateForCreator(workspaceId, userId)
+   else [role == Accountant]
+   4c. InvoicesService -> Invoice : aggregateForWorkspace(workspaceId)
+   else [role == Director]
+   4d. InvoicesService -> Invoice : aggregateForWorkspace(workspaceId)
+   4e. InvoicesService -> Membership : countByWorkspace(workspaceId)
+   else [role == Admin]
+   4f. InvoicesService -> Invoice : aggregateGlobal()
+   4g. InvoicesService -> Membership : countByRole()
+5. Invoice --> InvoicesService : return metrics
+6. InvoicesService --> InvoicesController : return stats
+7. InvoicesController --> Dashboard : return 200 stats
+8. Dashboard -> User : render KPI cards + trend indicators
+
+Alternative flows: opt [no invoices yet] -> cards render with zero values, no error.
+Guard fragment: opt [AuthGuard: authenticated, active subscription].
+
+------------------------------------------------------------
+6.2 Diagram: Generate Report with Date Filter (Read)
+------------------------------------------------------------
+Objective: load chart-ready aggregated data (summary, monthly trend,
+status distribution, top vendors, employee leaderboard) for a selected
+period.
+Actor: Accountant, Director, Personal
+Participants: :ReportsPage, :InvoicesController, :InvoicesService,
+:Invoice (entity), :Membership (entity)
+
+1. User -> ReportsPage : select period(30d/90d/180d/1y)
+2. ReportsPage -> InvoicesController : getReportsData(period)
+3. InvoicesController -> InvoicesService : getReportsData(workspaceId, userId, role, period)
+4. alt [role == Personal]
+   4a. InvoicesService -> Invoice : aggregatePersonalReport(workspaceId, userId, period)
+   else [role == Accountant or Director]
+   4b. InvoicesService -> Invoice : aggregateCompanyReport(workspaceId, period)
+   4c. InvoicesService -> Membership : countByWorkspace(workspaceId)
+   4d. InvoicesService -> Invoice : leaderboardByUploader(workspaceId, period)
+5. Invoice --> InvoicesService : return {summary, monthlyTrend, statusDistribution, topVendors}
+6. InvoicesService --> InvoicesController : return reportData
+7. InvoicesController --> ReportsPage : return 200 reportData
+8. ReportsPage -> User : render line/bar/pie charts + summary stats
+
+Guard fragment: opt [AuthGuard: authenticated, role in {Accountant, Director, Personal}].
+
+------------------------------------------------------------
+6.3 Diagram: Export Report to PDF
+------------------------------------------------------------
+Objective: produce a downloadable PDF from the already-rendered report
+data, entirely on the client — there is no backend export endpoint.
+Actor: Director, Accountant, Personal
+Participants: :ReportsPage «boundary» only (no Controller/Service/Entity
+involved in this diagram)
+
+1. User -> ReportsPage : click "Export PDF"
+2. ReportsPage -> ReportsPage : buildReportRows(reportData, period) [self-call]
+3. ReportsPage -> ReportsPage : renderPdfDocument(rows) [self-call —
+   title, period, summary table, monthly-trend table, top-vendors table]
+4. ReportsPage -> ReportsPage : triggerFileDownload(pdfBlob, "report.pdf") [self-call]
+5. ReportsPage -> User : browser shows file-saved confirmation
+
+Notes: this is intentionally a Boundary-only diagram. `reportData` was
+already obtained from the backend in §6.2 — exporting it to a file is a
+pure client-side transformation (jsPDF + autoTable in the real code).
+Do not add a Controller/Service/Entity lifeline here; doing so would
+misrepresent the implementation. No AuthGuard fragment is needed either
+— no new request reaches the server.
+
+------------------------------------------------------------
+6.4 Diagram: Export Report to Excel
+------------------------------------------------------------
+Objective: produce a downloadable .xlsx workbook from the already
+-rendered report data, entirely on the client.
+Actor: Director, Accountant, Personal
+Participants: :ReportsPage «boundary» only
+
+1. User -> ReportsPage : click "Export Excel"
+2. ReportsPage -> ReportsPage : buildReportRows(reportData, period) [self-call]
+3. ReportsPage -> ReportsPage : buildWorkbook(rows) [self-call — one sheet
+   per section: Summary, Monthly Trend, Top Vendors, Leaderboard]
+4. ReportsPage -> ReportsPage : triggerFileDownload(xlsxBlob, "report.xlsx") [self-call]
+5. ReportsPage -> User : browser shows file-saved confirmation
+
+Notes: same Boundary-only shape as §6.3; do not add backend lifelines.
+
+------------------------------------------------------------
+6.5 Diagram: Export Report — Additional Formats (CSV / DOCX / ZIP)
+------------------------------------------------------------
+Objective: cover the remaining client-side export formats implemented in
+the code (Reports.tsx imports docx, jszip, file-saver in addition to
+jsPDF/autoTable), consolidated into one diagram since the shape is
+identical to §6.3/§6.4.
+Actor: Director, Accountant, Personal
+Participants: :ReportsPage «boundary» only
+
+1. User -> ReportsPage : click "Export CSV" | "Export DOCX" | "Export ZIP (all formats)"
+2. ReportsPage -> ReportsPage : buildReportRows(reportData, period) [self-call]
+3. alt [format == CSV]
+   3a. ReportsPage -> ReportsPage : serializeToCsv(rows) [self-call]
+   else [format == DOCX]
+   3b. ReportsPage -> ReportsPage : buildDocxDocument(rows) [self-call]
+   else [format == ZIP]
+   3c. ReportsPage -> ReportsPage : packageAllFormatsIntoZip(pdfBlob, xlsxBlob,
+       csvBlob, docxBlob) [self-call]
+4. ReportsPage -> ReportsPage : triggerFileDownload(blob, fileName) [self-call]
+5. ReportsPage -> User : browser shows file-saved confirmation
+
+Notes: Boundary-only, no AuthGuard, no backend lifelines — identical
+rationale to §6.3.
+
+------------------------------------------------------------
+6.6 Diagram: View Activity Log / History
+------------------------------------------------------------
+Objective: paginated, role-scoped audit trail of workspace events.
+Actor: Employee (own only), Accountant (own only), Director, Admin (all)
+Participants: :HistoryPage, :ActivityController, :ActivityService,
+:ActivityLog (entity)
+
+1. User -> HistoryPage : open History, select page/entity-type filter
+2. HistoryPage -> ActivityController : getActivity(page, limit, entityType)
+3. ActivityController -> ActivityService : getWorkspaceActivity(workspaceId,
+   {page, limit, role, userId, entityType})
+4. alt [role == Admin]
+   4a. ActivityService -> ActivityLog : findAll(filters) [no workspace scope]
+   else [role == Personal]
+   4b. ActivityService -> ActivityLog : findByUser(workspaceId, userId, filters)
+   else [role == Employee]
+   4c. ActivityService -> ActivityLog : findByUserOrCompanyEvents(workspaceId, userId, filters)
+   else [role == Accountant]
+   4d. ActivityService -> ActivityLog : findByUser(workspaceId, userId, filters)
+   else [role == Director]
+   4e. ActivityService -> ActivityLog : findByWorkspace(workspaceId, filters)
+5. ActivityLog --> ActivityService : return {rows, total}
+6. ActivityService --> ActivityController : return {activity, total, page, limit}
+7. ActivityController --> HistoryPage : return 200 {activity, total, page, limit}
+8. HistoryPage -> User : render paginated timeline (30/page)
+
+Guard fragment: opt [AuthGuard: authenticated, workspace member (Admin bypasses)].
+
+------------------------------------------------------------
+6.7 Diagram: System Creates Notification (Invoice/Workspace Event Trigger)
+------------------------------------------------------------
+Objective: show the generic, reusable pattern by which any Service
+raises an in-app notification as a side effect of a business action —
+this exact call shape is reused inside Upload Invoice (§4.1), Submit/
+Approve/Reject/Mark-Paid (§5.5/§5.7/§5.8/§5.9), Accept Join/Leave/
+Renewal (§4.6/§4.8/§4.9), Subscribe/Upgrade (§5.12/§5.13), and
+Subscription Expiry (§5.15).
+Actor: System (triggered internally by whichever Service is acting —
+no independent human actor for this diagram)
+Participants: :AnyService «control» (generic stand-in for the calling
+Service), :NotificationsService, :Notification (entity)
+
+1. AnyService -> NotificationsService : notify(userId, type, title, message, actionUrl)
+2. NotificationsService -> Notification : persist(userId, type, title, message, actionUrl, isRead=false)
+3. Notification --> NotificationsService : return savedNotification
+4. NotificationsService --> AnyService : return ack
+
+Notes: this diagram has no Boundary and no AuthGuard — it is always a
+sub-step of a larger user-triggered or cron-triggered flow, never
+invoked directly by a page. Use it as the canonical expansion wherever
+another diagram says "notify(...)".
+
+------------------------------------------------------------
+6.8 Diagram: View Notifications
+------------------------------------------------------------
+Objective: load the notification list for the bell-icon panel; the
+client also polls the unread count every 30 seconds.
+Actor: any authenticated user
+Participants: :NotificationsPanel, :NotificationsController,
+:NotificationsService, :Notification (entity)
+
+1. User -> NotificationsPanel : click bell icon
+2. NotificationsPanel -> NotificationsController : getNotifications()
+3. NotificationsController -> NotificationsService : getNotificationsForUser(userId)
+4. NotificationsService -> Notification : findByUser(userId, limit=30)
+5. Notification --> NotificationsService : return notificationList
+6. NotificationsService --> NotificationsController : return notificationList
+7. NotificationsController --> NotificationsPanel : return 200 notificationList
+8. NotificationsPanel -> User : render list (type icon, relative time, read/unread)
+
+Alternative flows: opt [list is empty] -> render empty-state message.
+Notes: the 30-second unread-count poll is a separate, lighter-weight
+repeating call (`GET /notifications/unread-count` in the real code) —
+represent it with a `loop [every 30s, while panel mounted]` wrapping a
+two-step ping: NotificationsPanel -> NotificationsController :
+getUnreadCount() ; NotificationsController --> NotificationsPanel :
+return count. Do not merge this polling loop into step 2 above.
+Guard fragment: opt [AuthGuard: authenticated].
+
+------------------------------------------------------------
+6.9 Diagram: Mark Notification as Read
+------------------------------------------------------------
+Objective: mark a single notification as read when the user clicks it.
+Actor: any authenticated user
+Participants: :NotificationsPanel, :NotificationsController,
+:NotificationsService, :Notification (entity)
+
+1. User -> NotificationsPanel : click notification(notificationId)
+2. NotificationsPanel -> NotificationsController : markAsRead(notificationId)
+3. NotificationsController -> NotificationsService : markAsRead(userId, notificationId)
+4. NotificationsService -> Notification : updateReadFlag(notificationId, userId, isRead=true)
+5. Notification --> NotificationsService : return updated
+6. NotificationsService --> NotificationsController : return success
+7. NotificationsController --> NotificationsPanel : return 200
+8. NotificationsPanel -> User : navigate to actionUrl, remove unread styling
+
+Guard fragment: opt [AuthGuard: authenticated].
+
+------------------------------------------------------------
+6.10 Diagram: Mark All Notifications as Read (Bulk)
+------------------------------------------------------------
+Objective: clear the unread badge in one action.
+Actor: any authenticated user
+Participants: :NotificationsPanel, :NotificationsController,
+:NotificationsService, :Notification (entity)
+
+1. User -> NotificationsPanel : click "Mark all as read"
+2. NotificationsPanel -> NotificationsController : markAllAsRead()
+3. NotificationsController -> NotificationsService : markAllAsRead(userId)
+4. NotificationsService -> Notification : updateAllReadFlags(userId, isRead=true)
+5. Notification --> NotificationsService : return rowsAffected
+6. NotificationsService --> NotificationsController : return success
+7. NotificationsController --> NotificationsPanel : return 200
+8. NotificationsPanel -> User : clear unread badge
+
+Guard fragment: opt [AuthGuard: authenticated].
+
+------------------------------------------------------------
+6.11 Diagram: Update User Profile
+------------------------------------------------------------
+Objective: update the caller's own name and/or email (and, if name
+changes, the matching personal-workspace display name).
+Actor: any authenticated user
+Participants: :SettingsPage, :UsersController, :UsersService, :User
+(entity), :Workspace (entity)
+
+1. User -> SettingsPage : submit({name, email})
+2. SettingsPage -> UsersController : updateMe({name, email})
+3. UsersController -> UsersService : updateMe(userId, {name, email})
+4. opt [email provided]
+   4a. UsersService -> User : findByEmail(email, excluding=userId)
+   4b. User --> UsersService : return null
+5. UsersService -> User : update(userId, name, email)
+6. User --> UsersService : return updatedUser
+7. opt [name provided]
+   7a. UsersService -> Workspace : renamePersonal(userId, `${name}'s Workspace`)
+8. UsersService --> UsersController : return updatedUser
+9. UsersController --> SettingsPage : return 200 updatedUser
+10. SettingsPage -> User : show confirmation toast
+
+Alternative flows: alt [new email already in use] -> return 400.
+Guard fragment: opt [AuthGuard: authenticated AND active subscription].
+
+------------------------------------------------------------
+6.12 Diagram: Update Password
+------------------------------------------------------------
+Objective: change the caller's password after verifying the current one.
+Actor: any authenticated user
+Participants: :SettingsPage, :UsersController, :UsersService, :User (entity)
+
+1. User -> SettingsPage : submit({currentPassword, newPassword})
+2. SettingsPage -> UsersController : updatePassword({currentPassword, newPassword})
+3. UsersController -> UsersService : updatePassword(userId, {currentPassword, newPassword})
+4. UsersService -> User : findPasswordHash(userId)
+5. User --> UsersService : return passwordHash
+6. UsersService -> UsersService : checkPassword(currentPassword, passwordHash) [self-call]
+7. UsersService -> UsersService : hashPassword(newPassword) [self-call]
+8. UsersService -> User : updatePasswordHash(userId, newHash)
+9. User --> UsersService : return success
+10. UsersService --> UsersController : return success
+11. UsersController --> SettingsPage : return 200
+12. SettingsPage -> User : show "password updated" confirmation
+
+Alternative flows: alt [currentPassword incorrect] -> return error
+("current password is incorrect") -> 400.
+Guard fragment: opt [AuthGuard: authenticated AND active subscription].
+
+------------------------------------------------------------
+6.13 Diagram: Update Company Information (Director, Settings page)
+------------------------------------------------------------
+Objective: Director edits the company's own contact information from
+Settings — distinct from the Admin CRUD path in §3.9 (different
+Service function, self-service rather than platform-level).
+Actor: Director
+Participants: :SettingsPage, :CompanyController, :CompanyService,
+:Company (entity), :Workspace (entity), :ActivityService
+
+1. Director -> SettingsPage : submit({name, email, phone, address})
+2. SettingsPage -> CompanyController : updateCompany(workspaceId, payload)
+3. CompanyController -> CompanyService : updateCompany(directorId, workspaceId, payload)
+4. CompanyService -> Membership : findRole(directorId, workspaceId)
+5. Membership --> CompanyService : return role
+6. CompanyService -> CompanyService : assertRoleIsDirector(role) [self-call]
+7. CompanyService -> Company : update(workspaceId, payload)
+8. Company --> CompanyService : return updatedCompany
+9. opt [name changed]
+   9a. CompanyService -> Workspace : rename(workspaceId, name)
+10. CompanyService -> ActivityService : logActivity('company.updated', ...)
+11. CompanyService --> CompanyController : return updatedCompany
+12. CompanyController --> SettingsPage : return 200 updatedCompany
+13. SettingsPage -> Director : show confirmation
+
+Alternative flows: alt [role != Director] -> return error("only
+Directors can update company information") -> 403.
+Guard fragment: opt [AuthGuard: authenticated, role==Director].
+
+------------------------------------------------------------
+6.14 Diagram: Accountant Requests Leave
+------------------------------------------------------------
+Objective: an Accountant (non-Director member) requests to leave the
+company; the Director is notified and must approve (approval flow is
+§4.8, already specified).
+Actor: Accountant (also valid for Employee, per the same code path)
+Participants: :SettingsPage, :InvitationsController, :InvitationsService,
+:Membership (entity), :Invitation (entity), :NotificationsService,
+:Notification (entity)
+
+1. Accountant -> SettingsPage : click "Request to Leave"
+2. SettingsPage -> InvitationsController : createLeaveRequest()
+3. InvitationsController -> InvitationsService : createLeaveRequest(userId, workspaceId)
+4. InvitationsService -> Membership : findRole(userId, workspaceId)
+5. Membership --> InvitationsService : return role
+6. InvitationsService -> InvitationsService : assertNotDirector(role) [self-call]
+7. InvitationsService -> Invitation : hasPending(userId, workspaceId, type='leave_request')
+8. Invitation --> InvitationsService : return false
+9. InvitationsService -> Invitation : persist(workspaceId, userId, role, status='pending', type='leave_request')
+10. Invitation --> InvitationsService : return invitation
+11. InvitationsService -> NotificationsService : notify(director, "Leave Request")
+12. NotificationsService -> Notification : persist(...)
+13. InvitationsService --> InvitationsController : return invitation
+14. InvitationsController --> SettingsPage : return 201 "request sent"
+15. SettingsPage -> Accountant : show "pending approval"
+
+Alternative flows:
+- alt [role == Director] -> return error("Directors cannot submit a
+  leave request") -> 400
+- alt [already has a pending leave request] -> return error
+  ("pending leave request exists") -> 409
+
+Guard fragment: opt [AuthGuard: authenticated, workspace member].
+
+------------------------------------------------------------
+6.15 Diagram: Accountant Requests Contract Renewal
+------------------------------------------------------------
+Objective: an Accountant whose contract ends within 30 days requests a
+renewal; the Director is notified and must approve (approval flow is
+§4.9, already specified).
+Actor: Accountant
+Participants: :SettingsPage, :InvitationsController, :InvitationsService,
+:Membership (entity), :Invitation (entity), :NotificationsService,
+:Notification (entity)
+
+1. Accountant -> SettingsPage : click "Request Renewal"
+2. SettingsPage -> InvitationsController : createRenewalRequest()
+3. InvitationsController -> InvitationsService : createRenewalRequest(userId, workspaceId)
+4. InvitationsService -> Membership : findRoleAndContractEnd(userId, workspaceId)
+5. Membership --> InvitationsService : return {role, contractEnd}
+6. InvitationsService -> InvitationsService : assertRoleIsAccountant(role) [self-call]
+7. InvitationsService -> InvitationsService : assertWithin30Days(contractEnd) [self-call]
+8. InvitationsService -> Invitation : hasPending(userId, workspaceId, type='renewal_request')
+9. Invitation --> InvitationsService : return false
+10. InvitationsService -> Invitation : persist(workspaceId, userId, role, status='pending', type='renewal_request')
+11. Invitation --> InvitationsService : return invitation
+12. InvitationsService -> NotificationsService : notify(director, "Contract Renewal Request")
+13. NotificationsService -> Notification : persist(...)
+14. InvitationsService --> InvitationsController : return invitation
+15. InvitationsController --> SettingsPage : return 201 "request sent"
+16. SettingsPage -> Accountant : show "pending approval", days-left indicator
+
+Alternative flows:
+- alt [role != Accountant] -> return error("only Accountants can
+  request renewal") -> 400
+- alt [contractEnd more than 30 days away] -> return error("renewal
+  only available within 30 days of expiry") -> 400
+- alt [already has a pending renewal request] -> return error
+  ("pending renewal request exists") -> 409
+
+Guard fragment: opt [AuthGuard: authenticated, role==Accountant].
+
+
+#####################################################################
+# 7. SPRINT 5 SEQUENCE DIAGRAMS — AI Assistance, Real-Time Chat & PWA
+#####################################################################
+
+------------------------------------------------------------
+7.1 Diagram: AI Guidance Request and Response
+------------------------------------------------------------
+Objective: answer a user's question using live workspace invoice data
+injected into the AI prompt.
+Actor: any authenticated user; GroqChatAPI (external)
+Participants: :AiChatWidget, :AiController, :AiService, :Invoice
+(entity), :Workspace (entity), :GroqChatAPI (external)
+
+1. User -> AiChatWidget : type question, submit
+2. AiChatWidget -> AiController : chat(messages)
+3. AiController -> AiService : chat(workspaceId, messages)
+4. AiService -> Workspace : findById(workspaceId)
+5. Workspace --> AiService : return workspaceInfo
+6. AiService -> Invoice : aggregateContext(workspaceId) [status totals,
+   monthly trend, top vendors, recent invoices]
+7. Invoice --> AiService : return contextData
+8. AiService -> AiService : buildSystemPrompt(workspaceInfo, contextData) [self-call]
+9. AiService -> GroqChatAPI : complete(systemPrompt, conversationMessages)
+10. GroqChatAPI --> AiService : return replyText
+11. AiService --> AiController : return replyText
+12. AiController --> AiChatWidget : return 200 {reply: replyText}
+13. AiChatWidget -> User : render assistant reply in chat bubble
+
+Alternative flows: alt [GroqChatAPI errors or times out] -> AiService
+--> AiController : return error ; AiController --> AiChatWidget :
+return 500 "AI service unavailable" ; AiChatWidget -> User : show
+inline error, keep conversation history intact.
+Guard fragment: opt [AuthGuard: authenticated].
+
+------------------------------------------------------------
+7.2 Diagram: Create Channel (Director)
+------------------------------------------------------------
+Objective: Director creates a new named channel, gated by the
+workspace's subscription plan.
+Actor: Director
+Participants: :ChatPage, :ChatController, :SubscriptionPlan (entity, via
+internal plan-feature check), :ChatService, :ChatConversation (entity),
+:ChatMember (entity)
+
+1. Director -> ChatPage : submit channel name
+2. ChatPage -> ChatController : createConversation({type:'channel', name})
+3. ChatController -> ChatController : getPlanFeatures(workspaceId, role)
+   [self-call — see Notes]
+4. ChatController -> SubscriptionPlan : findActiveByWorkspace(workspaceId)
+5. SubscriptionPlan --> ChatController : return {canCreateChannels}
+6. ChatController -> ChatController : assertCanCreateChannels(canCreateChannels) [self-call]
+7. ChatController -> ChatService : createChannel(workspaceId, directorId, name)
+8. ChatService -> ChatConversation : findByName(workspaceId, name)
+9. ChatConversation --> ChatService : return null
+10. ChatService -> ChatConversation : persist(workspaceId, type='channel', name, createdBy=directorId)
+11. ChatConversation --> ChatService : return channel
+12. ChatService -> ChatMember : add(channel.id, directorId)
+13. ChatService --> ChatController : return channel
+14. ChatController --> ChatPage : return 201 channel
+15. ChatPage -> Director : show new channel in sidebar
+
+Alternative flows:
+- alt [plan does not include can_create_channels] -> return error
+  ("custom channels require Professional or Enterprise plan") -> 403
+- alt [channel name already exists in workspace] -> return error
+  ("channel already exists") -> 409
+
+Notes: in the real code, the plan-feature check is a plain helper
+function living inside the Controller file itself (`getPlanFeatures`),
+not a separate Express middleware — represent it as a self-call on
+`:ChatController` exactly as shown, not as an `:AuthGuard` lifeline.
+Guard fragment: opt [AuthGuard: authenticated, role==Director] wraps
+the whole flow in addition to the plan-feature self-check.
+
+------------------------------------------------------------
+7.3 Diagram: View Conversations
+------------------------------------------------------------
+Objective: load the channel + DM list with last message preview and
+unread counts; auto-provision #general on first access.
+Actor: Director, Accountant, Employee
+Participants: :ChatPage, :ChatController, :ChatService,
+:ChatConversation (entity), :ChatMember (entity), :ChatMessage (entity)
+
+1. User -> ChatPage : open Chat
+2. ChatPage -> ChatController : listConversations()
+3. ChatController -> ChatController : getPlanFeatures(workspaceId, role) [self-call]
+4. opt [has_chat == false]
+   4a. ChatController --> ChatPage : return 403 "chat not available on
+       your plan" ; ChatPage -> User : show upsell screen [end here]
+5. ChatController -> ChatService : getConversations(workspaceId, userId)
+6. ChatService -> ChatConversation : findGeneralChannel(workspaceId)
+7. ChatConversation --> ChatService : return null|generalChannel
+8. opt [no #general channel yet]
+   8a. ChatService -> ChatConversation : persist(workspaceId, type='channel', name='general')
+   8b. ChatService -> ChatMember : addAllWorkspaceMembers(generalChannel.id, workspaceId)
+9. ChatService -> ChatMember : ensureMembership(generalChannel.id, userId)
+10. ChatService -> ChatConversation : findAllForUser(workspaceId, userId) [with
+    last message + unread count per conversation]
+11. ChatConversation --> ChatService : return conversationList
+12. ChatService --> ChatController : return conversationList
+13. ChatController --> ChatPage : return 200 {conversations, features}
+14. ChatPage -> User : render sidebar (channels, DMs, unread badges)
+
+Guard fragment: opt [AuthGuard: authenticated, workspace member].
+
+------------------------------------------------------------
+7.4 Diagram: Send Message via WebSocket
+------------------------------------------------------------
+Objective: deliver a chat message to all conversation members in real
+time over a persistent socket connection (not a REST call).
+Actor: Director, Accountant, Employee (workspace member, plan-gated)
+Participants: :ChatPage, :ChatSocketGateway «control» (the io.use() /
+event-handler layer — equivalent role to a Controller, but for sockets
+rather than HTTP), :ChatService, :ChatMember (entity), :ChatMessage (entity)
+
+Connection setup (once per session, shown as a precondition note, not
+repeated per message):
+- ChatPage -> ChatSocketGateway : connect(jwtToken) ; ChatSocketGateway
+  validates JWT at handshake (`io.use()`); rejects if invalid.
+- ChatPage -> ChatSocketGateway : emit join:workspace(workspaceId)
+- ChatPage -> ChatSocketGateway : emit join:conversation(conversationId)
+
+Ordered messages:
+1. User -> ChatPage : type message, press send
+2. ChatPage -> ChatSocketGateway : emit message:send({conversationId, content})
+3. ChatSocketGateway -> ChatService : createMessage(conversationId, senderId, content)
+4. ChatService -> ChatMember : isMember(conversationId, senderId)
+5. ChatMember --> ChatService : return true
+6. ChatService -> ChatMessage : persist(conversationId, senderId, content)
+7. ChatMessage --> ChatService : return savedMessage
+8. ChatService --> ChatSocketGateway : return savedMessage
+9. ChatSocketGateway -> ChatPage : broadcast message:new(savedMessage) [to all
+   sockets in conv:{conversationId} room, including the sender]
+10. ChatPage -> User : render new message with date separator/timestamp
+
+Alternative flows: alt [sender not a member of the conversation] ->
+ChatService --> ChatSocketGateway : throw error ; ChatSocketGateway ->
+ChatPage : emit message:error({error}) ; ChatPage -> User : show inline
+error, message not sent.
+Notes: this is the one diagram in this document where the Controller
+role is played by a socket event-handler module rather than an Express
+route controller — name it `:ChatSocketGateway` consistently, never
+"Socket.io" or "WebSocket Server". No HTTP status codes apply here; use
+the literal event names from the code (`message:send`, `message:new`,
+`message:error`) as message labels, since these ARE the documented
+"operations" of this interface, not protocol noise.
+Guard fragment: connection-level JWT check only (shown above); no
+additional per-message AuthGuard opt fragment — the membership check at
+step 4 IS the per-message authorization.
+
+------------------------------------------------------------
+7.5 Diagram: Load Messages with Pagination (Before-Cursor)
+------------------------------------------------------------
+Objective: load the most recent 50 messages on open; load older ones on
+scroll-up using the oldest visible message's timestamp as a cursor.
+Actor: Director, Accountant, Employee
+Participants: :ChatPage, :ChatController, :ChatService, :ChatMember
+(entity), :ChatMessage (entity)
+
+1. User -> ChatPage : open conversation(conversationId)
+2. ChatPage -> ChatController : listMessages(conversationId)
+3. ChatController -> ChatService : getMessages(conversationId, userId, {limit:50})
+4. ChatService -> ChatMember : isMember(conversationId, userId)
+5. ChatMember --> ChatService : return true
+6. ChatService -> ChatMessage : findRecent(conversationId, limit=50)
+7. ChatMessage --> ChatService : return messageList (oldest-first)
+8. ChatService --> ChatController : return messageList
+9. ChatController --> ChatPage : return 200 messageList
+10. ChatPage -> User : render message list
+11. opt [user scrolls to top]
+    11a. ChatPage -> ChatController : listMessages(conversationId, {before:
+         oldestVisibleMessage.createdAt})
+    11b. ChatController -> ChatService : getMessages(conversationId, userId,
+         {limit:50, before: cursor})
+    11c. ChatService -> ChatMessage : findBeforeCursor(conversationId, cursor, limit=50)
+    11d. ChatMessage --> ChatService : return olderMessageList
+    11e. ChatService --> ChatController : return olderMessageList
+    11f. ChatController --> ChatPage : return 200 olderMessageList
+    11g. ChatPage -> User : prepend older messages to the list
+
+Alternative flows: alt [userId not a member] -> return error("not a
+member") -> 403.
+Guard fragment: opt [AuthGuard: authenticated, workspace member].
+
+------------------------------------------------------------
+7.6 Diagram: Create Direct Message Conversation
+------------------------------------------------------------
+Objective: start (or resume) a 1:1 conversation with another workspace
+member, gated by the `has_dm` plan flag.
+Actor: Director, Accountant, Employee (Professional/Enterprise plans only)
+Participants: :ChatPage, :ChatController, :SubscriptionPlan (entity, via
+plan-feature check), :ChatService, :ChatConversation (entity), :ChatMember (entity)
+
+1. User -> ChatPage : select teammate to message
+2. ChatPage -> ChatController : createConversation({type:'direct', userId: otherUserId})
+3. ChatController -> ChatController : getPlanFeatures(workspaceId, role) [self-call]
+4. ChatController -> SubscriptionPlan : findActiveByWorkspace(workspaceId)
+5. SubscriptionPlan --> ChatController : return {hasDm}
+6. ChatController -> ChatController : assertHasDm(hasDm) [self-call]
+7. ChatController -> ChatService : createDirectMessage(workspaceId, userId, otherUserId)
+8. ChatService -> ChatConversation : findExistingDirect(workspaceId, userId, otherUserId)
+9. ChatConversation --> ChatService : return null
+10. ChatService -> ChatConversation : persist(workspaceId, type='direct', createdBy=userId)
+11. ChatConversation --> ChatService : return conversation
+12. ChatService -> ChatMember : add(conversation.id, userId)
+13. ChatService -> ChatMember : add(conversation.id, otherUserId)
+14. ChatService --> ChatController : return conversation
+15. ChatController --> ChatPage : return 201 conversation
+16. ChatPage -> User : open new DM thread
+
+Alternative flows:
+- alt [plan does not include has_dm] -> return error("direct messages
+  require Professional or Enterprise plan") -> 403
+- alt [a DM between these two users already exists] -> ChatService
+  returns the existing conversation instead of creating a new one
+  (idempotent — not an error path)
+
+Guard fragment: opt [AuthGuard: authenticated, workspace member].
+
+------------------------------------------------------------
+7.7 Diagram: Mark Conversation as Read
+------------------------------------------------------------
+Objective: reset the unread counter for a conversation when the user
+opens/views it.
+Actor: Director, Accountant, Employee
+Participants: :ChatPage, :ChatController, :ChatService, :ChatMember (entity)
+
+1. User -> ChatPage : open conversation(conversationId) [or it gains
+   focus while already open]
+2. ChatPage -> ChatController : readConversation(conversationId)
+3. ChatController -> ChatService : markAsRead(conversationId, userId)
+4. ChatService -> ChatMember : updateLastReadAt(conversationId, userId, now())
+5. ChatMember --> ChatService : return success
+6. ChatService --> ChatController : return success
+7. ChatController --> ChatPage : return 200
+8. ChatPage -> User : clear unread badge for that conversation
+
+Guard fragment: opt [AuthGuard: authenticated, workspace member].
+
+------------------------------------------------------------
+7.8 Diagram: Delete Own Chat Message (Soft-Delete, Real-Time)
+------------------------------------------------------------
+Objective: the message author removes their own message; content is
+soft-deleted (kept for audit, hidden from the UI) and the removal is
+broadcast live to everyone in the room.
+Actor: message author (Director, Accountant, or Employee)
+Participants: :ChatPage, :ChatSocketGateway, :ChatService, :ChatMessage (entity)
+
+1. User -> ChatPage : hover own message, click trash icon
+2. ChatPage -> ChatSocketGateway : emit message:delete({messageId, conversationId})
+3. ChatSocketGateway -> ChatService : deleteMessage(messageId, userId)
+4. ChatService -> ChatMessage : softDelete(messageId, ownerId=userId)
+5. ChatMessage --> ChatService : return {id, conversationId} | notFound
+6. ChatService --> ChatSocketGateway : return result
+7. ChatSocketGateway -> ChatPage : broadcast message:deleted({messageId,
+   conversationId}) [to all sockets in conv:{conversationId} room]
+8. ChatPage -> User : replace message content with "Message deleted" tombstone
+
+Alternative flows: alt [requester is not the message author OR message
+not found] -> ChatService --> ChatSocketGateway : throw error ;
+ChatSocketGateway -> ChatPage : emit message:error({error}) ; no
+broadcast is sent.
+Notes: keep `:ChatSocketGateway` naming consistent with §7.4. The
+"deletion" is a soft-delete (sets a deletedAt timestamp on
+:ChatMessage) — never show this as a hard `delete()`.
+
+------------------------------------------------------------
+7.9 Diagram: Typing Indicator Flow
+------------------------------------------------------------
+Objective: show/hide a "user is typing…" indicator to other room
+members in real time, with no database persistence at all.
+Actor: Director, Accountant, Employee
+Participants: :ChatPage (sender), :ChatSocketGateway, :ChatPage (other
+room members — shown as a second instance of the same class, a normal
+UML technique for multiple objects of one class)
+
+1. User -> ChatPage(sender) : start typing
+2. ChatPage(sender) -> ChatSocketGateway : emit typing:start({conversationId})
+3. ChatSocketGateway -> ChatPage(others) : broadcast typing({userId,
+   userName, conversationId, typing:true}) [to conv:{conversationId}
+   room, excluding sender]
+4. ChatPage(others) -> User(others) : show "X is typing…"
+5. opt [user stops typing OR 3s of inactivity elapses — client-side timer]
+   5a. User -> ChatPage(sender) : stop typing / timeout
+   5b. ChatPage(sender) -> ChatSocketGateway : emit typing:stop({conversationId})
+   5c. ChatSocketGateway -> ChatPage(others) : broadcast typing({...,typing:false})
+   5d. ChatPage(others) -> User(others) : hide "is typing…" indicator
+
+Notes: no Service, no Entity — this feature is purely transient
+socket-relay behavior with zero persistence, matching the real
+`chat.socket.js` handler exactly.
+
+------------------------------------------------------------
+7.10 Diagram: Chat Feature Gate Check (Plan Validation)
+------------------------------------------------------------
+Objective: zoom in, as its own diagram, on the plan-feature evaluation
+that several other diagrams above call inline (§7.2 step 3-6, §7.3 step
+3-4, §7.6 step 3-6) — shown separately because rapportHelp.md and
+rapport.txt both list it as its own use case/diagram.
+Actor: System (`getPlanFeatures` helper) + the authenticated user whose
+action triggered the check
+Participants: :ChatController, :SubscriptionPlan (entity)
+
+1. ChatController -> ChatController : getPlanFeatures(workspaceId, role) [self-call]
+2. alt [role == Admin]
+   2a. ChatController -> ChatController : return {hasChat:true, hasDm:true,
+       canCreateChannels:true} [self-call — Admins bypass all gating]
+   else
+   2b. ChatController -> SubscriptionPlan : findActiveFeaturesByWorkspace(workspaceId)
+   2c. SubscriptionPlan --> ChatController : return {hasChat, hasDm, canCreateChannels}
+3. ChatController -> ChatController : evaluateRequestedFeature(requestedFeature,
+   features) [self-call]
+4. alt [feature flag is true]
+   4a. ChatController -> ChatController : proceed to the requested action
+       (continue in §7.2/§7.3/§7.4/§7.6 as applicable)
+   else [feature flag is false]
+   4b. ChatController --> ChatPage : return 403 {error, code:"PLAN_UPGRADE_REQUIRED"}
+   4c. ChatPage -> User : show plan-upsell screen
+
+Notes: in the real code there is no dedicated middleware file for this
+— `getPlanFeatures` is a plain function defined directly inside
+`chat.controller.js` and called inline. Do not draw a separate
+`:AuthGuard` lifeline for it; the self-call on `:ChatController` shown
+here is the faithful representation. No SubscriptionPlan lifeline is
+needed when role == Admin (short-circuit branch).
+
+------------------------------------------------------------
+7.11 Diagram: Install PWA from Browser Prompt
+------------------------------------------------------------
+Objective: install EASYfact to the home screen using the browser's
+native installability API — entirely client-side, no backend call at all.
+Actor: any authenticated user; Browser (native platform capability —
+the one exception to "no external system besides GroqVisionAPI/
+BrevoEmailService/GroqChatAPI", justified because this diagram's whole
+subject IS a native browser API, not an arbitrary tech-name shortcut)
+Participants: :InstallPwaPrompt «boundary», :Browser (external — native
+`beforeinstallprompt` API)
+
+1. Browser -> InstallPwaPrompt : fire beforeinstallprompt(event)
+   [browser-initiated, once installability criteria are met]
+2. InstallPwaPrompt -> InstallPwaPrompt : capturePromptEvent(event), show
+   custom install banner [self-call]
+3. User -> InstallPwaPrompt : click "Install"
+4. InstallPwaPrompt -> Browser : event.prompt()
+5. Browser -> User : show native install confirmation dialog
+6. User -> Browser : confirm install
+7. Browser --> InstallPwaPrompt : return userChoice.outcome = "accepted"
+8. InstallPwaPrompt -> InstallPwaPrompt : hide banner [self-call]
+9. Browser -> User : add app icon to home screen / app list
+
+Alternative flows: alt [user dismisses the native dialog] -> Browser
+--> InstallPwaPrompt : return userChoice.outcome = "dismissed" ;
+InstallPwaPrompt -> InstallPwaPrompt : keep banner state unchanged (user
+can retry later).
+Notes: no Controller, no Service, no Entity, no AuthGuard — this
+diagram never touches the backend. `:Browser` is the only lifeline in
+this document besides `:GroqVisionAPI`/`:GroqChatAPI`/
+`:BrevoEmailService` permitted to represent a "platform" rather than a
+project class, and only because the feature being diagrammed (FR24,
+PWA installation) is defined entirely in terms of that platform API.
+
+
+#####################################################################
+# 8. DIAGRAM GENERATION RULES (apply to every diagram above and to any
+#    further diagrams generated from this document)
+#####################################################################
+
+1. Never use "React Frontend", "Client", "UI", or "Browser" as a
+   lifeline. Use the specific page/component name (`:LoginPage`,
+   `:UploadInvoicePage`, etc.).
+2. Never use "Express API", "Server", "Backend", or "REST API" as a
+   lifeline. Use the specific `:XController` / `:XService` names given
+   above.
+3. Never use "PostgreSQL", "Database", "DB", or "Pool" as a lifeline.
+   Use the specific Entity name (`:Invoice`, `:User`, `:Membership`,
+   etc.) representing the persisted domain object.
+4. Never write SQL (no SELECT/INSERT/UPDATE/DELETE/JOIN/WHERE/BEGIN/
+   COMMIT) anywhere on a message label. Translate every database
+   interaction into a verb-based operation: find/persist/update/delete/
+   upsert/record, exactly as used in the diagrams above.
+5. Never show Multer, bcrypt, jsonwebtoken, node-cron, Tesseract, sharp,
+   pdf-poppler, axios, or any other npm package name as a lifeline or
+   message label. These are implementation details folded into the
+   Service's self-calls or into the `:GroqVisionAPI`/`:BrevoEmailService`
+   external participants where the report's documented architecture
+   requires an explicit external system.
+6. Never draw the 4 Express middleware functions
+   (authenticate/authorizeInWorkspace/authorizeAdmin/
+   requireActiveSubscription) as individual lifelines in feature-level
+   diagrams. Represent them as a single `opt`/`alt` guard fragment per
+   §1.4, except in §2 (Global) and §3.1–3.2 (Registration/Login) where
+   authentication is the explicit subject.
+7. Always keep Controller and Service as two separate lifelines — never
+   merge them, and never skip the Controller and call the Service
+   directly from the Boundary.
+8. Always route every database-touching action through the Entity
+   lifeline that owns that table — never let a Service "directly"
+   produce data without an Entity message, even for one-line lookups.
+9. Use solid lines with filled arrowheads for synchronous calls; dashed
+   lines with open arrowheads for return messages. Every call that has
+   a meaningful result must have an explicit return message — do not
+   leave calls "hanging" without a return arrow.
+10. Use `alt` for mutually exclusive branches (success vs. specific
+    error conditions), `opt` for an optional step that may or may not
+    execute (e.g. a guard, a threshold-based notification), and `loop`
+    for iteration over a collection (e.g. "for each reviewer", "for
+    each of the six OCR fields"). Do not use `alt` where `opt` is
+    correct (a single optional branch with no real "else" is `opt`,
+    not `alt` with an empty else).
+11. Return messages must be meaningful, not generic "OK": state what
+    was returned (`return invoice`, `return 403 Forbidden`,
+    `return {subscription, amountCharged}`), matching the messages
+    given in each diagram above.
+12. Keep every lifeline name byte-for-byte consistent with the class
+    diagram already produced for this project (see the class names in
+    Domain: Authentication & Access, Workspace & Team Management,
+    Subscription Management, Invoice Management, Chat & Communication).
+    Do not introduce a new spelling or synonym for an existing class
+    (e.g. always `:Membership`, never `:TeamMember` or `:Assignment`).
+13. Keep the BCE-derived 4-stereotype model (boundary / control-
+    controller / control-service / entity) identical across literally
+    every diagram in this document — do not switch to a 3-tier or a
+    pure BCE model partway through; consistency across all ~64 diagrams
+    (Global + 12 Sprint 1 + 10 Sprint 2 + 15 Sprint 3 + 15 Sprint 4 +
+    11 Sprint 5) is required for academic coherence.
+14. Where a diagram above explicitly states "Notes:", treat that note as
+    a binding instruction for how to draw that specific diagram (e.g.
+    the double ActivityLog write in §4.9, the "extends" relationship in
+    §5.6, the lack of any Boundary/AuthGuard in cron-triggered diagrams
+    §5.1 and §5.15).
+15. Per the explicit decision for this project: the Sprint 3 OCR diagram
+    (§5.1) shows `:GroqVisionAPI` as the external OCR provider, matching
+    the academic report's documented architecture, even though the
+    current codebase implements OCR locally with Tesseract.js. Do not
+    silently revert to a Tesseract-based diagram. The same treatment
+    applies to `:GroqChatAPI` in §7.1 (AI Guidance) — the model name
+    used in the report differs from the model name in the code, but
+    since no diagram message ever names a specific model version, this
+    causes no actual inconsistency; do not introduce one by adding a
+    model name to any message label.
+16. Report-export diagrams (§6.3 PDF, §6.4 Excel, §6.5 CSV/DOCX/ZIP) and
+    the PWA-install diagram (§7.11) are the only diagrams in this
+    document that are intentionally Boundary-only, with zero Controller/
+    Service/Entity lifelines and zero AuthGuard fragment. This is
+    faithful to the implementation (export is pure client-side
+    transformation of already-fetched data; PWA install is a native
+    browser capability) — do not "fill in" a Controller/Service chain
+    for these just to match the shape of other diagrams.
+17. `:Browser` (§7.11 only) and the three external systems (`:GroqVisionAPI`
+    §5.1, `:GroqChatAPI` §7.1, `:BrevoEmailService` throughout) are the
+    ONLY platform/technology-named participants permitted anywhere in
+    this document. No other diagram may introduce a new platform-named
+    lifeline under any circumstance.
+18. The real-time chat diagrams (§7.4 Send Message, §7.8 Delete Message,
+    §7.9 Typing Indicator) use `:ChatSocketGateway` as the «control»
+    participant in place of a Controller, because the code's real
+    entry point for these three flows is a Socket.io event handler
+    (`chat.socket.js`), not an Express route. Keep this substitution
+    confined to exactly these three diagrams — every other chat
+    diagram (§7.2, §7.3, §7.5, §7.6, §7.7, §7.10) is a normal REST call
+    and must use `:ChatController` as usual, matching the real
+    `chat.controller.js` / `chat.routes.js` split in the code.
+19. Self-referential plan-gating checks (`getPlanFeatures`, seen in
+    §7.2, §7.3, §7.6, §7.10) must be drawn as self-calls on
+    `:ChatController`, never as a separate `:AuthGuard` or
+    `:SubscriptionMiddleware` lifeline — this differs from the generic
+    §1.4 middleware policy because, unlike `authenticate`/
+    `authorizeInWorkspace`/`requireActiveSubscription` (which ARE
+    separate Express middleware files), `getPlanFeatures` is genuinely
+    defined inside the controller file itself in the real code.
+20. Two Service-layer functions in §6.13 ("Update Company Information",
+    Director self-service from Settings) and §3.9/§3.10 ("Update/Delete
+    Company", Admin CRUD) call different Service functions
+    (`CompanyService.updateCompany` vs. `CompanyService.adminUpdateCompany`/
+    `adminCreateCompany`/`deleteCompany`) even though both operate on the
+    same `:Company` entity. Keep them as two distinct diagrams with two
+    distinct Service method names — never collapse them into one
+    diagram, since they have different actors, different authorization
+    rules, and are reached from different pages in the real application.

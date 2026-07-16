@@ -1,0 +1,574 @@
+=====================================================================
+ EASYfact — Class Diagram Generation Prompt (classdiag.txt)
+ Source of truth: server/src/config/schema.sql + chat_migration.sql
+ Paste the section below "BEGIN PROMPT" verbatim to the diagram AI.
+=====================================================================
+
+============================== BEGIN PROMPT ==============================
+
+Draw a UML class diagram for the EASYfact invoice management platform.
+Follow every instruction below exactly — do not invent attributes,
+methods, or relationships not listed here.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 1 — RENDERING RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Each class box has three compartments: class name (top), attributes
+   (middle), methods (bottom).
+2. Attribute format:  - attributeName : Type
+3. Method format:     + methodName() : ReturnType
+4. Visibility: - (private) for attributes, + (public) for methods.
+5. Every relationship line must carry a label describing the role.
+   Place the label in the middle of the line.
+6. Every relationship line must show multiplicities at both ends
+   (e.g., 1, 0..1, 0..*, 1..*).
+7. Relationship types used in this diagram:
+   - Composition  : filled diamond (◆) on the OWNER/WHOLE end.
+                    The part cannot exist without the whole.
+                    Arrow direction: owner ◆──── part
+   - Aggregation  : hollow diamond (◇) on the WHOLE end.
+                    The part can exist independently.
+                    Arrow direction: whole ◇──── part
+   - Association  : plain solid line (────).
+                    A navigable relationship between two classes.
+   - Dependency   : dashed arrow (- - ->).
+                    One class uses/references another without owning it.
+8. Use an «enumeration» stereotype for InvoiceStatus (see Part 2).
+9. Group classes visually into five swim-lane packages (dashed boxes):
+     Package A: Auth & Access       → User, Role, Workspace, Membership
+     Package B: Company & Plans     → Company, SubscriptionPlan, Subscription
+     Package C: Invoice Management  → Invoice, InvoiceStatus, Document,
+                                      ExtractedField, StatusHistory
+     Package D: Workspace Events    → Invitation, Notification, ActivityLog
+     Package E: Real-Time Chat      → ChatConversation, ChatMember, ChatMessage
+10. Do NOT add any class, attribute, method, or relationship not
+    listed in this prompt.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 2 — CLASSES (18 total)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+──────────────────────────────────────
+CLASS: User
+Package: Auth & Access
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - name : String
+  - email : String
+  - passwordHash : String
+  - isVerified : Boolean
+  - verificationCode : String
+  - resetCode : String
+  - lastActiveWorkspaceId : UUID
+  - createdAt : Timestamp
+
+Methods:
+  + register() : User
+  + login() : String (JWT)
+  + verifyEmail() : Boolean
+  + refreshToken() : String
+  + logout() : void
+  + updateProfile() : User
+  + updatePassword() : void
+  + switchWorkspace() : Workspace
+
+──────────────────────────────────────
+CLASS: Role
+Package: Auth & Access
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - name : String
+
+Methods:
+  + findAll() : Role[]
+  + findByName() : Role
+
+──────────────────────────────────────
+CLASS: Workspace
+Package: Auth & Access
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - name : String
+  - type : String  (personal | company)
+  - ownerId : UUID
+  - createdAt : Timestamp
+
+Methods:
+  + create() : Workspace
+  + findById() : Workspace
+  + findByUser() : Workspace[]
+  + findByOwner() : Workspace[]
+
+──────────────────────────────────────
+CLASS: Membership
+Package: Auth & Access
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - userId : UUID
+  - workspaceId : UUID
+  - roleId : UUID
+  - joinedAt : Timestamp
+  - contractStart : Timestamp
+  - contractEnd : Timestamp
+
+Methods:
+  + create() : Membership
+  + findByWorkspace() : Membership[]
+  + findByUser() : Membership[]
+  + updateContractDates() : Membership
+  + remove() : void
+
+──────────────────────────────────────
+CLASS: Company
+Package: Company & Plans
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - workspaceId : UUID
+  - name : String
+  - email : String
+  - phone : String
+  - address : String
+  - industry : String
+  - code : String  (unique 8-char join code)
+  - createdAt : Timestamp
+  - updatedAt : Timestamp
+
+Methods:
+  + create() : Company
+  + findById() : Company
+  + findAll() : Company[]
+  + update() : Company
+  + delete() : void
+  + findByCode() : Company
+
+──────────────────────────────────────
+CLASS: SubscriptionPlan
+Package: Company & Plans
+──────────────────────────────────────
+Attributes:
+  - id : Integer
+  - name : String
+  - price : Decimal
+  - maxInvoices : Integer
+  - maxUsers : Integer
+  - ocrAccuracy : Decimal
+  - planType : String  (company | personal)
+  - hasChat : Boolean
+  - hasDm : Boolean
+  - canCreateChannels : Boolean
+  - isActive : Boolean
+
+Methods:
+  + findAll() : SubscriptionPlan[]
+  + findById() : SubscriptionPlan
+  + findActiveByWorkspace() : SubscriptionPlan
+  + getFeatureFlags() : Object
+
+──────────────────────────────────────
+CLASS: Subscription
+Package: Company & Plans
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - companyId : UUID
+  - userId : UUID
+  - planId : Integer
+  - status : String  (trialing | active | past_due | cancelled | expired)
+  - trialEndsAt : Timestamp
+  - currentPeriodEnd : Timestamp
+  - cardholderName : String
+  - cardLast4 : String
+  - credits : Decimal
+  - billingStart : Timestamp
+  - createdAt : Timestamp
+
+Methods:
+  + create() : Subscription
+  + findByCompany() : Subscription
+  + findByUser() : Subscription
+  + upgrade() : Subscription
+  + renew() : Subscription
+  + expire() : void
+  + detectExpired() : Subscription[]
+
+──────────────────────────────────────
+CLASS: Invoice
+Package: Invoice Management
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - workspaceId : UUID
+  - createdBy : UUID
+  - invoiceNumber : String
+  - vendorName : String
+  - amount : Decimal
+  - currency : String
+  - invoiceDate : Date
+  - dueDate : Date
+  - notes : Text
+  - category : String
+  - currentStatus : String
+  - ocrStatus : String
+  - ocrConfidence : Decimal
+  - createdAt : Timestamp
+  - updatedAt : Timestamp
+
+Methods:
+  + create() : Invoice
+  + findById() : Invoice
+  + findAll() : Invoice[]
+  + update() : Invoice
+  + delete() : void
+  + submitForReview() : Invoice
+  + approve() : Invoice
+  + reject() : Invoice
+  + markAsPaid() : Invoice
+  + markAsArchived() : Invoice
+  + aggregateContext() : Object
+
+──────────────────────────────────────
+ENUMERATION: InvoiceStatus
+Package: Invoice Management
+Stereotype: «enumeration»
+──────────────────────────────────────
+Values:
+  draft
+  pending_review
+  approved
+  rejected
+  paid
+  archived
+
+(No attributes or methods compartments — show only the values list.)
+
+──────────────────────────────────────
+CLASS: Document
+Package: Invoice Management
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - invoiceId : UUID
+  - fileName : String
+  - mimeType : String
+  - fileSize : Integer
+  - storagePath : String
+  - isPrimary : Boolean
+  - uploadedBy : UUID
+  - uploadedAt : Timestamp
+
+Methods:
+  + upload() : Document
+  + findByInvoice() : Document[]
+  + download() : File
+  + delete() : void
+
+──────────────────────────────────────
+CLASS: ExtractedField
+Package: Invoice Management
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - invoiceId : UUID
+  - fieldName : String
+  - fieldValue : Text
+  - confidence : Decimal
+  - needsReview : Boolean
+  - manuallyCorrected : Boolean
+  - correctedBy : UUID
+  - createdAt : Timestamp
+  - updatedAt : Timestamp
+
+Methods:
+  + create() : ExtractedField
+  + findByInvoice() : ExtractedField[]
+  + update() : ExtractedField
+  + syncFromOcr() : ExtractedField[]
+
+──────────────────────────────────────
+CLASS: StatusHistory
+Package: Invoice Management
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - invoiceId : UUID
+  - status : String
+  - changedBy : UUID
+  - changedAt : Timestamp
+  - comment : Text
+
+Methods:
+  + record() : StatusHistory
+  + findByInvoice() : StatusHistory[]
+
+──────────────────────────────────────
+CLASS: Invitation
+Package: Workspace Events
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - workspaceId : UUID
+  - code : String
+  - roleId : UUID
+  - type : String  (join_request | leave_request | renewal_request)
+  - status : String  (pending | accepted | rejected)
+  - userId : UUID
+  - requestedRoleId : UUID
+  - createdBy : UUID
+  - createdAt : Timestamp
+  - acceptedBy : UUID
+  - acceptedAt : Timestamp
+  - rejectedAt : Timestamp
+  - expiresAt : Timestamp
+  - maxUses : Integer
+  - usedCount : Integer
+
+Methods:
+  + create() : Invitation
+  + findByCode() : Invitation
+  + findByWorkspace() : Invitation[]
+  + findPending() : Invitation[]
+  + accept() : Invitation
+  + reject() : Invitation
+
+──────────────────────────────────────
+CLASS: Notification
+Package: Workspace Events
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - userId : UUID
+  - type : String  (info | success | warning | error)
+  - title : String
+  - message : Text
+  - actionUrl : String
+  - isRead : Boolean
+  - createdAt : Timestamp
+
+Methods:
+  + create() : Notification
+  + findByUser() : Notification[]
+  + markAsRead() : void
+  + markAllAsRead() : void
+
+──────────────────────────────────────
+CLASS: ActivityLog
+Package: Workspace Events
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - workspaceId : UUID
+  - userId : UUID
+  - action : String
+  - entityType : String
+  - entityId : UUID
+  - metadata : JSON
+  - createdAt : Timestamp
+
+Methods:
+  + record() : ActivityLog
+  + findByWorkspace() : ActivityLog[]
+  + findByUser() : ActivityLog[]
+
+──────────────────────────────────────
+CLASS: ChatConversation
+Package: Real-Time Chat
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - workspaceId : UUID
+  - type : String  (channel | direct)
+  - name : String
+  - createdBy : UUID
+  - createdAt : Timestamp
+
+Methods:
+  + create() : ChatConversation
+  + findById() : ChatConversation
+  + findAllForUser() : ChatConversation[]
+  + findGeneralChannel() : ChatConversation
+  + findExistingDirect() : ChatConversation
+
+──────────────────────────────────────
+CLASS: ChatMember
+Package: Real-Time Chat
+──────────────────────────────────────
+Attributes:
+  - conversationId : UUID
+  - userId : UUID
+  - joinedAt : Timestamp
+  - lastReadAt : Timestamp
+
+Methods:
+  + add() : ChatMember
+  + remove() : void
+  + isMember() : Boolean
+  + updateLastReadAt() : void
+  + addAllWorkspaceMembers() : void
+  + ensureMembership() : ChatMember
+
+──────────────────────────────────────
+CLASS: ChatMessage
+Package: Real-Time Chat
+──────────────────────────────────────
+Attributes:
+  - id : UUID
+  - conversationId : UUID
+  - senderId : UUID
+  - content : Text
+  - createdAt : Timestamp
+  - updatedAt : Timestamp
+  - deletedAt : Timestamp
+
+Methods:
+  + create() : ChatMessage
+  + findRecent() : ChatMessage[]
+  + findBeforeCursor() : ChatMessage[]
+  + softDelete() : void
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 3 — RELATIONSHIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Format used below:
+  [Type]  SourceClass (mult) ─── label ─── (mult) TargetClass
+
+Compositions (◆ filled diamond on the OWNER end):
+
+  [Composition]  User (1) ◆─── owns ─── (0..*) Workspace
+    A user owns one or more workspaces. If the owner is deleted,
+    all owned workspaces are deleted.
+
+  [Composition]  Workspace (1) ◆─── contains ─── (0..*) Invoice
+    A workspace contains all its invoices. Invoices cannot exist
+    outside a workspace.
+
+  [Composition]  Workspace (1) ◆─── hosts ─── (0..*) ChatConversation
+    All channels and DM threads belong to a workspace.
+
+  [Composition]  Workspace (1) ◆─── logs ─── (0..*) ActivityLog
+    Activity log entries belong to the workspace they were recorded in.
+
+  [Composition]  Workspace (1) ◆─── issues ─── (0..*) Invitation
+    Join/leave/renewal requests are scoped to a workspace.
+
+  [Composition]  Invoice (1) ◆─── stores ─── (0..*) Document
+    Documents are attachments of an invoice; they are deleted with it.
+
+  [Composition]  Invoice (1) ◆─── extracts ─── (0..*) ExtractedField
+    OCR-extracted fields belong to exactly one invoice.
+
+  [Composition]  Invoice (1) ◆─── tracks ─── (0..*) StatusHistory
+    Status change records are owned by their invoice.
+
+  [Composition]  Company (1) ◆─── holds ─── (0..*) Subscription
+    A company can have multiple subscriptions (current + history).
+
+  [Composition]  User (1) ◆─── receives ─── (0..*) Notification
+    Notifications are created for a specific user and deleted with them.
+
+  [Composition]  ChatConversation (1) ◆─── contains ─── (0..*) ChatMessage
+    Messages are part of a conversation; deleted when conversation
+    is deleted.
+
+Aggregations (◇ hollow diamond on the WHOLE end):
+
+  [Aggregation]  Workspace (1) ◇─── has ─── (0..*) Membership
+    A workspace aggregates its memberships. The Member (User) exists
+    independently of any one workspace.
+
+  [Aggregation]  ChatConversation (1) ◇─── includes ─── (0..*) ChatMember
+    A conversation groups its member records. The User exists
+    independently of any one conversation.
+
+  [Aggregation]  Workspace (1) ◇─── belongs to ─── (1) Company
+    A company workspace is described by exactly one Company record.
+    Company cannot exist without its workspace (1:1 mapping).
+    Diamond on Workspace end.
+
+Associations (plain solid lines ────):
+
+  [Association]  User (1) ─── joins via ─── (0..*) Membership
+    A user has zero or more membership records across workspaces.
+
+  [Association]  Membership (0..*) ─── assigned ─── (1) Role
+    Each membership specifies exactly one role for that user in
+    that workspace.
+
+  [Association]  Role (1) ─── defines ─── (0..*) Invitation
+    An invitation specifies the role to be assigned to the
+    requesting user.
+
+  [Association]  User (1) ─── creates ─── (0..*) Invoice
+    A user (Employee/Director/Personal) creates invoices.
+    (created_by — set to NULL if user is deleted, invoice preserved)
+
+  [Association]  User (1) ─── uploads ─── (0..*) Document
+    A user uploads document attachments.
+    (uploaded_by — set to NULL if user is deleted)
+
+  [Association]  User (1) ─── corrects ─── (0..*) ExtractedField
+    A user manually overrides an OCR-extracted field value.
+    (corrected_by — set to NULL if user is deleted)
+
+  [Association]  User (1) ─── records ─── (0..*) StatusHistory
+    A user triggers each status change entry.
+    (changed_by — set to NULL if user is deleted)
+
+  [Association]  User (1) ─── starts ─── (0..*) ChatConversation
+    A user creates channels or DM threads.
+    (created_by — set to NULL if user is deleted)
+
+  [Association]  User (1) ─── participates in ─── (0..*) ChatMember
+    A user is a member of zero or more chat conversations.
+
+  [Association]  User (1) ─── sends ─── (0..*) ChatMessage
+    A user sends chat messages.
+    (sender_id — message deleted if user is deleted)
+
+  [Association]  User (1) ─── tracks activity ─── (0..*) ActivityLog
+    Activity log entries reference the user who performed the action.
+    (user_id — set to NULL if user is deleted)
+
+  [Association]  SubscriptionPlan (1) ─── defines terms of ─── (0..*) Subscription
+    Each subscription follows one subscription plan.
+
+  [Association]  User (1) ─── subscribes personally ─── (0..1) Subscription
+    A user can hold one personal workspace subscription.
+
+Dependency (dashed arrow - - ->):
+
+  [Dependency]  Invoice - - - uses - - -> InvoiceStatus
+    Invoice.currentStatus references a valid InvoiceStatus value.
+    Shown as a dependency because InvoiceStatus is an enumeration
+    that Invoice depends on for type safety.
+
+  [Dependency]  StatusHistory - - - uses - - -> InvoiceStatus
+    StatusHistory.status must be a valid InvoiceStatus value.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 4 — DIAGRAM LAYOUT HINTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Place User centrally — it has the most relationships.
+- Place Workspace directly to the right of User (User ◆── Workspace).
+- Place Company below Workspace, connected via the aggregation.
+- Place SubscriptionPlan and Subscription below Company.
+- Place the Invoice cluster (Invoice, Document, ExtractedField,
+  StatusHistory, InvoiceStatus) to the right of Workspace.
+- Place the Chat cluster (ChatConversation, ChatMember, ChatMessage)
+  at the bottom right.
+- Place the Events cluster (Invitation, Notification, ActivityLog)
+  at the bottom left.
+- Place Membership and Role between User and Workspace.
+- Use curved lines only where straight lines would cause overlaps.
+- Keep all relationship labels readable — place them mid-line,
+  not at the ends.
+- Do not overlap class boxes. Use generous spacing.
+
+============================== END PROMPT ==============================

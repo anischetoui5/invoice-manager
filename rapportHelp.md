@@ -202,7 +202,7 @@ reflecting everything actually implemented in the codebase.
 - Mark single notification as read
 - Mark all notifications as read
 - Notification polling every 30 seconds
-- Email notifications via Resend API (invoice status changes)
+- Email notifications via Brevo HTTP API (invoice status changes; SMTP blocked on cloud hosting — uses REST API over HTTPS)
 - Profile settings: update name, email, avatar
 - Password change with strength indicator (Settings page)
 - Company info update by Director (Settings page)
@@ -264,10 +264,22 @@ reflecting everything actually implemented in the codebase.
 - Chat plan upsell screen for Starter/Personal plans
 - PWA manifest and install prompt (InstallPWA component)
 - Mobile navigation bar (MobileNav)
+- **Delete own chat message**: trash icon on hover for own messages, `message:delete` socket event, soft-delete (`deleted_at` column), real-time broadcast `message:deleted` to all conversation members
+- **Mobile UI enhancements**: TopBar shows logo + "EasyFact" on mobile left side; MobileNav uses CSS variables for dark mode; "More" slide-up drawer shows logo in header; Settings tabs responsive (2-col on mobile); CustomizationPanel hidden on mobile (desktop-only)
+- **Subscription plan feature cards**: 6-item feature list per plan with Check/X icons (invoices/mo, users, OCR accuracy, team chat, DMs, custom channels)
+- **Production deployment**:
+  - Frontend: Vercel (https://easyfact-three.vercel.app) — auto-deploys on push to main; `vercel.json` SPA routing rewrites
+  - Backend: Render free tier (https://easyfact.onrender.com) — auto-deploys on push to main; keep-alive cron pings `/api/health` every 10 min to prevent cold start
+  - Database: Neon PostgreSQL 17, EU Frankfurt, free tier (0.5 GB)
+  - Email: Brevo HTTP API (SMTP port 587 blocked by Render — switched to REST API on port 443); verification codes also logged to server console as fallback
+  - PWA: fully installable in production via Chrome "Add to Home Screen"; real logo icons used for app icon and favicon
+- **Logo integration**: custom EasyFact logo (`logo-icon.png` circle E, `logo.png` full EF+text) replaces placeholder icon in sidebar, favicon, PWA manifest, apple-touch-icon
 - Bug fixes: subscription same-plan renewal when expired
 - Bug fixes: payment modal portal rendering (createPortal to document.body)
 - Bug fixes: rejected invoice editing and resubmission
 - Bug fixes: company join code visible in Team Management page
+- Bug fixes: MobileNav role normalization (DB stores `Personal` with capital P — must map to `normal` for nav item matching)
+- Bug fixes: avatar URLs use `VITE_API_URL` base in production (not `window.location.hostname:3000`)
 
 **Use Case Diagram:** Sprint 5 covers AI Chat + Team Messenger + PWA + Stabilization
 
@@ -303,7 +315,7 @@ HOST COMPANY: Digital Finance Solutions S.A.R.L
 
 TECHNOLOGY STACK (use this in Chapter 5):
 - Frontend: React 18, TypeScript, Tailwind CSS, Recharts, Socket.io-client, date-fns, Lucide Icons, jsPDF, xlsx, Sonner (toasts)
-- Backend: Node.js, Express.js, PostgreSQL (pg), Socket.io, JWT (jsonwebtoken), Multer (file upload), node-cron, bcrypt, Resend (email), Nodemon
+- Backend: Node.js, Express.js, PostgreSQL (pg), Socket.io, JWT (jsonwebtoken), Multer (file upload), node-cron, bcrypt, Brevo HTTP API (transactional email), Nodemon
 - OCR & AI: Groq API (llama-3.2-11b-vision model for OCR, llama3-8b-8192 for chat)
 - Architecture: RESTful API + WebSocket server, monorepo structure (client/ + server/)
 - PWA: Web App Manifest, Service Worker, InstallPWA component
@@ -645,6 +657,10 @@ Use this checklist when you draw your UML diagrams.
 - [ ] Sequence: Create Direct Message Conversation
 - [ ] Sequence: Mark Conversation as Read
 - [ ] Sequence: Chat Feature Gate Check (plan validation)
+- [ ] Sequence: Delete Own Message (WebSocket soft-delete flow)
+
+### Deployment Diagram (Chapter 4 or 5)
+- [ ] Deployment Architecture Diagram (Vercel → Render API → Neon DB + Brevo email)
 
 ### Interface Screenshots (Chapter 5.8)
 - [ ] Login / Register page
@@ -657,8 +673,10 @@ Use this checklist when you draw your UML diagrams.
 - [ ] Settings page
 - [ ] Team Management page
 - [ ] Notifications panel
+- [ ] Mobile view (bottom nav + logo header)
+- [ ] PWA installed on phone home screen
 
 ---
 
-*Total diagrams to draw: ~58 UML diagrams + ~10 interface screenshots*
+*Total diagrams to draw: ~60 UML diagrams + ~12 interface screenshots*
 *Tip: Use draw.io, PlantUML, or Lucidchart for the sequence and use case diagrams.*

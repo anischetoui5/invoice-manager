@@ -1,0 +1,1017 @@
+=====================================================================
+ EASYfact — Use Case Diagram Generation Reference (ucases.txt)
+ Source of truth: actual server/ + client/ source code, cross-checked
+ against rapportHelp.md sprint breakdowns and rapport.txt Chapter 5.
+ This file specifies the per-sprint use case diagrams for Sprints 1–5.
+ The Global use case diagram is NOT covered here (already produced).
+=====================================================================
+
+
+#####################################################################
+# 1. UML STYLE — USE CASE DIAGRAMS
+#####################################################################
+
+## 1.1 Core notation
+
+- System boundary: one rectangle per sprint, titled with the sprint
+  scope. ALL use case ellipses live inside the rectangle. ALL actors
+  live outside.
+- Actor: standard UML stick figure + label. Human actors on the LEFT
+  of the boundary. External systems on the RIGHT.
+- Use case: ellipse with a short verb-noun label (max ~4 words).
+  IDs (UC-X.Y) appear in this document for cross-reference only —
+  NEVER inside the ellipse on the rendered diagram.
+- Association (actor ↔ use case): plain solid line, no arrowhead.
+- «include»: dashed arrow FROM the base UC TO the included UC, labeled
+  «include». The included UC executes unconditionally every time the
+  base UC executes.
+- «extend»: dashed arrow FROM the extending UC TO the base UC, labeled
+  «extend». Optionally annotate with the extension condition in square
+  brackets on the arrow. The extending UC executes only under that
+  specific condition.
+- Use case generalization: solid line with hollow triangle, FROM child
+  UC TO parent UC. Use only when one UC is truly a specialization of
+  another — never as a substitute for «include»/«extend».
+
+## 1.2 Actor naming — exact labels used in this document
+
+Human actors (left side of boundary):
+  User    — unauthenticated person (Sprint 1 only: Register, Log In,
+             Verify Email). Once logged in they become one of the roles
+             below. The label is "User", not "Visitor" or "Client".
+  Admin   — system-level administrator; full platform access.
+  Director — company workspace owner; manages team and subscription.
+  Accountant — financial reviewer; has contract dates in the workspace.
+  Employee — invoice submitter; basic workspace member.
+  Personal — solo user with a personal workspace; no team features.
+  System  — non-human background actor representing automated processes
+             (cron jobs, async triggers). Stick figure labeled "System".
+             Used where no human initiates the action. NOT a technology
+             name — never label it "node-cron", "Cron Job", or "Server".
+
+External systems (right side of boundary):
+  BrevoEmailService — transactional email delivery (Sprint 1 + 4).
+  GroqVisionAPI     — OCR extraction provider (Sprint 3 only).
+  GroqChatAPI       — AI chat completion API (Sprint 5 only).
+  Browser           — native PWA install API (Sprint 5 UC-5.11 only).
+
+## 1.3 What must NEVER appear
+
+- "Visitor", "WorkspaceMember", "Scheduler", "Client", "Frontend",
+  "Backend", "Server", "API", "Database", "PostgreSQL", "React App"
+  as actor labels anywhere. These are not roles in this system.
+- "Log In", "Authenticate", or "Verify Token" use cases inside Sprint
+  2–5 boundaries. Authentication is a precondition, not a use case in
+  those sprints.
+- "requireActiveSubscription" or "checkSubscription" as a use case
+  ellipse anywhere. Subscription-gating is a precondition, described
+  in UC notes, never drawn as a separate UC.
+- HTTP verbs, route paths, table names, SQL, or npm package names
+  (Multer, bcrypt, node-cron, Socket.io, Tesseract) in any label.
+- Use cases from other sprints inside the current sprint's boundary.
+
+## 1.4 Subscription-gated use cases (Sprint 2 onward)
+
+The following use cases are guarded by requireActiveSubscription.
+Mention it in the description but do NOT draw a separate UC for it:
+  Upload Invoice, Attach Document, Update Invoice Metadata,
+  Delete Draft Invoice, Delete Document, Submit for Review,
+  Resubmit Invoice, Approve/Reject/Pay/Archive Invoice.
+
+## 1.5 Drawing shared use cases with multiple actors
+
+When Employee, Director, Accountant, and Personal ALL have identical
+access to the same use case, draw four separate association lines —
+one from each actor to the UC ellipse. There is no "WorkspaceMember"
+parent actor in this system. When only some roles have access, draw
+lines only from the qualifying roles.
+
+
+#####################################################################
+# 2. ACTOR ROSTER PER SPRINT
+#####################################################################
+
+Only the actors listed below appear in each sprint diagram.
+Never mix actors across wrong sprint diagrams.
+
+  Sprint 1: User, Admin, Director, Employee, Accountant,
+            BrevoEmailService
+            Note: "User" here = unauthenticated person doing
+            Register / Log In / Verify Email.
+
+  Sprint 2: Director, Accountant, Employee, Personal
+            (no User — all actors are authenticated in Sprint 2)
+            (no external systems in Sprint 2)
+
+  Sprint 3: Director, Accountant, Employee, Personal, System,
+            GroqVisionAPI
+
+  Sprint 4: Director, Accountant, Employee, Personal, System,
+            BrevoEmailService
+
+  Sprint 5: Director, Accountant, Employee, Personal,
+            GroqChatAPI, Browser
+            Notes:
+            - Personal: only for UC-5.1 (AI Assistant) and
+              UC-5.11 (Install PWA). Personal has no team chat.
+            - Director is sole actor for UC-5.2 (Create Channel).
+            - No System actor in Sprint 5 (no cron jobs in Sprint 5).
+
+
+#####################################################################
+# 3. SPRINT 1 USE CASE DIAGRAM
+#####################################################################
+
+Title: Sprint 1 — Authentication & Administration
+Boundary label: "EASYfact — Authentication & Administration"
+Sprint goal: secure multi-role authentication, workspace initialisation,
+and administrator full CRUD as the technical baseline.
+
+Actors in this diagram (left side): User, Admin, Director, Employee,
+  Accountant
+External (right side): BrevoEmailService
+
+------------------------------------------------------------
+3.1 Authentication Use Cases
+------------------------------------------------------------
+
+UC-1.1  Register Account
+  Actors: User
+  Description: unauthenticated person submits name, email, password;
+  system validates uniqueness, hashes password, creates a User record,
+  auto-provisions a Personal workspace + Membership, then sends a
+  verification email.
+  Relationships:
+    UC-1.1 «include» UC-1.2  (email always sent on registration)
+
+UC-1.2  Send Verification Email
+  Actors: BrevoEmailService (external — right side)
+  Description: system composes a one-time verification code email and
+  dispatches it via the Brevo HTTP API.
+  Included by UC-1.1. No human actor on the left for this UC.
+
+UC-1.3  Verify Email Address
+  Actors: User
+  Description: user enters or clicks the verification code received
+  by email; system marks the account is_verified = true.
+  Note: standalone UC — happens in a separate browser session after
+  registration, NOT an «extend» of UC-1.1.
+
+UC-1.4  Log In
+  Actors: User
+  Description: user submits email + password; system validates
+  credentials and issues a JWT access token + refresh token.
+
+UC-1.5  Refresh Access Token
+  Actors: User (client-initiated silently when access token expires)
+  Description: client sends the refresh token; server validates it and
+  issues a new access token. Has its own endpoint — distinct UC.
+
+UC-1.6  Log Out
+  Actors: Admin, Director, Accountant, Employee, Personal
+  Description: client discards tokens; session ends.
+  Note: draw five individual association lines — one from each role.
+
+UC-1.7  Switch Active Workspace
+  Actors: Director, Employee, Accountant, Personal
+  Description: authenticated user selects a different workspace from
+  the workspace switcher; context changes without re-login.
+  Note: Admin does not switch workspaces (system-level access only).
+
+------------------------------------------------------------
+3.2 Admin — Company CRUD
+------------------------------------------------------------
+
+UC-1.8   Create Company
+  Actors: Admin
+  Description: Admin creates a new company record (name, industry,
+  address, logo, etc.) in the platform.
+
+UC-1.9   View Company List
+  Actors: Admin
+  Description: Admin retrieves the paginated list of all registered
+  companies.
+
+UC-1.10  View Company Details
+  Actors: Admin
+  Description: Admin views a single company's full profile.
+  Relationships:
+    UC-1.10 «extend» UC-1.9  [condition: Admin selects a company
+                               from the list]
+
+UC-1.11  Update Company
+  Actors: Admin
+  Description: Admin edits a company's name, industry, address, or logo.
+
+UC-1.12  Delete Company
+  Actors: Admin
+  Description: Admin permanently removes a company and cascades
+  deletion to its workspaces and memberships.
+
+------------------------------------------------------------
+3.3 Admin — User CRUD
+------------------------------------------------------------
+
+UC-1.13  Create User
+  Actors: Admin
+  Description: Admin creates a user account directly, bypassing
+  self-registration, and assigns an initial role.
+
+UC-1.14  View User List
+  Actors: Admin
+  Description: Admin retrieves all users; filterable by role and
+  verification status.
+
+UC-1.15  View User Details
+  Actors: Admin
+  Description: Admin views a single user's profile and all their
+  workspace memberships.
+  Relationships:
+    UC-1.15 «extend» UC-1.14  [condition: Admin selects a user
+                                from the list]
+
+UC-1.16  Update User Role
+  Actors: Admin
+  Description: Admin changes a user's role assignment within a workspace.
+
+UC-1.17  Delete User
+  Actors: Admin
+  Description: Admin permanently removes a user account and all
+  associated memberships.
+
+------------------------------------------------------------
+3.4 Workspace Initialisation
+------------------------------------------------------------
+
+UC-1.18  Create Company Workspace
+  Actors: Director
+  Description: Director creates a new company workspace and links it
+  to a company record; system generates a unique 6-character join code.
+  Relationships:
+    UC-1.18 «include» UC-1.19  (join code always generated on creation)
+
+UC-1.19  Generate Join Code
+  Actors: (system-internal — no actor association line on the left)
+  Description: system generates and stores a unique alphanumeric join
+  code for the new workspace. Reached only via «include» from UC-1.18.
+
+UC-1.20  View Workspace Join Code
+  Actors: Director
+  Description: Director retrieves and copies the join code (from Team
+  Management or Settings) to share with prospective members.
+
+UC-1.21  Join Company Workspace
+  Actors: Employee, Accountant
+  Description: user submits the join code and selects a role; system
+  creates a Membership record with status pending_approval; Director
+  reviews it in Sprint 2 Team Management UCs.
+  Note: Personal users do not join company workspaces — their Personal
+  workspace is auto-created at registration (UC-1.1).
+
+------------------------------------------------------------
+Sprint 1 — Relationships summary
+------------------------------------------------------------
+  UC-1.1  «include» UC-1.2
+  UC-1.10 «extend»  UC-1.9   [Admin selects company from list]
+  UC-1.15 «extend»  UC-1.14  [Admin selects user from list]
+  UC-1.18 «include» UC-1.19
+
+No other «include»/«extend» relationships in Sprint 1.
+
+
+#####################################################################
+# 4. SPRINT 2 USE CASE DIAGRAM
+#####################################################################
+
+Title: Sprint 2 — Invoice Management, Documents & Team Management
+Boundary label: "EASYfact — Invoice & Document Management / Team Management"
+Sprint goal: end-to-end invoice ingestion, document storage, status
+visibility, and team membership management.
+
+Actors in this diagram (left side): Employee, Director, Accountant,
+  Personal
+No external systems in Sprint 2.
+
+------------------------------------------------------------
+4.1 Invoice CRUD
+------------------------------------------------------------
+
+UC-2.1  Upload Invoice  (Create)
+  Actors: Employee, Director, Personal
+  Description: user submits invoice metadata (vendor name, amount,
+  invoice date, due date, currency, category, notes) and attaches a
+  PDF or image file (JPEG, PNG, TIFF, WebP, max 10 MB); system creates
+  an Invoice record and stores the file.
+  Subscription-gated: yes.
+  Note: Accountant does NOT upload invoices (read-only for creation).
+  Draw association lines from Employee, Director, Personal only.
+
+UC-2.2  View Invoice List  (Read)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user retrieves a paginated, filterable list of invoices.
+  Filters: vendor name keyword, date range, status. Role-scoped:
+  Employee and Personal see own invoices; Accountant and Director see
+  all workspace invoices.
+  Draw four individual association lines — one from each role.
+
+UC-2.3  View Invoice Details  (Read)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user views a single invoice's full record: metadata,
+  current status badge, attached documents panel, status history
+  stepper, and extracted-fields section.
+  Relationships:
+    UC-2.3 «extend» UC-2.2  [condition: user selects an invoice
+                              from the list]
+
+UC-2.4  Update Invoice Metadata  (Update)
+  Actors: Employee, Director, Personal
+  Description: user edits the invoice's vendor name, amount, dates,
+  category, currency, or notes before submission.
+  Precondition: invoice.current_status == 'draft'.
+  Subscription-gated: yes.
+
+UC-2.5  Delete Draft Invoice  (Delete)
+  Actors: Employee, Director, Personal
+  Description: user permanently deletes an invoice still in draft status.
+  Precondition: invoice.current_status == 'draft'.
+  Subscription-gated: yes.
+
+------------------------------------------------------------
+4.2 Document CRUD
+------------------------------------------------------------
+
+UC-2.6  Attach Document to Invoice  (Create)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user uploads a supporting file (PDF, JPEG, PNG, TIFF,
+  WebP, max 10 MB) and attaches it to an existing invoice.
+  Subscription-gated: yes.
+  Draw four individual association lines.
+
+UC-2.7  View Invoice Documents  (Read)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user lists all document attachments for a given invoice,
+  including file type icon and upload metadata.
+  Draw four individual association lines.
+
+UC-2.8  Download Document  (Read)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user downloads the original file for a document attachment.
+  Relationships:
+    UC-2.8 «extend» UC-2.7  [condition: user selects a document
+                              to download]
+
+UC-2.9  Delete Document  (Delete)
+  Actors: Employee, Director, Personal
+  Description: user removes a document attachment from an invoice.
+  Subscription-gated: yes.
+  Note: Accountant is excluded from document deletion (route guard
+  permits Admin, Director, Employee, Personal only — not Accountant).
+  Draw three association lines: Employee, Director, Personal.
+
+------------------------------------------------------------
+4.3 Team Management CRUD (Director only)
+------------------------------------------------------------
+
+UC-2.10  View Team Members  (Read)
+  Actors: Director
+  Description: Director views all workspace members grouped by role,
+  with join date, contract_start, contract_end, and membership status
+  (active / pending / leave_requested / renewal_requested).
+
+UC-2.11  Accept Join Request  (Update)
+  Actors: Director
+  Description: Director approves a pending join request; sets
+  contract_start and contract_end; membership status becomes active.
+  Relationships:
+    UC-2.11 «extend» UC-2.10  [condition: Director acts on a pending
+                                join request in the member list]
+
+UC-2.12  Reject Join Request  (Update)
+  Actors: Director
+  Description: Director denies a pending join request; no active
+  membership is created.
+  Relationships:
+    UC-2.12 «extend» UC-2.10  [condition: Director acts on a pending
+                                join request in the member list]
+
+UC-2.13  Accept Leave Request  (Update)
+  Actors: Director
+  Description: Director approves a leave request; member is immediately
+  removed from the workspace.
+  Relationships:
+    UC-2.13 «extend» UC-2.10  [condition: Director acts on a pending
+                                leave request in the member list]
+
+UC-2.14  Reject Leave Request  (Update)
+  Actors: Director
+  Description: Director denies a leave request; member remains active.
+  Relationships:
+    UC-2.14 «extend» UC-2.10  [condition: Director acts on a pending
+                                leave request in the member list]
+
+UC-2.15  Accept Renewal Request  (Update)
+  Actors: Director
+  Description: Director approves a contract renewal; extends the
+  member's contract_end to a new date.
+  Relationships:
+    UC-2.15 «extend» UC-2.10  [condition: Director acts on a pending
+                                renewal request in the member list]
+
+UC-2.16  Reject Renewal Request  (Update)
+  Actors: Director
+  Description: Director denies a contract renewal; contract_end stays
+  unchanged.
+  Relationships:
+    UC-2.16 «extend» UC-2.10  [condition: Director acts on a pending
+                                renewal request in the member list]
+
+UC-2.17  Remove Member  (Delete)
+  Actors: Director
+  Description: Director forcibly removes an active member from the
+  workspace without a leave request.
+  Relationships:
+    UC-2.17 «extend» UC-2.10  [condition: Director removes an active
+                                member from the list]
+
+------------------------------------------------------------
+Sprint 2 — Relationships summary
+------------------------------------------------------------
+  UC-2.3  «extend» UC-2.2   [user selects invoice from list]
+  UC-2.8  «extend» UC-2.7   [user selects document to download]
+  UC-2.11 «extend» UC-2.10  [process pending join request]
+  UC-2.12 «extend» UC-2.10  [process pending join request]
+  UC-2.13 «extend» UC-2.10  [process pending leave request]
+  UC-2.14 «extend» UC-2.10  [process pending leave request]
+  UC-2.15 «extend» UC-2.10  [process pending renewal request]
+  UC-2.16 «extend» UC-2.10  [process pending renewal request]
+  UC-2.17 «extend» UC-2.10  [remove active member]
+
+All seven team-management UCs extend UC-2.10. Every team action
+is initiated from the team member list view.
+
+
+#####################################################################
+# 5. SPRINT 3 USE CASE DIAGRAM
+#####################################################################
+
+Title: Sprint 3 — OCR Processing, Invoice Workflow & Subscription
+Boundary label: "EASYfact — OCR Extraction / Invoice Workflow / Subscription"
+Sprint goal: OCR with confidence scoring, full invoice status-machine
+workflow, and subscription plan management with automatic expiry.
+
+Actors in this diagram (left side): Director, Accountant, Employee,
+  Personal, System
+External (right side): GroqVisionAPI
+
+System = stick figure labeled "System"; represents the automated
+background processes (async OCR trigger, hourly expiry cron job).
+
+------------------------------------------------------------
+5.1 OCR Processing (System-initiated after invoice upload)
+------------------------------------------------------------
+
+UC-3.1  Trigger OCR Processing  (Create — system-initiated)
+  Actors: System (left side), GroqVisionAPI (external — right side)
+  Description: after an invoice file is stored (Sprint 2 UC-2.1), the
+  system asynchronously sends the document image to GroqVisionAPI;
+  receives per-field extraction results with confidence scores.
+  Relationships:
+    UC-3.1 «include» UC-3.2  (extracted fields always persisted on success)
+  Note: GroqVisionAPI is the documented OCR provider per the academic
+  report. No human role initiates this UC.
+
+UC-3.2  Persist Extracted Fields  (Create — system-internal)
+  Actors: (system-internal — no actor association line on the left)
+  Description: system saves each extracted field (invoice_number,
+  invoice_date, due_date, total_amount, tax_amount, supplier_name)
+  with its confidence score.
+  Included by UC-3.1. Draw with no actor line.
+
+UC-3.3  View Extracted Fields  (Read)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user views OCR-extracted field values and per-field
+  confidence scores on the invoice detail page. Low-confidence fields
+  are flagged needs_review.
+  Draw four individual association lines.
+
+UC-3.4  Update Extracted Field  (Update — manual correction)
+  Actors: Employee, Director, Accountant
+  Description: user manually overrides an extracted field value when
+  the confidence score is low or the value is incorrect.
+  Subscription-gated: yes.
+  Note: Personal is excluded from editing extracted fields.
+  Relationships:
+    UC-3.4 «extend» UC-3.3  [condition: user edits a flagged field]
+
+UC-3.5  Sync All Fields from OCR  (Update — bulk populate)
+  Actors: Employee, Director, Accountant
+  Description: user clicks "Sync from OCR" to overwrite all invoice
+  metadata fields with the latest OCR extraction values in one action.
+  Relationships:
+    UC-3.5 «extend» UC-3.3  [condition: user clicks "Sync from OCR"]
+
+------------------------------------------------------------
+5.2 Invoice Status Workflow (all are Update on invoice.current_status)
+------------------------------------------------------------
+
+UC-3.6  Submit Invoice for Review
+        (Update: draft → pending_review)
+  Actors: Employee, Director, Personal
+  Description: user submits a draft invoice into the accountant review
+  queue; status transitions to pending_review.
+  Subscription-gated: yes.
+
+UC-3.7  Resubmit Rejected Invoice
+        (Update: rejected → pending_review)
+  Actors: Employee, Director, Personal
+  Description: user corrects a previously rejected invoice and
+  resubmits it; status transitions back to pending_review.
+  Subscription-gated: yes.
+  Relationships:
+    UC-3.7 «extend» UC-3.6  [condition: invoice.current_status
+                              == 'rejected']
+
+UC-3.8  Approve Invoice
+        (Update: pending_review → approved)
+  Actors: Accountant
+  Description: Accountant marks a pending invoice as approved after
+  validating the extracted fields and supporting documents.
+
+UC-3.9  Reject Invoice with Notes
+        (Update: pending_review → rejected)
+  Actors: Accountant
+  Description: Accountant rejects an invoice with mandatory rejection
+  notes; status becomes 'rejected'.
+
+UC-3.10  Mark Invoice as Paid
+         (Update: approved → paid)
+  Actors: Director
+  Description: Director confirms payment has been made; status
+  transitions to 'paid'.
+
+UC-3.11  Mark Invoice as Archived
+         (Update: paid → archived)
+  Actors: Director
+  Description: Director archives a paid invoice for long-term record
+  keeping; status transitions to 'archived'.
+
+UC-3.12  View Status History  (Read)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user views the full chronological status-change log for
+  an invoice: who changed it, when, to which status, and any rejection
+  notes.
+  Draw four individual association lines.
+
+------------------------------------------------------------
+5.3 Subscription CRUD
+------------------------------------------------------------
+
+UC-3.13  Subscribe to Plan  (Create — first subscription)
+  Actors: Director
+  Description: Director selects a plan (company: Starter €49, Business
+  €149, Professional €349, Enterprise €999; personal: Free €0, Basic €9,
+  Plus €19, Premium €39) and initiates payment; a Subscription record
+  is created with status active and a current_period_end date.
+
+UC-3.14  View Current Subscription  (Read)
+  Actors: Director
+  Description: Director views their active plan name, feature flags
+  (has_chat, has_dm, can_create_channels), current_period_end, and
+  payment status.
+
+UC-3.15  Upgrade Subscription Plan  (Update — plan change)
+  Actors: Director
+  Description: Director switches to a different plan; unused days on
+  the current company plan are pro-rated as credit (personal plans:
+  no credit, full price charged); Subscription record updated to the
+  new plan and new billing period.
+
+UC-3.16  Renew Subscription  (Update — period extension)
+  Actors: Director
+  Description: Director extends an active or expired subscription for
+  another billing period on the same plan.
+
+UC-3.17  Detect Expired Subscriptions  (System — hourly cron)
+  Actors: System
+  Description: an automated hourly job finds all subscriptions where
+  current_period_end < NOW() and status != 'expired'; marks them as
+  expired; triggers a notification to the workspace Director.
+  Relationships:
+    UC-3.17 «include» UC-3.18  (lock always follows expiry detection)
+
+UC-3.18  Lock Workspace for Non-Directors  (System — access block)
+  Actors: System (triggers the lock)
+  + Employee, Accountant (secondary associations — they experience the
+    lock screen)
+  Description: when a workspace subscription expires, non-director
+  members are presented with the SubscriptionLock screen on their next
+  request; Director sees a renewal banner. Included by UC-3.17.
+  Note: draw System on the left with the «include» arrow from UC-3.17;
+  also draw Employee and Accountant on the left with association lines
+  to UC-3.18 to show they are the affected parties (experiencing the
+  lock, not triggering it).
+
+------------------------------------------------------------
+Sprint 3 — Relationships summary
+------------------------------------------------------------
+  UC-3.1  «include» UC-3.2   (OCR always persists extracted fields)
+  UC-3.4  «extend»  UC-3.3   [user edits a flagged extracted field]
+  UC-3.5  «extend»  UC-3.3   [user clicks "Sync from OCR"]
+  UC-3.7  «extend»  UC-3.6   [invoice.current_status == 'rejected']
+  UC-3.17 «include» UC-3.18  (lock always follows expiry detection)
+
+
+#####################################################################
+# 6. SPRINT 4 USE CASE DIAGRAM
+#####################################################################
+
+Title: Sprint 4 — Reporting, Notifications, Activity Log & Settings
+Boundary label: "EASYfact — Reporting / Notifications / Activity / Settings"
+Sprint goal: KPI dashboards, exportable reports, full audit activity
+log, in-app + email notifications, and user/company settings CRUD.
+
+Actors in this diagram (left side): Employee, Director, Accountant,
+  Personal, System
+External (right side): BrevoEmailService
+
+------------------------------------------------------------
+6.1 Dashboard & Reports (Read)
+------------------------------------------------------------
+
+UC-4.1  View KPI Dashboard  (Read)
+  Actors: Employee, Director, Accountant
+  Description: user views role-specific KPI cards.
+    Employee: invoices uploaded, pending, approved, total amount.
+    Accountant: pending validation count, approved, rejected today.
+    Director: total invoices, team size, approval rate, total amount
+    approved, average processing time.
+  Note: Personal workspace has no KPI dashboard — exclude Personal.
+  Draw three individual association lines: Employee, Director, Accountant.
+
+UC-4.2  View Reports and Charts  (Read)
+  Actors: Director, Accountant
+  Description: user views interactive Recharts visualisations: invoice
+  volume line chart, monthly amounts bar chart, status distribution pie
+  chart, and summary stats (total invoices, total amount, approval rate,
+  avg processing time). Filterable by date range (7/30/90 days or
+  custom).
+
+------------------------------------------------------------
+6.2 Report Export (Create — all client-side, no backend endpoint)
+------------------------------------------------------------
+Notes for generating AI: UC-4.3 through UC-4.7 are entirely
+client-side operations using already-fetched report data. There are
+NO backend routes for these. Draw them with «extend» from UC-4.2.
+Do NOT invent backend lifelines. Keep each export format as a
+separate UC — do not collapse them into one "Export Report" ellipse.
+
+UC-4.3  Export Report to PDF  (Create — client-side)
+  Actors: Director
+  Description: exports the visible report to PDF using jsPDF +
+  html2canvas (entirely client-side).
+  Relationships: UC-4.3 «extend» UC-4.2  [user clicks "Export PDF"]
+
+UC-4.4  Export Report to Excel  (Create — client-side)
+  Actors: Director
+  Description: exports report data to .xlsx using the xlsx library.
+  Relationships: UC-4.4 «extend» UC-4.2  [user clicks "Export Excel"]
+
+UC-4.5  Export Report to CSV  (Create — client-side)
+  Actors: Director
+  Relationships: UC-4.5 «extend» UC-4.2  [user clicks "Export CSV"]
+
+UC-4.6  Export Report to DOCX  (Create — client-side)
+  Actors: Director
+  Relationships: UC-4.6 «extend» UC-4.2  [user clicks "Export DOCX"]
+
+UC-4.7  Export Bundle as ZIP  (Create — client-side)
+  Actors: Director
+  Description: all export formats bundled into a single .zip archive.
+  Relationships: UC-4.7 «extend» UC-4.2  [user clicks "Export ZIP"]
+
+------------------------------------------------------------
+6.3 Activity Log (Read)
+------------------------------------------------------------
+
+UC-4.8  View Activity Log  (Read)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user views paginated workspace event history (30 per
+  page). Role-scoped: Employee and Accountant see only their own
+  actions; Director sees all workspace events.
+  Draw four individual association lines.
+
+------------------------------------------------------------
+6.4 Notification CRUD
+------------------------------------------------------------
+
+UC-4.9  Receive In-App Notification  (Create — system-triggered)
+  Actors: System (left side), BrevoEmailService (external — right side)
+  Description: automated process creates a Notification record when
+  invoice status changes (submitted, approved, rejected, paid),
+  subscription expires, or a team member joins/is removed.
+  Simultaneously dispatches a transactional email via the Brevo HTTP API.
+  Relationships:
+    UC-4.9 «include» UC-4.10  (email always sent alongside in-app notif)
+
+UC-4.10  Send Email Notification  (Create — external)
+  Actors: BrevoEmailService (external — right side)
+  Description: Brevo REST API delivers the transactional email to the
+  recipient user. Included by UC-4.9. No human actor on the left.
+
+UC-4.11  View Notification Panel  (Read)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user opens the bell-icon notification panel; sees the
+  list of in-app notifications with unread-count badge. Polled every
+  30 seconds automatically.
+  Draw four individual association lines.
+
+UC-4.12  Mark Notification as Read  (Update — single)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user marks one notification as read; unread badge
+  decrements by one.
+  Relationships:
+    UC-4.12 «extend» UC-4.11  [condition: user clicks a notification]
+
+UC-4.13  Mark All Notifications as Read  (Update — bulk)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user marks every unread notification as read in one
+  action; badge resets to zero.
+  Relationships:
+    UC-4.13 «extend» UC-4.11  [condition: user clicks "Mark all
+                                as read"]
+
+------------------------------------------------------------
+6.5 Profile & Settings CRUD
+------------------------------------------------------------
+
+UC-4.14  Update User Profile  (Update)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user updates display name, email address, or uploads a
+  new avatar photo (PNG, JPG, WebP, max 5 MB).
+  Draw four individual association lines.
+
+UC-4.15  Update Password  (Update)
+  Actors: Employee, Director, Accountant, Personal
+  Description: user changes their password; must provide the current
+  password for verification, then the new password.
+  Draw four individual association lines.
+
+UC-4.16  Update Company Information  (Update — Director only)
+  Actors: Director
+  Description: Director edits company name, industry, address, website,
+  and company logo from the Settings page.
+  Note: this is Director self-service for their own company —
+  different from Admin UC-1.11. Both exist; do NOT merge them.
+
+UC-4.17  View Contract Details  (Read — Accountant only)
+  Actors: Accountant
+  Description: Accountant views their own contract_start date,
+  contract_end date, and current membership status from Settings.
+
+UC-4.18  Request Leave  (Create)
+  Actors: Accountant
+  Description: Accountant submits a leave request to the Director;
+  a pending leave request is created (Director responds via
+  UC-2.13 / UC-2.14 from Sprint 2).
+
+UC-4.19  Request Contract Renewal  (Create)
+  Actors: Accountant
+  Description: Accountant requests a contract renewal; Director
+  responds via UC-2.15 / UC-2.16 from Sprint 2.
+
+------------------------------------------------------------
+Sprint 4 — Relationships summary
+------------------------------------------------------------
+  UC-4.3  «extend» UC-4.2   [Export PDF]
+  UC-4.4  «extend» UC-4.2   [Export Excel]
+  UC-4.5  «extend» UC-4.2   [Export CSV]
+  UC-4.6  «extend» UC-4.2   [Export DOCX]
+  UC-4.7  «extend» UC-4.2   [Export ZIP]
+  UC-4.9  «include» UC-4.10  (email always sent with in-app notif)
+  UC-4.12 «extend» UC-4.11  [user clicks a notification]
+  UC-4.13 «extend» UC-4.11  [user clicks "Mark all as read"]
+
+
+#####################################################################
+# 7. SPRINT 5 USE CASE DIAGRAM
+#####################################################################
+
+Title: Sprint 5 — AI Assistance, Real-Time Chat & PWA
+Boundary label: "EASYfact — AI Assistant / Team Chat / PWA"
+Sprint goal: AI-guided invoice assistant, plan-gated real-time team
+messaging, PWA installation, and end-to-end stabilisation.
+
+Actors in this diagram (left side): Director, Accountant, Employee,
+  Personal
+External (right side): GroqChatAPI, Browser
+
+Notes:
+- Personal: associated only with UC-5.1 (AI Assistant) and
+  UC-5.11 (Install PWA). Personal has no team chat features.
+- Director: sole actor for UC-5.2 (Create Channel — Director only).
+- No System actor: Sprint 5 has no background cron jobs.
+
+------------------------------------------------------------
+7.1 AI Assistant
+------------------------------------------------------------
+
+UC-5.1  Ask AI Assistant  (Create — AI query)
+  Actors: Employee, Director, Accountant, Personal
+  + GroqChatAPI (external — right side)
+  Description: user types a question in the floating AI chat widget;
+  system builds a context prompt (workspace info + invoice status
+  totals, monthly trend, top vendors, recent invoices) and sends it to
+  GroqChatAPI; the reply is rendered in the chat bubble.
+  Note: Personal workspace users can also use the AI widget — include
+  Personal here.
+  Draw four individual association lines from the human actors.
+
+------------------------------------------------------------
+7.2 Chat — Conversation CRUD
+------------------------------------------------------------
+
+UC-5.2  Create Channel  (Create — plan-gated)
+  Actors: Director (Professional or Enterprise plan only)
+  Description: Director creates a new named channel in the workspace.
+  Plan feature required: can_create_channels = true.
+  Relationships:
+    UC-5.2 «include» UC-5.10  (plan check always runs before creation)
+
+UC-5.3  View Conversation List  (Read)
+  Actors: Employee, Director, Accountant
+  Description: user opens Chat and loads the sidebar list of all
+  channels and DMs with last-message preview and unread-count badges.
+  System auto-provisions the #general channel on first access if it
+  does not exist. Plan feature required: has_chat = true.
+  Relationships:
+    UC-5.3 «include» UC-5.10  (plan check always runs on chat open)
+
+UC-5.4  Create Direct Message Conversation  (Create — plan-gated)
+  Actors: Employee, Director, Accountant
+  Description: user starts (or resumes) a 1:1 DM with another
+  workspace member. Idempotent — returns existing DM if one exists.
+  Plan feature required: has_dm = true.
+  Relationships:
+    UC-5.4 «include» UC-5.10  (plan check always runs before DM creation)
+
+------------------------------------------------------------
+7.3 Chat — Message CRUD
+------------------------------------------------------------
+
+UC-5.5  Send Chat Message  (Create — via WebSocket)
+  Actors: Employee, Director, Accountant
+  Description: user types and sends a message; client emits
+  message:send socket event; message persisted to DB; gateway broadcasts
+  message:new to all conversation room members in real time.
+  Note: Socket.io connection, NOT HTTP.
+
+UC-5.6  View Message History  (Read)
+  Actors: Employee, Director, Accountant
+  Description: user opens a conversation and loads the 50 most recent
+  messages (oldest-first). Supports infinite scroll upward using a
+  before-cursor timestamp to load older batches of 50.
+
+UC-5.7  Delete Own Chat Message  (Delete — soft-delete, real-time)
+  Actors: Employee, Director, Accountant
+  Description: message author clicks trash icon on their own message;
+  client emits message:delete; system sets deleted_at timestamp
+  (soft-delete — NEVER hard delete); gateway broadcasts message:deleted
+  to all room members; UI shows "Message deleted" tombstone.
+  Precondition: requester must be the original message author.
+  Relationships:
+    UC-5.7 «extend» UC-5.6  [condition: user hovers own message
+                              and clicks delete]
+
+UC-5.8  Mark Conversation as Read  (Update)
+  Actors: Employee, Director, Accountant
+  Description: system updates last_read_at on the user's ChatMember
+  record when they open or focus a conversation, resetting the unread
+  counter for that conversation to zero.
+  Relationships:
+    UC-5.8 «extend» UC-5.6  [condition: user opens a conversation]
+
+------------------------------------------------------------
+7.4 Real-Time Signals (Ephemeral — zero DB persistence)
+------------------------------------------------------------
+
+UC-5.9  Show / Hide Typing Indicator  (ephemeral signal)
+  Actors: Employee, Director, Accountant
+  Description: when a user starts typing, client emits typing:start;
+  gateway broadcasts typing({..., typing:true}) to all other room
+  members excluding the sender. After 3 seconds of inactivity or an
+  explicit stop, client emits typing:stop; gateway clears the indicator.
+  Zero database writes throughout.
+  Note: draw as ONE use case covering both start and stop.
+  No entity or persistence involved.
+
+------------------------------------------------------------
+7.5 Plan Feature Gate (System sub-flow — no human initiator)
+------------------------------------------------------------
+
+UC-5.10  Check Plan Features  (system gate evaluation)
+  Actors: (system-internal — no actor association line on the left)
+  Description: ChatController evaluates the workspace's active
+  subscription plan for hasChat, hasDm, and canCreateChannels flags.
+  Admin role bypasses all gating (all flags = true). For non-admin
+  roles, flags are fetched from the active SubscriptionPlan record.
+  If the required feature flag is false, returns 403
+  PLAN_UPGRADE_REQUIRED and the UI shows a plan-upsell screen.
+  Included by: UC-5.2, UC-5.3, UC-5.4.
+  Notes: getPlanFeatures is defined inside chat.controller.js (not a
+  separate middleware). Draw this UC inside the boundary with NO actor
+  association line — reached only via «include» from UC-5.2/5.3/5.4.
+
+------------------------------------------------------------
+7.6 PWA Installation
+------------------------------------------------------------
+
+UC-5.11  Install PWA  (Create — browser-native)
+  Actors: Employee, Director, Accountant, Personal
+  + Browser (external — right side)
+  Description: Browser fires beforeinstallprompt when installability
+  criteria are met; app shows custom install banner; user clicks
+  "Install"; app calls event.prompt(); Browser shows native
+  confirmation dialog; on acceptance, app icon added to home screen.
+  Entirely client-side — no Controller, no Service, no Entity.
+  Note: Personal users can install the PWA — draw four individual
+  human actor lines.
+
+------------------------------------------------------------
+Sprint 5 — Relationships summary
+------------------------------------------------------------
+  UC-5.2  «include» UC-5.10  (plan check before channel creation)
+  UC-5.3  «include» UC-5.10  (plan check before chat list load)
+  UC-5.4  «include» UC-5.10  (plan check before DM creation)
+  UC-5.7  «extend»  UC-5.6   [user deletes own message]
+  UC-5.8  «extend»  UC-5.6   [user opens conversation]
+
+
+#####################################################################
+# 8. RENDERING RULES (apply to all 5 sprint diagrams)
+#####################################################################
+
+1.  One system boundary rectangle per sprint diagram. Title shown
+    inside or above the rectangle.
+
+2.  Human actors (User, Admin, Director, Accountant, Employee,
+    Personal, System) always on the LEFT of the boundary.
+    External systems (BrevoEmailService, GroqVisionAPI, GroqChatAPI,
+    Browser) always on the RIGHT.
+
+3.  No "WorkspaceMember" actor exists. When multiple roles share a
+    use case, draw individual association lines from each qualifying
+    role. Four lines to the same ellipse is correct and expected.
+
+4.  "User" actor (Sprint 1 only) = unauthenticated person doing
+    Register / Log In / Verify Email. In Sprint 2–5 all actors are
+    already authenticated; "User" does not appear.
+
+5.  "System" actor = automated background processes (OCR trigger,
+    expiry cron). Appears only in Sprint 3 (UC-3.1, UC-3.17, UC-3.18)
+    and Sprint 4 (UC-4.9). Never in Sprint 1, 2, or 5.
+
+6.  «include» arrow direction: FROM base UC → TO included UC.
+    Label: «include». The included UC executes every time.
+
+7.  «extend» arrow direction: FROM extending UC → TO base UC.
+    Label: «extend». Add the condition in square brackets on the arrow.
+
+8.  System-internal UCs with no human initiator (UC-1.19, UC-3.2,
+    UC-5.10): draw inside the boundary as normal ellipses but with NO
+    actor association line. Reached only via «include» arrows.
+
+9.  External system actors (BrevoEmailService in UC-1.2 and UC-4.10,
+    GroqVisionAPI in UC-3.1): draw the association line from the
+    external actor to the use case they participate in executing.
+
+10. Never draw "Log In", "Authenticate", or any auth check as a use
+    case in Sprint 2–5 diagrams. Authentication is a precondition.
+
+11. Never draw any subscription check as a use case in any sprint.
+    It is always a precondition described in the UC text only.
+
+12. Use case label style: short, verb-first, title-case, no tech names.
+    Correct: "Upload Invoice", "Mark as Paid", "Delete Document".
+    Wrong: "POST /invoices", "updateStatus()", "requireSubscription".
+
+13. Client-side-only UCs (UC-4.3–UC-4.7 export, UC-5.11 PWA):
+    fully valid use cases even with no backend. Keep each export
+    format separate — do NOT collapse into one "Export Report" UC.
+
+14. UC-5.9 (Typing Indicator): draw as one UC. Do NOT split into
+    "Start Typing" and "Stop Typing". No Entity involved.
+
+15. GroqVisionAPI: Sprint 3 only (UC-3.1).
+    GroqChatAPI: Sprint 5 only (UC-5.1).
+    Browser: Sprint 5 only (UC-5.11).
+    BrevoEmailService: Sprint 1 (UC-1.2) and Sprint 4 (UC-4.10) only.
+    Never place an external system in the wrong sprint diagram.
+
+16. Admin: Sprint 1 only. Not in Sprint 2–5 diagrams.
+
+17. Status-workflow UCs (UC-3.6–UC-3.11): keep each as a separate UC.
+    Never merge Approve and Reject — different actors, different
+    preconditions, different status transitions.
+
+18. Browser in UC-5.11 is an EXTERNAL SYSTEM, not a human actor.
+    Draw it on the right side of the boundary like GroqChatAPI.
