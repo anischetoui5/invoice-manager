@@ -27,12 +27,13 @@ server.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
 
-// Keep-alive: ping self every 10 minutes so Render free tier doesn't spin down
+// Keep-alive: ping self every 10 minutes so Render free tier doesn't spin down.
+// No-op outside Render (RENDER_EXTERNAL_URL is only set there) so local dev is unaffected.
 const cron = require('node-cron');
 function pingSelf() {
-  const https = require('https');
-  const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
-  https.get(`${url}/api/health`, () => {}).on('error', () => {});
+  const url = process.env.RENDER_EXTERNAL_URL;
+  if (!url) return;
+  require('https').get(`${url}/api/health`, () => {}).on('error', () => {});
 }
 pingSelf(); // ping immediately on boot/deploy, don't wait for the first 10-minute tick
 cron.schedule('*/10 * * * *', pingSelf);
