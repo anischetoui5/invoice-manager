@@ -29,8 +29,10 @@ server.listen(port, () => {
 
 // Keep-alive: ping self every 10 minutes so Render free tier doesn't spin down
 const cron = require('node-cron');
-cron.schedule('*/10 * * * *', () => {
+function pingSelf() {
   const https = require('https');
   const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
   https.get(`${url}/api/health`, () => {}).on('error', () => {});
-});
+}
+pingSelf(); // ping immediately on boot/deploy, don't wait for the first 10-minute tick
+cron.schedule('*/10 * * * *', pingSelf);
