@@ -71,9 +71,11 @@ export function Subscription() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const invoiceUsagePercent = currentSubscription.invoiceLimit > 0
+  const isInvoiceUnlimited = currentSubscription.invoiceLimit === -1;
+  const isUserUnlimited    = currentSubscription.userLimit === -1;
+  const invoiceUsagePercent = !isInvoiceUnlimited && currentSubscription.invoiceLimit > 0
     ? (currentSubscription.invoiceUsed / currentSubscription.invoiceLimit) * 100 : 0;
-  const userUsagePercent = currentSubscription.userLimit > 0
+  const userUsagePercent = !isUserUnlimited && currentSubscription.userLimit > 0
     ? (currentSubscription.userCount / currentSubscription.userLimit) * 100 : 0;
 
   const handleUpgradeClick = async (plan: Plan) => {
@@ -179,10 +181,10 @@ export function Subscription() {
                 <span className="text-sm font-medium text-foreground">Invoice Usage</span>
               </div>
               <span className="text-xs text-muted-foreground tabular-nums">
-                {currentSubscription.invoiceUsed} / {currentSubscription.invoiceLimit}
+                {currentSubscription.invoiceUsed} / {isInvoiceUnlimited ? '∞' : currentSubscription.invoiceLimit}
               </span>
             </div>
-            <Progress value={invoiceUsagePercent} className="h-1.5" />
+            {!isInvoiceUnlimited && <Progress value={invoiceUsagePercent} className="h-1.5" />}
           </div>
           <div>
             <div className="mb-2 flex items-center justify-between">
@@ -191,10 +193,10 @@ export function Subscription() {
                 <span className="text-sm font-medium text-foreground">User Seats</span>
               </div>
               <span className="text-xs text-muted-foreground tabular-nums">
-                {currentSubscription.userCount} / {currentSubscription.userLimit}
+                {currentSubscription.userCount} / {isUserUnlimited ? '∞' : currentSubscription.userLimit}
               </span>
             </div>
-            <Progress value={userUsagePercent} className="h-1.5" />
+            {!isUserUnlimited && <Progress value={userUsagePercent} className="h-1.5" />}
           </div>
         </div>
       </div>
@@ -261,7 +263,7 @@ export function Subscription() {
       <div className="grid gap-4 lg:grid-cols-3">
         {[
           { icon: TrendingUp, color: 'text-primary bg-primary/10', title: 'Monthly Trend', value: '+23%', sub: 'vs last month' },
-          { icon: Users,      color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30', title: 'Active Users', value: String(currentSubscription.userCount), sub: `of ${currentSubscription.userLimit} seats` },
+          { icon: Users,      color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30', title: 'Active Users', value: String(currentSubscription.userCount), sub: isUserUnlimited ? 'unlimited seats' : `of ${currentSubscription.userLimit} seats` },
           { icon: Zap,        color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30', title: 'Efficiency', value: '2.4h', sub: 'avg processing time' },
         ].map(({ icon: Icon, color, title, value, sub }) => (
           <div key={title} className="erp-card rounded-lg p-5">
